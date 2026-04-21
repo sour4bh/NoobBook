@@ -1,0 +1,340 @@
+"""
+User Service - Admin-oriented user management (roles, create, delete).
+
+Note: This service uses a dedicated Supabase client for admin operations.
+The shared singleton client gets user sessions set on it during sign-in,
+which causes auth.admin methods to use the user's token instead of the
+service_role key. By creating a separate client here, we ensure admin
+operations always use the service_role key.
+"""
+import logging
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
+from supabase import create_client
+
+from app.services.integrations.supabase import is_supabase_enabled
+from app.utils.password_utils import generate_secure_password
+
+logger = logging.getLogger(__name__)
+
+
+class UserService:
+    def __init__(self) -> None:
+        if not is_supabase_enabled():
+            raise RuntimeError(
+                "Supabase is not configured. Please add SUPABASE_URL and "
+                "SUPABASE_ANON_KEY to your .env file."
+            )
+        # Create a dedicated client for admin operations to avoid session contamination
+        # from user logins on the shared singleton client
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_KEY")
+        if not supabase_url:
+            raise RuntimeError(
+                "SUPABASE_URL is required for admin user management. "
+                "Please add it to your .env file."
+            )
+        if not service_key:
+            raise RuntimeError(
+                "SUPABASE_SERVICE_KEY is required for admin user management. "
+                "Please add it to your .env file."
+            )
+        self.supabase = create_client(supabase_url, service_key)
+        self.table = "users"
+
+    def list_users(self) -> List[Dict[str, str]]:
+        resp = (
+            self.supabase.table(self.table)
+            .select("id, email, role, settings, created_at, updated_at")
+            .order("created_at", desc=False)
+            .execute()
+        )
+        users = resp.data or []
+        # Surface spending fields from settings JSONB for the frontend table
+        for user in users:
+            settings = user.pop("settings", None) or {}
+            user["cost_limit"] = settings.get("cost_limit")
+            user["reset_frequency"] = settings.get("reset_frequency")  # daily/weekly/monthly/null
+            user["period_spend"] = settings.get("period_spend", 0.0)
+            user["period_start"] = settings.get("period_start")
+        return users
+
+    def get_user(self, user_id: str) -> Optional[Dict[str, str]]:
+        resp = (
+            self.supabase.table(self.table)
+            .select("id, email, role, settings, created_at, updated_at")
+            .eq("id", user_id)
+            .execute()
+        )
+        if resp.data:
+            user = resp.data[0]
+            settings = user.pop("settings", None) or {}
+            user["cost_limit"] = settings.get("cost_limit")
+            user["reset_frequency"] = settings.get("reset_frequency")
+            user["period_spend"] = settings.get("period_spend", 0.0)
+            user["period_start"] = settings.get("period_start")
+            return user
+        return None
+
+    def get_user_settings_raw(self, user_id: str) -> Dict[str, Any]:
+        """Read the raw settings JSONB for a user."""
+        resp = (
+            self.supabase.table(self.table)
+            .select("settings")
+            .eq("id", user_id)
+            .execute()
+        )
+        if not resp.data:
+            return {}
+        return resp.data[0].get("settings") or {}
+
+    def save_user_settings(self, user_id: str, settings: Dict[str, Any]) -> bool:
+        """Write the full settings JSONB for a user."""
+        resp = (
+            self.supabase.table(self.table)
+            .update({"settings": settings})
+            .eq("id", user_id)
+            .execute()
+        )
+        return bool(resp.data)
+
+    def update_spending_config(
+        self,
+        user_id: str,
+        cost_limit: Optional[float] = None,
+        reset_frequency: Optional[str] = None,
+    ) -> bool:
+        """
+        Update a user's spending limit and reset frequency.
+
+        Educational Note: Stored in users.settings JSONB.
+        - cost_limit: Max USD per period (null = unlimited)
+        - reset_frequency: "daily" | "weekly" | "monthly" | null (null = lifetime/no reset)
+        - When reset_frequency changes, period_spend resets to 0 with a new period_start
+        """
+        settings = self.get_user_settings_raw(user_id)
+        if settings is None:
+            return False
+
+        old_freq = settings.get("reset_frequency")
+
+        # Update limit
+        if cost_limit is not None and cost_limit > 0:
+            settings["cost_limit"] = cost_limit
+        elif cost_limit is None or cost_limit == 0:
+            settings.pop("cost_limit", None)
+            settings.pop("reset_frequency", None)
+            settings.pop("period_spend", None)
+            settings.pop("period_start", None)
+            return self.save_user_settings(user_id, settings)
+
+        # Update reset frequency
+        if reset_frequency in ("daily", "weekly", "monthly"):
+            settings["reset_frequency"] = reset_frequency
+            # Reset period if frequency changed
+            if reset_frequency != old_freq:
+                from datetime import datetime
+                settings["period_spend"] = 0.0
+                settings["period_start"] = datetime.utcnow().isoformat() + "Z"
+        else:
+            settings.pop("reset_frequency", None)
+            settings.pop("period_spend", None)
+            settings.pop("period_start", None)
+
+        return self.save_user_settings(user_id, settings)
+
+    def increment_period_spend(self, user_id: str, amount: float) -> None:
+        """
+        Add to the user's period_spend after a successful API call.
+
+        Educational Note: Called from cost_tracking.add_usage() alongside
+        project and chat cost updates. Only increments if the user has
+        a cost_limit with a reset_frequency configured.
+        """
+        settings = self.get_user_settings_raw(user_id)
+        if not settings.get("cost_limit") or not settings.get("reset_frequency"):
+            return  # No period tracking configured
+
+        settings["period_spend"] = settings.get("period_spend", 0.0) + amount
+        self.save_user_settings(user_id, settings)
+
+    def get_user_total_spend(self, user_id: str) -> float:
+        """
+        Sum total_cost across all projects owned by this user.
+
+        Educational Note: Each project stores a costs JSONB with total_cost.
+        We aggregate across all projects to get the user's total spend.
+        """
+        from app.services.integrations.supabase import get_supabase
+        client = get_supabase()
+        resp = (
+            client.table("projects")
+            .select("costs")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        total = 0.0
+        for project in (resp.data or []):
+            costs = project.get("costs") or {}
+            total += costs.get("total_cost", 0.0)
+        return total
+
+    def count_admins(self) -> int:
+        resp = (
+            self.supabase.table(self.table)
+            .select("id")
+            .eq("role", "admin")
+            .execute()
+        )
+        return len(resp.data or [])
+
+    def update_role(self, user_id: str, role: str) -> Optional[Dict[str, str]]:
+        if role not in {"admin", "user"}:
+            raise ValueError("role must be 'admin' or 'user'")
+
+        existing = self.get_user(user_id)
+        if not existing:
+            return None
+
+        if existing.get("role") == "admin" and role == "user":
+            if self.count_admins() <= 1:
+                raise ValueError("Cannot remove the last admin user")
+
+        resp = (
+            self.supabase.table(self.table)
+            .update({"role": role})
+            .eq("id", user_id)
+            .execute()
+        )
+        if resp.data:
+            return resp.data[0]
+        return self.get_user(user_id)
+
+    def create_user(self, email: str, role: str = "user") -> Tuple[Dict, str]:
+        """
+        Create a new user with a generated password.
+
+        Args:
+            email: User's email address
+            role: User role ('admin' or 'user', default 'user')
+
+        Returns:
+            Tuple of (user_dict, plain_password)
+
+        Raises:
+            ValueError: If email is invalid or already exists
+        """
+        email = email.strip().lower()
+        if not email or "@" not in email:
+            raise ValueError("Invalid email address")
+
+        if role not in {"admin", "user"}:
+            raise ValueError("role must be 'admin' or 'user'")
+
+        # Check if user already exists
+        existing = (
+            self.supabase.table(self.table)
+            .select("id")
+            .eq("email", email)
+            .execute()
+        )
+        if existing.data:
+            raise ValueError("A user with this email already exists")
+
+        # Generate secure password
+        password = generate_secure_password()
+
+        # Create user in Supabase Auth
+        response = self.supabase.auth.admin.create_user({
+            "email": email,
+            "password": password,
+            "email_confirm": True
+        })
+
+        auth_user = getattr(response, "user", None) or response
+        user_id = getattr(auth_user, "id", None)
+
+        if not user_id:
+            raise ValueError("Failed to create user in auth system")
+
+        # Create profile in public.users
+        self.supabase.table(self.table).insert({
+            "id": user_id,
+            "email": email,
+            "role": role,
+            "memory": {},
+            "settings": {}
+        }).execute()
+
+        user = self.get_user(user_id)
+        return user, password
+
+    def delete_user(self, user_id: str, requesting_user_id: str) -> bool:
+        """
+        Delete a user.
+
+        Args:
+            user_id: ID of user to delete
+            requesting_user_id: ID of admin making the request
+
+        Returns:
+            True if deletion was successful
+
+        Raises:
+            ValueError: If trying to delete self or last admin
+        """
+        if user_id == requesting_user_id:
+            raise ValueError("Cannot delete yourself")
+
+        existing = self.get_user(user_id)
+        if not existing:
+            raise ValueError("User not found")
+
+        # Check if deleting last admin
+        if existing.get("role") == "admin":
+            if self.count_admins() <= 1:
+                raise ValueError("Cannot delete the last admin user")
+
+        # Delete from auth.users (cascade will handle public.users via RLS)
+        self.supabase.auth.admin.delete_user(user_id)
+
+        return True
+
+    def reset_password(self, user_id: str) -> str:
+        """
+        Reset a user's password to a new generated password.
+
+        Args:
+            user_id: ID of user whose password to reset
+
+        Returns:
+            The new plain-text password
+
+        Raises:
+            ValueError: If user not found
+        """
+        existing = self.get_user(user_id)
+        if not existing:
+            raise ValueError("User not found")
+
+        password = generate_secure_password()
+
+        self.supabase.auth.admin.update_user_by_id(
+            user_id,
+            {"password": password}
+        )
+
+        return password
+
+
+_user_service: Optional[UserService] = None
+
+
+def get_user_service() -> UserService:
+    """Lazy initialization — only create the client when first needed."""
+    global _user_service
+    if _user_service is None:
+        _user_service = UserService()
+    return _user_service
+

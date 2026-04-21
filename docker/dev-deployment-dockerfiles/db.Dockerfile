@@ -1,0 +1,10 @@
+FROM supabase/postgres:15.8.1.085
+
+# Bake init scripts into the image (bind mounts don't work in Coolify)
+COPY docker/supabase/volumes/db/realtime.sql  /docker-entrypoint-initdb.d/migrations/99-realtime.sql
+COPY docker/supabase/volumes/db/_supabase.sql /docker-entrypoint-initdb.d/migrations/97-_supabase.sql
+COPY docker/supabase/volumes/db/logs.sql      /docker-entrypoint-initdb.d/migrations/99-logs.sql
+COPY docker/supabase/volumes/db/pooler.sql    /docker-entrypoint-initdb.d/migrations/99-pooler.sql
+COPY docker/supabase/volumes/db/webhooks.sql  /docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
+COPY docker/supabase/volumes/db/roles.sql     /docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+COPY docker/supabase/volumes/db/jwt.sql       /docker-entrypoint-initdb.d/init-scripts/99-jwt.sql

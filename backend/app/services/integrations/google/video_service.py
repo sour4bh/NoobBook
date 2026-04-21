@@ -1,0 +1,167 @@
+"""
+Google Video Service - Integration with Google Veo 2.0 for video generation.
+
+Educational Note: This is a thin wrapper around Google's Veo API.
+The service handles video generation requests and file downloads.
+"""
+import logging
+import os
+import time
+import tempfile
+from typing import Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
+
+
+class GoogleVideoService:
+    """
+    Google Veo 2.0 video generation integration.
+
+    Educational Note: Veo 2.0 generates high-quality videos from text prompts.
+    Supports aspect ratios (16:9, 16:10), durations (5-8 seconds), and batch generation (1-4 videos).
+    """
+
+    MODEL = "veo-2.0-generate-001"
+
+    def __init__(self):
+        """Initialize with API key from environment."""
+        self.api_key = os.getenv("VEO_API_KEY")
+        self._client = None
+
+    def _get_client(self):
+        """Lazy load the Google GenAI client."""
+        if self._client is None:
+            try:
+                from google import genai
+                self._client = genai.Client(
+                    http_options={"api_version": "v1beta"},
+                    api_key=self.api_key,
+                )
+            except ImportError:
+                raise ImportError(
+                    "google-genai package not installed. "
+                    "Install with: pip install google-genai"
+                )
+        return self._client
+
+    def is_configured(self) -> bool:
+        """Check if VEO_API_KEY is set."""
+        return bool(self.api_key)
+
+    def generate_video_bytes(
+        self,
+        prompt: str,
+        aspect_ratio: str = "16:9",
+        duration_seconds: int = 8,
+        number_of_videos: int = 1,
+        person_generation: str = "ALLOW_ALL",
+        on_progress: Optional[callable] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate video(s) and return as bytes (for Supabase upload).
+
+        Educational Note: The Google SDK's .save(filepath) only writes to disk,
+        so we use a temp directory internally and read the bytes back.
+
+        Args:
+            prompt: Text prompt describing the video to generate
+            aspect_ratio: "16:9" or "16:10"
+            duration_seconds: 5-8 seconds
+            number_of_videos: 1-4 videos
+            person_generation: "ALLOW_ALL" or other policy
+            on_progress: Optional callback for progress updates
+
+        Returns:
+            Dict with success status and video bytes:
+            {
+                "success": True,
+                "videos": [{"filename": str, "video_bytes": bytes, "uri": str, "index": int}]
+            }
+        """
+        if not self.is_configured():
+            return {"success": False, "error": "VEO_API_KEY not configured"}
+
+        try:
+            from google.genai import types
+
+            client = self._get_client()
+
+            video_config = types.GenerateVideosConfig(
+                aspect_ratio=aspect_ratio,
+                number_of_videos=number_of_videos,
+                duration_seconds=duration_seconds,
+                person_generation=person_generation,
+            )
+
+            logger.info("Starting video generation: %s...", prompt[:50])
+            operation = client.models.generate_videos(
+                model=self.MODEL,
+                prompt=prompt,
+                config=video_config,
+            )
+
+            # Poll for completion
+            poll_count = 0
+            max_polls = 120
+
+            while not operation.done:
+                poll_count += 1
+                if poll_count > max_polls:
+                    return {
+                        "success": False,
+                        "error": "Video generation timed out after 20 minutes"
+                    }
+
+                progress_msg = f"Generating video... (check {poll_count})"
+
+                if on_progress:
+                    on_progress(progress_msg)
+
+                time.sleep(10)
+                operation = client.operations.get(operation)
+
+            result = operation.result
+            if not result:
+                return {"success": False, "error": "No result returned from video generation"}
+
+            generated_videos = result.generated_videos
+            if not generated_videos:
+                return {"success": False, "error": "No videos were generated"}
+
+            logger.info("Generated %s video(s)", len(generated_videos))
+            video_files = []
+
+            # Save to temp directory and read bytes back
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                for idx, generated_video in enumerate(generated_videos):
+                    video_uri = generated_video.video.uri
+
+                    client.files.download(file=generated_video.video)
+
+                    filename = f"video_{idx + 1}.mp4"
+                    tmp_path = os.path.join(tmp_dir, filename)
+                    generated_video.video.save(tmp_path)
+
+                    with open(tmp_path, 'rb') as f:
+                        video_bytes = f.read()
+
+                    video_files.append({
+                        "filename": filename,
+                        "video_bytes": video_bytes,
+                        "uri": video_uri,
+                        "index": idx + 1
+                    })
+
+            return {
+                "success": True,
+                "videos": video_files,
+                "count": len(video_files)
+            }
+
+        except Exception as e:
+            logger.exception("Video generation error")
+            return {"success": False, "error": str(e)}
+
+
+# Singleton instance
+google_video_service = GoogleVideoService()

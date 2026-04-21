@@ -1,0 +1,595 @@
+"""
+API Key management endpoints.
+
+Educational Note: Managing API keys securely is critical for any LLM application.
+This module demonstrates several security patterns:
+
+1. Key Masking:
+   - Never send full API keys to frontend
+   - Show only first/last few characters: "sk-...xyz"
+   - Detect masked values on update (skip re-saving)
+
+2. Key Validation:
+   - Test keys before saving by making minimal API calls
+   - Each service has its own validation logic
+   - Validation happens server-side (keys never leave backend)
+
+3. .env Storage:
+   - Keys stored in .env file (not database)
+   - .env is gitignored (never committed)
+   - Changes trigger environment reload
+
+4. Auto-Configuration:
+   - Some keys trigger automatic setup (e.g., Pinecone creates index)
+   - Related settings saved automatically (index name, region)
+
+Supported API Keys:
+- ANTHROPIC_API_KEY: Claude AI models
+- ELEVENLABS_API_KEY: Speech-to-text
+- OPENAI_API_KEY: Embeddings
+- PINECONE_API_KEY: Vector database (+ auto-creates index)
+- TAVILY_API_KEY: Web search
+- GOOGLE_CLIENT_ID/SECRET: Google Drive OAuth
+- GEMINI/VEO/NANO_BANANA: Google AI services
+- NOTION_API_KEY: Notion integration (chat tools)
+- JIRA_CLOUD_ID/EMAIL/API_KEY: Jira integration (chat tools)
+
+Routes:
+- GET    /settings/api-keys           - List all keys (masked)
+- POST   /settings/api-keys           - Update keys
+- DELETE /settings/api-keys/<key_id>  - Delete a key
+- POST   /settings/api-keys/validate  - Validate a key
+"""
+from flask import jsonify, request, current_app
+from app.api.settings import settings_bp
+from app.services.app_settings import EnvService, ValidationService
+from app.services.auth.rbac import require_admin
+
+# Initialize services
+env_service = EnvService()
+validation_service = ValidationService()
+
+# API keys configuration - defines all managed keys
+API_KEYS_CONFIG = [
+    {
+        'id': 'ANTHROPIC_API_KEY',
+        'name': 'Anthropic API',
+        'description': 'Claude AI models for chat',
+        'category': 'ai',
+        'required': True
+    },
+    {
+        'id': 'ELEVENLABS_API_KEY',
+        'name': 'ElevenLabs API',
+        'description': 'Real-time speech-to-text transcription',
+        'category': 'ai',
+        'required': True
+    },
+    {
+        'id': 'OPENAI_API_KEY',
+        'name': 'OpenAI API',
+        'description': 'OpenAI models for embeddings (text-embedding-3-small)',
+        'category': 'ai'
+    },
+    {
+        'id': 'GEMINI_2_5_API_KEY',
+        'name': 'Gemini 2.5',
+        'description': 'Google Gemini 2.5 text generation',
+        'category': 'ai'
+    },
+    {
+        'id': 'NANO_BANANA_API_KEY',
+        'name': 'Nano Banana',
+        'description': 'Gemini 3 Pro Image generation',
+        'category': 'ai'
+    },
+    {
+        'id': 'VEO_API_KEY',
+        'name': 'VEO',
+        'description': 'Google VEO 2.0 video generation',
+        'category': 'ai'
+    },
+    {
+        'id': 'PINECONE_API_KEY',
+        'name': 'Pinecone API Key',
+        'description': 'Vector database - auto-creates index on validation',
+        'category': 'storage'
+    },
+    {
+        'id': 'PINECONE_INDEX_NAME',
+        'name': 'Pinecone Index Name',
+        'description': 'Auto-managed (set after API key validation)',
+        'category': 'storage'
+    },
+    {
+        'id': 'PINECONE_REGION',
+        'name': 'Pinecone Region',
+        'description': 'Auto-managed (set after API key validation)',
+        'category': 'storage'
+    },
+    {
+        'id': 'TAVILY_API_KEY',
+        'name': 'Tavily AI',
+        'description': 'Web search AI',
+        'category': 'utility'
+    },
+    {
+        'id': 'GOOGLE_CLIENT_ID',
+        'name': 'Google Client ID',
+        'description': 'Google OAuth client ID for Drive integration',
+        'category': 'utility'
+    },
+    {
+        'id': 'GOOGLE_CLIENT_SECRET',
+        'name': 'Google Client Secret',
+        'description': 'Google OAuth client secret for Drive integration',
+        'category': 'utility'
+    },
+    {
+        'id': 'WEBSHARE_API_KEY',
+        'name': 'Webshare Proxy',
+        'description': 'Proxy rotation for YouTube transcript fetching',
+        'category': 'utility'
+    },
+    {
+        'id': 'NOTION_API_KEY',
+        'name': 'Notion Integration',
+        'description': 'Notion API key — enables Claude to search and read Notion pages in chat',
+        'category': 'integrations'
+    },
+    {
+        'id': 'JIRA_CLOUD_ID',
+        'name': 'Jira Cloud ID',
+        'description': 'Atlassian Cloud ID (from admin.atlassian.com → your-site → Settings)',
+        'category': 'integrations'
+    },
+    {
+        'id': 'JIRA_EMAIL',
+        'name': 'Jira Email',
+        'description': 'Atlassian account email for API authentication',
+        'category': 'integrations'
+    },
+    {
+        'id': 'JIRA_API_KEY',
+        'name': 'Jira API Token',
+        'description': 'Atlassian API token (from id.atlassian.com/manage-profile/security/api-tokens)',
+        'category': 'integrations'
+    },
+    {
+        'id': 'FRESHDESK_DOMAIN',
+        'name': 'Freshdesk Domain',
+        'description': 'Your Freshdesk subdomain (e.g. company.freshdesk.com)',
+        'category': 'integrations'
+    },
+    {
+        'id': 'FRESHDESK_API_KEY',
+        'name': 'Freshdesk API Key',
+        'description': 'Freshdesk API key (from Profile Settings > API Key)',
+        'category': 'integrations'
+    },
+    {
+        'id': 'MIXPANEL_SERVICE_ACCOUNT_USERNAME',
+        'name': 'Mixpanel Service Account Username',
+        'description': 'Service account username (Mixpanel → Project settings → Service Accounts)',
+        'category': 'integrations'
+    },
+    {
+        'id': 'MIXPANEL_SERVICE_ACCOUNT_SECRET',
+        'name': 'Mixpanel Service Account Secret',
+        'description': 'Service account secret (shown only at creation time)',
+        'category': 'integrations'
+    },
+    {
+        'id': 'MIXPANEL_PROJECT_ID',
+        'name': 'Mixpanel Project ID',
+        'description': 'Numeric project ID (Mixpanel → Project settings → Overview)',
+        'category': 'integrations'
+    },
+    {
+        'id': 'MIXPANEL_REGION',
+        'name': 'Mixpanel Region',
+        'description': 'Data residency region: us (default), eu, or in',
+        'category': 'integrations'
+    },
+    {
+        'id': 'OPIK_API_KEY',
+        'name': 'Opik API Key',
+        'description': 'Opik LLM observability — auto-traces all Claude calls (comet.com/opik)',
+        'category': 'observability'
+    },
+    {
+        'id': 'OPIK_WORKSPACE',
+        'name': 'Opik Workspace',
+        'description': 'Opik workspace name from your dashboard',
+        'category': 'observability'
+    },
+    {
+        'id': 'OPIK_PROJECT_NAME',
+        'name': 'Opik Project Name',
+        'description': 'Project name in Opik dashboard (default: NoobBook)',
+        'category': 'observability'
+    },
+    {
+        'id': 'OPIK_URL_OVERRIDE',
+        'name': 'Opik URL Override',
+        'description': 'Custom URL for self-hosted Opik (leave empty for Opik Cloud)',
+        'category': 'observability'
+    },
+]
+
+
+@settings_bp.route('/settings/api-keys', methods=['GET'])
+@require_admin
+def get_api_keys():
+    """
+    Get all API keys (with values masked for security).
+
+    Educational Note: We never send actual API key values to the frontend.
+    Instead, we send masked versions (showing only first/last few characters).
+    This prevents accidental exposure via browser dev tools, logs, etc.
+
+    Returns:
+        {
+            "success": true,
+            "api_keys": [
+                {
+                    "id": "ANTHROPIC_API_KEY",
+                    "name": "Anthropic API",
+                    "description": "...",
+                    "category": "ai",
+                    "required": true,
+                    "value": "sk-a...xyz",  # masked
+                    "is_set": true
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        api_keys = []
+        for key_config in API_KEYS_CONFIG:
+            value = env_service.get_key(key_config['id'])
+            masked_value = env_service.mask_key(value) if value else ''
+
+            api_keys.append({
+                'id': key_config['id'],
+                'name': key_config['name'],
+                'description': key_config['description'],
+                'category': key_config['category'],
+                'required': key_config.get('required', False),
+                'value': masked_value,
+                'is_set': bool(value)
+            })
+
+        return jsonify({
+            'success': True,
+            'api_keys': api_keys
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting API keys: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@settings_bp.route('/settings/api-keys', methods=['POST'])
+@require_admin
+def update_api_keys():
+    """
+    Update API keys in the .env file and trigger Flask reload.
+
+    Educational Note: This endpoint demonstrates safe key update pattern:
+    1. Skip masked values (haven't changed)
+    2. Save new values to .env file
+    3. Reload environment variables
+    4. Verify keys were saved correctly
+
+    The skip-masked pattern is important: when frontend loads keys,
+    it gets masked values. If user doesn't change a key, it stays masked.
+    We detect this and don't overwrite with the mask.
+
+    Request Body:
+        {
+            "api_keys": [
+                {"id": "ANTHROPIC_API_KEY", "value": "sk-ant-..."},
+                {"id": "OPENAI_API_KEY", "value": "***masked***"}  # skipped
+            ]
+        }
+
+    Returns:
+        { "success": true, "message": "API keys updated successfully" }
+    """
+    try:
+        data = request.get_json()
+        if not data or 'api_keys' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'No API keys provided'
+            }), 400
+
+        api_keys = data['api_keys']
+        current_app.logger.info(f"Received {len(api_keys)} keys to update")
+
+        # Update each API key in .env
+        updated_count = 0
+        for key_data in api_keys:
+            key_id = key_data.get('id')
+            value = key_data.get('value', '')
+
+            # Skip if value is masked (starts with asterisks)
+            if value and not value.startswith('***'):
+                env_service.set_key(key_id, value)
+                updated_count += 1
+                current_app.logger.info(f"Updated API key: {key_id}")
+
+        # Save and reload
+        env_service.save()
+        env_service.reload_env()
+
+        # Verify keys were saved
+        for key_data in api_keys:
+            key_id = key_data.get('id')
+            value = key_data.get('value', '')
+            if value and not value.startswith('***'):
+                saved_value = env_service.get_key(key_id)
+                if not saved_value:
+                    current_app.logger.error(f"Failed to verify {key_id} in environment!")
+
+        # Reload integration service configs so they pick up new keys without restart
+        for key_data in api_keys:
+            key_id = key_data.get('id')
+            value = key_data.get('value', '')
+            if value and not value.startswith('***'):
+                if key_id == 'NOTION_API_KEY':
+                    from app.services.integrations.knowledge_bases.notion.notion_service import notion_service
+                    notion_service.reload_config()
+                elif key_id in ('JIRA_API_KEY', 'JIRA_CLOUD_ID', 'JIRA_EMAIL'):
+                    from app.services.integrations.knowledge_bases.jira.jira_service import jira_service
+                    jira_service.reload_config()
+                elif key_id in ('FRESHDESK_API_KEY', 'FRESHDESK_DOMAIN'):
+                    from app.services.integrations.freshdesk.freshdesk_service import freshdesk_service
+                    freshdesk_service.reload_config()
+                elif key_id in (
+                    'MIXPANEL_SERVICE_ACCOUNT_USERNAME',
+                    'MIXPANEL_SERVICE_ACCOUNT_SECRET',
+                    'MIXPANEL_PROJECT_ID',
+                    'MIXPANEL_REGION',
+                ):
+                    from app.services.integrations.knowledge_bases.mixpanel.mixpanel_service import mixpanel_service
+                    mixpanel_service.reload_config()
+                elif key_id in ('OPIK_API_KEY', 'OPIK_WORKSPACE', 'OPIK_PROJECT_NAME', 'OPIK_URL_OVERRIDE'):
+                    # Reset Claude client so it re-initializes with/without Opik wrapping
+                    from app.services.integrations.claude.claude_service import claude_service
+                    claude_service._client = None
+
+        current_app.logger.info(f"Updated {updated_count} API keys")
+
+        return jsonify({
+            'success': True,
+            'message': 'API keys updated successfully'
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error updating API keys: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@settings_bp.route('/settings/api-keys/<key_id>', methods=['DELETE'])
+@require_admin
+def delete_api_key(key_id):
+    """
+    Delete a specific API key from the .env file.
+
+    Educational Note: This removes the key entirely from the .env file,
+    not just clearing its value. For some keys, we also clean up
+    related configuration (e.g., Pinecone index name and region).
+
+    URL Parameters:
+        key_id: The environment variable name (e.g., "ANTHROPIC_API_KEY")
+
+    Returns:
+        { "success": true, "message": "API key ... deleted successfully" }
+    """
+    try:
+        # Delete the main key
+        env_service.delete_key(key_id)
+
+        # If deleting Pinecone API key, also delete related config
+        if key_id == 'PINECONE_API_KEY':
+            current_app.logger.info("Deleting related Pinecone configuration...")
+            env_service.delete_key('PINECONE_INDEX_NAME')
+            env_service.delete_key('PINECONE_REGION')
+
+        env_service.save()
+        env_service.reload_env()
+
+        return jsonify({
+            'success': True,
+            'message': f'API key {key_id} deleted successfully'
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error deleting API key {key_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@settings_bp.route('/settings/api-keys/validate', methods=['POST'])
+@require_admin
+def validate_api_key():
+    """
+    Validate an API key by making a test request to the service.
+
+    Educational Note: Validation tests if a key actually works by making
+    a minimal API call to each service. This prevents users from saving
+    invalid keys and only discovering the problem later.
+
+    Each service has custom validation:
+    - Anthropic: Makes a minimal completion request
+    - OpenAI: Tests the embeddings endpoint
+    - Pinecone: Checks/creates the index (auto-configures settings)
+    - ElevenLabs: Tests token generation
+    - Tavily: Makes a test search
+
+    For Pinecone specifically, successful validation automatically:
+    1. Creates the "growthxlearn" index if it doesn't exist
+    2. Saves index name and region to .env
+
+    Request Body:
+        { "key_id": "ANTHROPIC_API_KEY", "value": "sk-ant-..." }
+
+    Returns:
+        {
+            "success": true,
+            "valid": true,
+            "message": "API key is valid"
+        }
+    """
+    try:
+        data = request.get_json()
+        if not data or 'key_id' not in data or 'value' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing key_id or value'
+            }), 400
+
+        key_id = data['key_id']
+        value = data['value']
+
+        # Skip validation for masked values (already validated)
+        if value.startswith('***'):
+            return jsonify({
+                'success': True,
+                'valid': True,
+                'message': 'Key already set'
+            }), 200
+
+        # Validate based on key type
+        is_valid, message = _validate_key(key_id, value)
+
+        current_app.logger.info(f"Validation result for {key_id}: {is_valid} - {message}")
+
+        return jsonify({
+            'success': True,
+            'valid': is_valid,
+            'message': message
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error validating API key: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
+    """
+    Validate a specific API key using the appropriate validator.
+
+    Educational Note: Each API service has different validation requirements.
+    This function routes to the correct validator and handles special cases
+    like Pinecone's auto-configuration.
+    """
+    if key_id == 'ANTHROPIC_API_KEY':
+        return validation_service.validate_anthropic_key(value)
+
+    elif key_id == 'ELEVENLABS_API_KEY':
+        return validation_service.validate_elevenlabs_key(value)
+
+    elif key_id == 'OPENAI_API_KEY':
+        return validation_service.validate_openai_key(value)
+
+    elif key_id == 'GEMINI_2_5_API_KEY':
+        return validation_service.validate_gemini_2_5_key(value)
+
+    elif key_id == 'NANO_BANANA_API_KEY':
+        return validation_service.validate_nano_banana_key(value)
+
+    elif key_id == 'VEO_API_KEY':
+        return validation_service.validate_veo_key(value)
+
+    elif key_id == 'TAVILY_API_KEY':
+        return validation_service.validate_tavily_key(value)
+
+    elif key_id == 'PINECONE_API_KEY':
+        # Pinecone validation also creates/checks index
+        is_valid, message, index_details = validation_service.validate_pinecone_key(value)
+
+        # Auto-save index details on successful validation
+        if is_valid and index_details:
+            try:
+                current_app.logger.info(f"Saving Pinecone index details: {index_details}")
+                env_service.set_key('PINECONE_INDEX_NAME', index_details['index_name'])
+                env_service.set_key('PINECONE_REGION', index_details['region'])
+                env_service.save()
+            except Exception as e:
+                current_app.logger.error(f"Failed to save Pinecone index details: {e}")
+
+        return is_valid, message
+
+    elif key_id in ['PINECONE_INDEX_NAME', 'PINECONE_REGION']:
+        # Auto-managed fields - just accept them
+        is_valid = bool(value)
+        message = 'Configuration accepted (auto-managed)'
+        return is_valid, message
+
+    elif key_id == 'NOTION_API_KEY':
+        return validation_service.validate_notion_key(value)
+
+    elif key_id == 'JIRA_API_KEY':
+        # Jira validation needs email + cloud_id from env (must be saved first)
+        jira_email = env_service.get_key('JIRA_EMAIL')
+        jira_cloud_id = env_service.get_key('JIRA_CLOUD_ID')
+        return validation_service.validate_jira_key(value, jira_email, jira_cloud_id)
+
+    elif key_id in ['JIRA_CLOUD_ID', 'JIRA_EMAIL']:
+        # Supporting fields for Jira — just accept them
+        is_valid = bool(value)
+        message = 'Value accepted' if is_valid else 'Value is empty'
+        return is_valid, message
+
+    elif key_id == 'FRESHDESK_API_KEY':
+        freshdesk_domain = env_service.get_key('FRESHDESK_DOMAIN')
+        return validation_service.validate_freshdesk_key(value, freshdesk_domain)
+
+    elif key_id == 'FRESHDESK_DOMAIN':
+        # Supporting field — just accept it
+        is_valid = bool(value)
+        message = 'Value accepted' if is_valid else 'Value is empty'
+        return is_valid, message
+
+    elif key_id == 'MIXPANEL_SERVICE_ACCOUNT_SECRET':
+        # Mixpanel validation needs username + project_id from env (must be saved first)
+        mixpanel_username = env_service.get_key('MIXPANEL_SERVICE_ACCOUNT_USERNAME')
+        mixpanel_project_id = env_service.get_key('MIXPANEL_PROJECT_ID')
+        mixpanel_region = env_service.get_key('MIXPANEL_REGION') or 'us'
+        return validation_service.validate_mixpanel_key(
+            value, mixpanel_username, mixpanel_project_id, mixpanel_region
+        )
+
+    elif key_id in ('MIXPANEL_SERVICE_ACCOUNT_USERNAME', 'MIXPANEL_PROJECT_ID', 'MIXPANEL_REGION'):
+        # Supporting fields for Mixpanel — just accept them
+        is_valid = bool(value)
+        message = 'Value accepted' if is_valid else 'Value is empty'
+        return is_valid, message
+
+    elif key_id == 'OPIK_API_KEY':
+        return validation_service.validate_opik_key(value)
+
+    elif key_id in ['OPIK_WORKSPACE', 'OPIK_PROJECT_NAME', 'OPIK_URL_OVERRIDE']:
+        is_valid = bool(value)
+        message = 'Value accepted' if is_valid else 'Value is empty'
+        return is_valid, message
+    else:
+        # Default validation - just check if value exists
+        is_valid = bool(value)
+        message = 'Key provided' if is_valid else 'Key is empty'
+        return is_valid, message

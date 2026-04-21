@@ -1,0 +1,128 @@
+"""
+Video Executor - Handles studio signal execution for video generation.
+
+Educational Note: This executor is triggered by studio signals (from main chat)
+and launches video generation as a background task.
+"""
+import logging
+import uuid
+from datetime import datetime
+from typing import Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
+
+
+class VideoExecutor:
+    """
+    Executor for video generation via studio signals.
+
+    Educational Note: The studio signal flow:
+    1. User chats with AI about creating videos
+    2. AI decides to activate studio (sends studio_signal tool call)
+    3. studio_signal_executor routes to this executor
+    4. We create a job and launch video generation as background task
+    5. Service runs and updates job status
+    """
+
+    def execute(
+        self,
+        project_id: str,
+        source_id: str,
+        direction: str = "",
+        aspect_ratio: str = "16:9",
+        duration_seconds: int = 8,
+        number_of_videos: int = 1,
+        edit_instructions: Optional[str] = None,
+        previous_prompt: Optional[str] = None,
+        parent_job_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute video generation as a background task.
+
+        Args:
+            project_id: The project ID
+            source_id: Source to generate video from (for context)
+            direction: User's direction/guidance for the video
+            aspect_ratio: "16:9" or "16:10" (default: "16:9")
+            duration_seconds: 5-8 seconds (default: 8)
+            number_of_videos: 1-4 videos (default: 1)
+            edit_instructions: Instructions for editing the parent video (optional)
+            previous_prompt: The generated prompt from the parent video (optional)
+            parent_job_id: UUID of the parent video job (optional)
+
+        Returns:
+            Job info with status and job_id for polling
+        """
+        from app.services.studio_services import studio_index_service
+        from app.services.background_services import task_service
+        from app.services.studio_services.video_service import video_service
+        from app.services.source_services import source_service
+
+        # Get source info
+        source = source_service.get_source(project_id, source_id)
+        if not source:
+            return {
+                "success": False,
+                "error": f"Source {source_id} not found"
+            }
+
+        source_name = source.get("name", "Unknown Source")
+
+        # Create job
+        job_id = str(uuid.uuid4())
+        created_at = datetime.now().isoformat()
+
+        studio_index_service.create_video_job(
+            project_id=project_id,
+            job_id=job_id,
+            source_id=source_id,
+            source_name=source_name,
+            direction=direction,
+            aspect_ratio=aspect_ratio,
+            duration_seconds=duration_seconds,
+            number_of_videos=number_of_videos,
+            parent_job_id=parent_job_id,
+            edit_instructions=edit_instructions
+        )
+
+        # Launch video generation as background task
+        def run_video_generation():
+            """Background task to generate video."""
+            logger.info("Starting video generation for job %s", job_id[:8])
+            try:
+                video_service.generate_video(
+                    project_id=project_id,
+                    job_id=job_id,
+                    source_id=source_id,
+                    direction=direction,
+                    aspect_ratio=aspect_ratio,
+                    duration_seconds=duration_seconds,
+                    number_of_videos=number_of_videos,
+                    edit_instructions=edit_instructions,
+                    previous_prompt=previous_prompt
+                )
+            except Exception as e:
+                logger.exception("Video generation failed for job %s", job_id[:8])
+                # Update job on error
+                studio_index_service.update_video_job(
+                    project_id, job_id,
+                    status="error",
+                    error_message=str(e)
+                )
+
+        task_service.submit_task(
+            task_type="video_generation",
+            target_id=job_id,
+            callable_func=run_video_generation
+        )
+
+        return {
+            "success": True,
+            "job_id": job_id,
+            "status": "processing",
+            "message": f"Video generation started for '{source_name}'"
+        }
+
+
+# Singleton instance
+video_executor = VideoExecutor()

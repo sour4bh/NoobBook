@@ -1,0 +1,144 @@
+/**
+ * StudioContext
+ * Educational Note: Provides shared state for Studio panel.
+ * Only contains data needed by multiple sections - each section owns its own job state.
+ * This eliminates prop drilling while keeping sections isolated.
+ */
+
+import React, { useMemo, useCallback, useState } from 'react';
+import type { StudioSignal, StudioItemId } from './types';
+import { generationOptions } from './types';
+import { createLogger } from '@/lib/logger';
+import { StudioContext } from './StudioContext.shared';
+import type { StudioContextValue } from './StudioContext.shared';
+
+const log = createLogger('studio-context');
+
+interface StudioProviderProps {
+  projectId: string;
+  signals: StudioSignal[];
+  children: React.ReactNode;
+}
+
+export const StudioProvider: React.FC<StudioProviderProps> = ({
+  projectId,
+  signals,
+  children,
+}) => {
+  // Signal picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<StudioItemId | null>(null);
+  const [selectedSignals, setSelectedSignals] = useState<StudioSignal[]>([]);
+
+  // Registry of generation handlers from sections
+  const [generationHandlers] = useState<Map<StudioItemId, (signal: StudioSignal) => Promise<void>>>(
+    () => new Map()
+  );
+
+  // Memoized Set of valid source IDs for O(1) filtering
+  // This replaces the O(n^2) pattern: signals.some(s => s.sources.some(src => src.source_id === job.source_id))
+  const validSourceIds = useMemo(() => {
+    const ids = new Set<string>();
+    signals.forEach(signal => {
+      // Safely handle signals that may not have sources array
+      const sources = signal.sources || [];
+      sources.forEach(source => {
+        if (source?.source_id) {
+          ids.add(source.source_id);
+        }
+      });
+    });
+    return ids;
+  }, [signals]);
+
+  // Register a generation handler from a section
+  const registerGenerationHandler = useCallback((
+    itemId: StudioItemId,
+    handler: (signal: StudioSignal) => Promise<void>
+  ) => {
+    generationHandlers.set(itemId, handler);
+  }, [generationHandlers]);
+
+  // Get display name for a studio item
+  const getItemTitle = useCallback((itemId: StudioItemId): string => {
+    const option = generationOptions.find((opt) => opt.id === itemId);
+    return option?.title || itemId;
+  }, []);
+
+  // Get icon for a studio item
+  const getItemIcon = useCallback((itemId: StudioItemId) => {
+    const option = generationOptions.find((opt) => opt.id === itemId);
+    return option?.icon;
+  }, []);
+
+  // Trigger the actual generation workflow.
+  // Fire-and-forget: handlers manage their own state (isGeneratingXXX, pollingRef)
+  // and update the UI reactively. NOT awaiting allows multiple items to generate
+  // simultaneously — awaiting would block until polling completes (~2 min).
+  const triggerGeneration = useCallback((optionId: StudioItemId, signal: StudioSignal) => {
+    setPickerOpen(false);
+
+    const handler = generationHandlers.get(optionId);
+    if (handler) {
+      log.debug('calling handler for: %s signal: %o', optionId, signal);
+      handler(signal).catch((error) => {
+        log.error({ err: error }, 'generation handler threw error for: %s', optionId);
+      });
+    } else {
+      log.warn('no handler registered for: %s, registered: %o', optionId, [...generationHandlers.keys()]);
+    }
+  }, [generationHandlers]);
+
+  // Handle generation request from tools list
+  // If multiple signals exist for an item, show picker. Otherwise generate directly.
+  const handleGenerate = useCallback((optionId: StudioItemId, itemSignals: StudioSignal[]) => {
+    if (itemSignals.length === 0) {
+      log.warn('handleGenerate called with 0 signals for: %s', optionId);
+      return;
+    }
+
+    log.debug('handleGenerate dispatching: %s signals: %d', optionId, itemSignals.length);
+    if (itemSignals.length === 1) {
+      // Single signal - generate directly
+      triggerGeneration(optionId, itemSignals[0]);
+    } else {
+      // Multiple signals - show picker
+      setSelectedItem(optionId);
+      setSelectedSignals(itemSignals);
+      setPickerOpen(true);
+    }
+  }, [triggerGeneration]);
+
+  const value = useMemo<StudioContextValue>(() => ({
+    projectId,
+    signals,
+    validSourceIds,
+    pickerOpen,
+    setPickerOpen,
+    selectedItem,
+    selectedSignals,
+    triggerGeneration,
+    registerGenerationHandler,
+    handleGenerate,
+    getItemTitle,
+    getItemIcon,
+  }), [
+    projectId,
+    signals,
+    validSourceIds,
+    pickerOpen,
+    selectedItem,
+    selectedSignals,
+    triggerGeneration,
+    registerGenerationHandler,
+    handleGenerate,
+    getItemTitle,
+    getItemIcon,
+  ]);
+
+  return (
+    <StudioContext.Provider value={value}>
+      {children}
+    </StudioContext.Provider>
+  );
+};

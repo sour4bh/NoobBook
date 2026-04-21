@@ -1,0 +1,126 @@
+# NoobBook Docker Compose
+# Builds and runs the NoobBook backend, frontend, and database migration.
+# Supabase must be started first via docker/supabase/docker-compose.yml.
+
+services:
+  # --- Backend (Flask + SocketIO) ---
+  backend:
+    build: ./backend
+    container_name: noobbook-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-5001}:5001"
+    env_file:
+      - ./docker/.env
+    environment:
+      - FLASK_ENV=production
+      - PORT=5001
+      - SUPABASE_URL=http://supabase-kong:8000
+      - SUPABASE_DB_URL=postgresql://postgres:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost}
+    volumes:
+      - backend-data:/app/data
+      - ./docker/.env:/app/.env
+    networks:
+      - noobbook-network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # --- Frontend (nginx serving React build) ---
+  frontend:
+    build: ./frontend
+    container_name: noobbook-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - noobbook-network
+    depends_on:
+      - backend
+
+  # --- Database migration (runs once, then exits) ---
+  # Runs init.sql for base schema, then applies numbered migrations in order.
+  # A schema_migrations table tracks which migrations have already been applied,
+  # so re-running is safe (idempotent).
+  migrate:
+    image: postgres:18.3-alpine
+    container_name: noobbook-migrate
+    restart: "no"
+    env_file:
+      - ./docker/.env
+    volumes:
+      - ./backend/supabase/init.sql:/init.sql:ro
+      - ./backend/supabase/migrations:/migrations:ro
+    entrypoint: >
+      sh -c '
+        set -e
+        PSQL="psql -v ON_ERROR_STOP=1 -h supabase-db -p 5432 -U postgres -d postgres"
+        export PGPASSWORD="$${POSTGRES_PASSWORD}"
+
+        echo "Waiting for Supabase database..."
+        until pg_isready -h supabase-db -p 5432 -U postgres 2>/dev/null; do
+          sleep 2
+        done
+
+        # Detect fresh vs existing database
+        HAS_TABLES=$$($$PSQL -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='"'"'public'"'"' AND table_name='"'"'users'"'"')")
+
+        if [ "$$HAS_TABLES" = "f" ]; then
+          echo "Fresh database — running init.sql..."
+          $$PSQL -f /init.sql
+        fi
+
+        echo "Creating migration tracker..."
+        $$PSQL -c "CREATE TABLE IF NOT EXISTS schema_migrations (
+          filename TEXT PRIMARY KEY,
+          applied_at TIMESTAMPTZ DEFAULT now()
+        );"
+
+        ROW_COUNT=$$($$PSQL -tAc "SELECT count(*) FROM schema_migrations")
+        if [ "$$ROW_COUNT" = "0" ]; then
+          echo "  First run — seeding tracker with already-applied migrations..."
+          for f in /migrations/*.sql; do
+            [ -f "$$f" ] || continue
+            name=$$(basename "$$f")
+            $$PSQL -c "INSERT INTO schema_migrations (filename) VALUES ('"'"'$$name'"'"') ON CONFLICT DO NOTHING"
+          done
+
+          # For existing DBs: check if brand migration (00010) still needs to run
+          # by detecting the old project_id column on brand_assets
+          if [ "$$HAS_TABLES" = "t" ]; then
+            HAS_OLD_BRAND=$$($$PSQL -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='"'"'brand_assets'"'"' AND column_name='"'"'project_id'"'"')")
+            if [ "$$HAS_OLD_BRAND" = "t" ]; then
+              echo "  Detected old brand schema — 00010 will be applied"
+              $$PSQL -c "DELETE FROM schema_migrations WHERE filename = '"'"'00010_brand_to_user_level.sql'"'"'"
+            fi
+          fi
+        fi
+
+        echo "Applying migrations..."
+        for f in /migrations/*.sql; do
+          [ -f "$$f" ] || continue
+          name=$$(basename "$$f")
+          already=$$($$PSQL -tAc "SELECT 1 FROM schema_migrations WHERE filename = '"'"'$$name'"'"'")
+          if [ "$$already" = "1" ]; then
+            echo "  skip $$name (already applied)"
+          else
+            echo "  apply $$name ..."
+            $$PSQL -f "$$f"
+            $$PSQL -c "INSERT INTO schema_migrations (filename) VALUES ('"'"'$$name'"'"')"
+          fi
+        done
+
+        echo "Migration complete."
+      '
+    networks:
+      - noobbook-network
+
+volumes:
+  backend-data:
+    name: noobbook-backend-data
+
+networks:
+  noobbook-network:
+    external: true
+    name: noobbook-network

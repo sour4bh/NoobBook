@@ -1,0 +1,98 @@
+# Python
+backend/venv/
+backend/myvenv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Environment & Secrets
+.env
+*.env
+backend/.env
+backend/.flaskenv
+backend/data/google_tokens.json
+
+# Project Data (user uploads, processed files)
+backend/data/projects/
+backend/data/tasks/
+backend/data/temp/
+backend/data/user_memory.json
+
+# Node.js
+node_modules/
+frontend/node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# Process IDs for startup/shutdown scripts
+.noobbook_pids
+
+# Local DB ping script (contains credentials)
+bin/ping-db
+
+# Build artifacts
+build/
+*.tsbuildinfo
+
+#claude
+.claude
+
+# Personal sync notes
+gitsync.md
+
+# Docker (generated env files and Supabase data volumes)
+docker/.env
+docker/.env.save
+docker/supabase/.env
+docker/supabase/volumes/db/data/
+docker/supabase/volumes/storage/
+docker/supabase/volumes/snippets/
+docker/supabase/volumes/functions/
+!docker/supabase/volumes/functions/main/
+!docker/supabase/volumes/functions/main/index.ts
+
+# Unignore vendored Supabase config files matched by "logs/" rule above
+!docker/supabase/volumes/logs/
+!docker/supabase/volumes/logs/vector.yml
+docker/supabase/volumes/minio/
+
+# Supabase CLI temp files
+backend/supabase/.temp/

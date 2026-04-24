@@ -105,3 +105,15 @@ NBB-505,python,backend/app/services/studio_services/jobs/marketing_strategy_jobs
 NBB-505,json,backend/data/prompts/marketing_strategy_agent_prompt.json,backend/app/studio/marketing/strategy/prompts/marketing_strategy_agent_prompt.json,,,json_asset_move,json_asset_move.sh
 NBB-505,json,backend/app/services/tools/marketing_strategy_agent/plan_marketing_strategy.json,backend/app/studio/marketing/strategy/tools/plan_marketing_strategy.json,,,json_asset_move,json_asset_move.sh
 NBB-505,json,backend/app/services/tools/marketing_strategy_agent/write_marketing_section.json,backend/app/studio/marketing/strategy/tools/write_marketing_section.json,,,json_asset_move,json_asset_move.sh
+NBB-505,python,backend/app/services/studio_services/social_posts_service.py,backend/app/studio/marketing/social_post/write.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/social_post/write.py,backend/app/studio/marketing/social_post/write.py,SocialPostsService,SocialPostWriter,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/services/studio_services/jobs/social_post_jobs.py,backend/app/studio/marketing/social_post/job.py,,,python_module_move,refactory:move_module
+NBB-505,json,backend/data/prompts/social_posts_prompt.json,backend/app/studio/marketing/social_post/prompts/social_posts_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-505,python,backend/app/services/studio_services/ad_creative_service.py,,,,text_reference_check,string_ref_scan.py
+NBB-505,python,backend/app/services/ai_agents/email_agent_service.py,,,,text_reference_check,string_ref_scan.py
+NBB-505,python,backend/app/services/tool_executors/email_tool_executor.py,,,,text_reference_check,string_ref_scan.py
+NBB-505,python,backend/app/services/tool_executors/email_agent_executor.py,,,,text_reference_check,string_ref_scan.py
+NBB-505,python,backend/app/services/studio_services/infographic_service.py,,,,text_reference_check,string_ref_scan.py
+NBB-505,python,backend/app/services/ai_agents/marketing_strategy_agent_service.py,,,,text_reference_check,string_ref_scan.py
+NBB-505,python,backend/app/services/tool_executors/marketing_strategy_tool_executor.py,,,,text_reference_check,string_ref_scan.py
+NBB-505,python,backend/app/services/studio_services/social_posts_service.py,,,,text_reference_check,string_ref_scan.py

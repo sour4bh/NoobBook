@@ -339,7 +339,7 @@ from app.services.studio_services.jobs.quiz_jobs import (
     delete_quiz_job,
 )
 
-from app.services.studio_services.jobs.social_post_jobs import (
+from app.studio.marketing.social_post.job import (
     create_social_post_job,
     update_social_post_job,
     get_social_post_job,

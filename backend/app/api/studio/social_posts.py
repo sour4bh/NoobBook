@@ -31,7 +31,7 @@ from flask import g, jsonify, request, current_app, send_file
 from app.api.studio import studio_bp
 from app.api.studio.logo_utils import resolve_logo
 from app.services.studio_services import studio_index_service
-from app.services.studio_services.social_posts_service import social_posts_service
+from app.studio.marketing.social_post.write import social_posts_service
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service

@@ -98,7 +98,7 @@ reader as the validator.
 
 **Backend owner:**
 - Marker producer: Claude model output (system prompt in `backend/data/prompts/default_prompt.json`)
-- Chunk ID format: `backend/app/utils/citation_utils.py::parse_chunk_id` (regex `^(.+)_page_(\d+)_chunk_(\d+)$`)
+- Chunk ID format: `backend/app/sources/citations.py::parse_chunk_id` (regex `^(.+)_page_(\d+)_chunk_(\d+)$`)
 - Lookup endpoint: `backend/app/api/sources/content.py::get_citation_content` at
   `GET /api/v1/projects/<project_id>/citations/<chunk_id>`
 
@@ -704,8 +704,8 @@ call that includes the tool; our loader does not currently pre-validate shape.
 ## Contract 12 - Source kind / MIME / status
 
 **Backend owner:**
-- Kind + MIME: `backend/app/utils/file_utils.py::ALLOWED_EXTENSIONS` and `::MIME_TYPES`, plus `::get_file_info`
-- Status: `backend/app/services/source_services/source_service.py::update_source` (status writes) and the per-type processors under `backend/app/services/source_services/source_processing/`
+- Kind + MIME: `backend/app/sources/file_contract.py::ALLOWED_EXTENSIONS` and `::MIME_TYPES`, plus `::get_file_info`
+- Status: `backend/app/sources/catalog.py::SourceCatalog.update_source` (status writes) and the per-type processors under `backend/app/services/source_services/source_processing/`
 - Row: `sources` table; charter owner `backend/app/sources/CHARTER.md`
 
 **Frontend consumer:** `frontend/src/lib/api/sources.ts`

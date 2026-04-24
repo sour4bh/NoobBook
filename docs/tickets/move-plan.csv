@@ -39,3 +39,15 @@ NBB-209A,python,backend/app/services/data_services/chat_service.py,backend/app/c
 NBB-209A,python,backend/app/chat/store.py,backend/app/chat/store.py,ChatService,ChatStore,symbol,refactory:rename_symbol
 NBB-209A,python,backend/app/services/data_services/message_service.py,backend/app/chat/message/store.py,,,module,refactory:move_module
 NBB-209A,python,backend/app/chat/message/store.py,backend/app/chat/message/store.py,MessageService,MessageStore,symbol,refactory:rename_symbol
+NBB-402,python,backend/app/utils/file_utils.py,backend/app/sources/file_contract.py,,,python_module_move,refactory:move_module
+NBB-402,python,backend/app/utils/file_utils.py,,,,text_reference_check,string_ref_scan.py
+NBB-402,python,backend/app/utils/citation_utils.py,backend/app/sources/citations.py,,,python_module_move,refactory:move_module
+NBB-402,python,backend/app/utils/citation_utils.py,,,,text_reference_check,string_ref_scan.py
+NBB-402,python,backend/app/utils/source_content_utils.py,backend/app/sources/content.py,,,python_module_move,refactory:move_module
+NBB-402,python,backend/app/utils/source_content_utils.py,,,,text_reference_check,string_ref_scan.py
+NBB-402,python,backend/app/services/source_services/source_index_service.py,backend/app/sources/index.py,,,python_module_move,refactory:move_module
+NBB-402,python,backend/app/services/source_services/source_upload/file_upload.py,backend/app/sources/upload/file.py,,,python_module_move,refactory:move_module
+NBB-402,python,backend/app/services/source_services/source_service.py,backend/app/sources/catalog.py,,,python_module_move,refactory:move_module
+NBB-402,python,backend/app/sources/catalog.py,backend/app/sources/catalog.py,SourceService,SourceCatalog,python_symbol_rename,refactory:rename_symbol
+NBB-402,python,backend/app/services/source_services/source_processing/source_processing_service.py,backend/app/sources/pipeline.py,,,python_module_move,refactory:move_module
+NBB-402,python,backend/app/sources/pipeline.py,backend/app/sources/pipeline.py,SourceProcessingService,SourcePipeline,python_symbol_rename,refactory:rename_symbol

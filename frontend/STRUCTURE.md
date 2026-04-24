@@ -27,6 +27,27 @@ What is not allowed in the shell:
 - Anything that reads as "this belongs to chat / sources / studio / brand / etc." Those live in the owning feature subtree (for example `frontend/src/components/chat/`, `frontend/src/components/sources/`, `frontend/src/components/studio/`).
 - New files under `frontend/src/components/hooks/`. See Legacy Markers below.
 
+## Shell Charters
+
+Each shell has one charter. If a file does not match its shell's charter, it does not belong there - reject the file in review, do not widen the charter.
+
+- `frontend/src/components/` - app shell composition and cross-feature layouts only; the only feature reference allowed is the mount point that renders a feature subtree's root component.
+- `frontend/src/components/ui/` - design-system primitives only (shadcn wrappers and low-level atoms with no feature logic and no product nouns).
+- `frontend/src/hooks/` - app-wide hooks only (consumed by 2+ features, no feature-specific state, routing, or API calls).
+- `frontend/src/lib/` - cross-feature utilities, shared API client primitives, and framework adapters only; no UI and no feature-owned product behavior.
+- `frontend/src/contexts/` - app-wide React providers only (authentication, permissions, theming, and similarly global concerns).
+
+### Do Not Put Feature-Owned X Here
+
+These are reject-on-sight examples. They live in the owning feature subtree (for example `frontend/src/components/<feature>/`), not in the shell.
+
+- Chat: do not put chat message renderers, chat composer/input controls, chat voice or transcription hooks, chat export helpers, or chat-only contexts in the shell.
+- Sources: do not put source upload widgets, ingestion/citation/source-status hooks, per-source-type helpers, or source-only contexts in the shell.
+- Studio: do not put studio generators, studio job/progress hooks, studio output renderers, or studio-only contexts in the shell.
+- Settings: do not put settings panels, settings form hooks, API-key management helpers, or settings-only contexts in the shell.
+
+The legacy exception is `frontend/src/components/hooks/` (see Legacy Markers); that path is frozen and no new files may land there regardless of owner.
+
 ## Feature-Local Placement
 
 Feature-owned code lives beside the feature. A feature subtree is the unit of ownership.

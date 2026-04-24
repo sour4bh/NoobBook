@@ -38,7 +38,7 @@ from flask import jsonify, request, current_app, send_file, redirect
 from app.api.sources import sources_bp
 from app.sources.catalog import source_service
 from app.services.auth.rbac import get_request_identity
-from app.services.auth.permissions import user_has_permission
+from app.auth.permissions import user_has_permission
 
 
 # Map file extensions to permission (category, item) tuples.

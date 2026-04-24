@@ -58,6 +58,7 @@ import config as _top_config  # backend/config.py  # noqa: E402
 _app_pkg.config = _top_config.config
 
 from app import create_app  # noqa: E402
+from app.api.auth import middleware as _auth_middleware  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -82,15 +83,13 @@ def auth_client(auth_app):
 def clear_token_cache():
     """Reset the module-level JWT validation cache between tests.
 
-    `auth_middleware._token_cache` is process-wide. Without this fixture
-    a cached positive from one test would leak into the next test's
-    monkeypatched `supabase.auth.get_user`.
+    The token cache is process-wide. Without this fixture a cached positive
+    from one test would leak into the next test's monkeypatched
+    `supabase.auth.get_user`.
     """
-    from app.utils import auth_middleware
-
-    auth_middleware._token_cache.clear()
+    _auth_middleware._token_cache.clear()
     yield
-    auth_middleware._token_cache.clear()
+    _auth_middleware._token_cache.clear()
 
 
 @pytest.fixture()

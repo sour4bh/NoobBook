@@ -15,12 +15,22 @@ from app.services.integrations.supabase import get_supabase, is_supabase_enabled
 logger = logging.getLogger(__name__)
 
 
-# Default user ID for single-user mode (fallback when no auth token provided)
+# Default user ID for single-user mode (fallback when no auth token provided).
+# Policy decision about when DEFAULT_USER_ID applies lives in
+# `app.auth.identity.get_request_identity` — that resolver owns the
+# `NOOBBOOK_AUTH_REQUIRED` gate. Code here is a CRUD convenience so call
+# sites do not have to check for `user_id is None`; it must never be used
+# to decide whether a caller is authenticated. NBB-705A will audit
+# remaining data-service default-user fallbacks.
 DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 
 def _resolve_user_id(user_id: Optional[str] = None) -> str:
-    """Resolve user_id, falling back to DEFAULT_USER_ID for backward compatibility."""
+    """Return `user_id` or `DEFAULT_USER_ID` for single-user convenience.
+
+    Policy lives in `app.auth.identity`; this helper only hides a
+    `None`-check from the Supabase CRUD call sites below.
+    """
     return user_id or DEFAULT_USER_ID
 
 

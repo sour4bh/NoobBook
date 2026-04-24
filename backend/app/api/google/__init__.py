@@ -28,7 +28,7 @@ google_bp = Blueprint('google', __name__)
 
 # Verify project ownership for Google import endpoint (has project_id)
 # Skips non-project routes like /google/auth, /google/files, etc.
-from app.utils.auth_middleware import verify_project_access  # noqa: E402
+from app.api.auth.middleware import verify_project_access  # noqa: E402
 
 @google_bp.before_request
 def check_project_access():
@@ -42,5 +42,5 @@ def check_project_access():
 
 
 # Import routes to register them with the blueprint
-from app.api.google import oauth  # noqa: F401
-from app.api.google import drive  # noqa: F401
+from app.api.google import oauth  # noqa: F401, E402
+from app.api.google import drive  # noqa: F401, E402

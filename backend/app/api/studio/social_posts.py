@@ -35,7 +35,7 @@ from app.services.studio_services.social_posts_service import social_posts_servi
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
-from app.services.auth import require_permission
+from app.auth.guards import require_permission
 
 
 @studio_bp.route('/projects/<project_id>/studio/social-posts', methods=['POST'])

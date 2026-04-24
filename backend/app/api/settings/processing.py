@@ -41,7 +41,7 @@ from app.config import (
     APIProvider,
     ANTHROPIC_TIERS,
 )
-from app.services.auth.rbac import require_admin
+from app.auth.guards import require_admin
 
 # Initialize service
 env_service = EnvService()

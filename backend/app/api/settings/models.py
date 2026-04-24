@@ -31,7 +31,7 @@ from app.config import (
     get_all_default_models,
 )
 from app.services.app_settings import EnvService
-from app.services.auth.rbac import require_admin
+from app.auth.guards import require_admin
 
 env_service = EnvService()
 

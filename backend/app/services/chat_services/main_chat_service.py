@@ -31,7 +31,7 @@ from flask import has_request_context
 from app.services.auth.rbac import get_request_identity
 from app.projects.store import DEFAULT_USER_ID
 from app.utils import claude_parsing_utils
-from app.services.auth.permissions import user_has_permission
+from app.auth.permissions import user_has_permission
 from app.background.tasks import task_service
 from app.chat.store import chat_service
 from app.chat.message.store import message_service

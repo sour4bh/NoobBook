@@ -47,7 +47,7 @@ studio_bp = Blueprint('studio', __name__)
 
 
 # Verify project ownership for all studio routes that have a project_id
-from app.utils.auth_middleware import verify_project_access  # noqa: E402
+from app.api.auth.middleware import verify_project_access  # noqa: E402
 
 @studio_bp.before_request
 def check_project_access():
@@ -61,25 +61,24 @@ def check_project_access():
 
 
 # Import route modules to register them with the blueprint
-from app.api.studio import audio  # noqa: F401
-from app.api.studio import ads  # noqa: F401
-from app.api.studio import flash_cards  # noqa: F401
-from app.api.studio import mind_maps  # noqa: F401
-from app.api.studio import quizzes  # noqa: F401
-from app.api.studio import social_posts  # noqa: F401
-from app.api.studio import infographics  # noqa: F401
-from app.api.studio import emails  # noqa: F401
-from app.api.studio import websites  # noqa: F401
-from app.api.studio import components  # noqa: F401
-from app.api.studio import videos  # noqa: F401
-from app.api.studio import flow_diagrams  # noqa: F401
-from app.api.studio import wireframes  # noqa: F401
-from app.api.studio import presentations  # noqa: F401
-from app.api.studio import prds  # noqa: F401
-from app.api.studio import marketing_strategies  # noqa: F401
-from app.api.studio import blogs  # noqa: F401
-from app.api.studio import business_reports  # noqa: F401
-
 # Educational Note: The noqa comments tell flake8 to ignore the
 # "imported but unused" warning. We import to register routes,
 # not to use the module directly.
+from app.api.studio import audio  # noqa: F401, E402
+from app.api.studio import ads  # noqa: F401, E402
+from app.api.studio import flash_cards  # noqa: F401, E402
+from app.api.studio import mind_maps  # noqa: F401, E402
+from app.api.studio import quizzes  # noqa: F401, E402
+from app.api.studio import social_posts  # noqa: F401, E402
+from app.api.studio import infographics  # noqa: F401, E402
+from app.api.studio import emails  # noqa: F401, E402
+from app.api.studio import websites  # noqa: F401, E402
+from app.api.studio import components  # noqa: F401, E402
+from app.api.studio import videos  # noqa: F401, E402
+from app.api.studio import flow_diagrams  # noqa: F401, E402
+from app.api.studio import wireframes  # noqa: F401, E402
+from app.api.studio import presentations  # noqa: F401, E402
+from app.api.studio import prds  # noqa: F401, E402
+from app.api.studio import marketing_strategies  # noqa: F401, E402
+from app.api.studio import blogs  # noqa: F401, E402
+from app.api.studio import business_reports  # noqa: F401, E402

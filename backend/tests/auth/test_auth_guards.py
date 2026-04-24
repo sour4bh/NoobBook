@@ -39,7 +39,7 @@ def test_protected_route_without_token_returns_401(auth_client):
 def test_protected_route_with_invalid_bearer_returns_401(auth_client):
     """Invalid tokens fail validation and the guard returns 401."""
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
         supabase = MagicMock()
         supabase.auth.get_user.side_effect = Exception("invalid jwt")
@@ -57,7 +57,7 @@ def test_protected_route_with_valid_token_reaches_handler(auth_client):
     """A valid token clears `api_bp.before_request`; request reaches the
     blueprint handler layer (status is anything except 401/404)."""
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
         supabase = MagicMock()
         supabase.auth.get_user.return_value = MagicMock(
@@ -92,17 +92,24 @@ def test_auth_signin_route_skips_jwt_guard(auth_client):
 
 
 # ---------------------------------------------------------------------------
-# Query-parameter token fallback (used by <img>, <video>, <iframe>)
+# Query-parameter token policy (NBB-201)
+#
+# `?token=` is honored only for browser-loaded media/file/embed routes that
+# cannot attach `Authorization` headers. JSON/CRUD routes must send
+# `Authorization: Bearer` and 401 on `?token=` alone.
 # ---------------------------------------------------------------------------
 
-def test_query_param_token_fallback_authenticates(auth_client):
-    """Browser elements that can't send headers use ?token= — the guard
-    accepts valid tokens there too. Captures the current fallback; NBB-201
-    will reassess the query-token policy."""
+def test_query_param_token_rejected_on_json_route(auth_client):
+    """JSON listing endpoints reject `?token=` with 401 under NBB-201's
+    allowlist. Before NBB-201 the middleware accepted the query token on
+    any GET; the new policy narrows it to browser-asset paths only."""
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
         supabase = MagicMock()
+        # Mock still wired in case the middleware mistakenly called it —
+        # if the allowlist rejects first (correct behavior), get_user is
+        # never hit.
         supabase.auth.get_user.return_value = MagicMock(
             user=MagicMock(id="user-abc")
         )
@@ -112,8 +119,32 @@ def test_query_param_token_fallback_authenticates(auth_client):
             "/api/v1/projects?token=valid-looking-jwt",
         )
 
+    assert response.status_code == 401
+    body = response.get_json()
+    assert body == {"success": False, "error": "Authentication required"}
+    assert supabase.auth.get_user.called is False
+
+
+def test_query_param_token_accepted_on_allowlisted_media_path(auth_client):
+    """Browser-loaded media/file/embed routes (e.g. source download) still
+    accept `?token=` so <img>/<video>/<iframe>/<audio> can authenticate
+    without setting headers."""
+    with patch(
+        "app.api.auth.middleware.get_supabase"
+    ) as mock_get_supabase:
+        supabase = MagicMock()
+        supabase.auth.get_user.return_value = MagicMock(
+            user=MagicMock(id="user-abc")
+        )
+        mock_get_supabase.return_value = supabase
+
+        response = auth_client.get(
+            "/api/v1/projects/proj-1/sources/src-1/download?token=valid-looking-jwt",
+        )
+
+    # Guard passes; the downstream route may 404/500 on mocked project
+    # access, but it must not be stopped by the 401 guard.
     assert response.status_code != 401
-    assert response.status_code != 404
 
 
 # ---------------------------------------------------------------------------
@@ -148,11 +179,11 @@ def test_admin_route_with_non_admin_role_returns_403(auth_client, monkeypatch):
     monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "true")
 
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as auth_supabase, patch(
-        "app.services.auth.rbac.get_supabase"
+        "app.auth.identity.get_supabase"
     ) as rbac_supabase, patch(
-        "app.services.auth.rbac.is_supabase_enabled", return_value=True
+        "app.auth.identity.is_supabase_enabled", return_value=True
     ):
         auth_mock = MagicMock()
         rbac_mock = MagicMock()
@@ -180,11 +211,11 @@ def test_admin_route_with_admin_role_passes_admin_gate(auth_client, monkeypatch)
     monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "true")
 
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as auth_supabase, patch(
-        "app.services.auth.rbac.get_supabase"
+        "app.auth.identity.get_supabase"
     ) as rbac_supabase, patch(
-        "app.services.auth.rbac.is_supabase_enabled", return_value=True
+        "app.auth.identity.is_supabase_enabled", return_value=True
     ):
         auth_mock = MagicMock()
         rbac_mock = MagicMock()
@@ -209,10 +240,11 @@ def test_admin_route_with_admin_role_passes_admin_gate(auth_client, monkeypatch)
 
 def test_rbac_require_auth_bypasses_in_dev_mode(auth_optional_env):
     """Documents current dev/single-user behavior: when
-    NOOBBOOK_AUTH_REQUIRED=false, `rbac.require_auth` calls the wrapped
+    NOOBBOOK_AUTH_REQUIRED=false, `require_auth` calls the wrapped
     function without running the identity check. NBB-202A will revisit
     this policy — the test captures today's behavior, not the target."""
-    from app.services.auth.rbac import require_auth, is_auth_required
+    from app.auth.guards import require_auth
+    from app.services.auth.rbac import is_auth_required
 
     assert is_auth_required() is False
 

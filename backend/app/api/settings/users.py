@@ -11,8 +11,9 @@ Routes:
 from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
-from app.services.auth.rbac import require_admin, get_request_identity
+from app.services.auth.rbac import get_request_identity
 from app.services.data_services.user_service import get_user_service
+from app.auth.guards import require_admin
 
 
 @settings_bp.route("/settings/users", methods=["GET"])
@@ -115,7 +116,7 @@ def get_user_permissions_endpoint(user_id: str):
     5 categories and their sub-items. NULL in the DB is resolved to
     the all-enabled default before returning.
     """
-    from app.services.auth.permissions import (
+    from app.auth.permissions import (
         get_user_permissions, get_all_connections, get_user_connection_access,
     )
     perms = get_user_permissions(user_id)
@@ -138,7 +139,7 @@ def update_user_permissions_endpoint(user_id: str):
     Educational Note: Accepts the full permissions structure plus optional
     connection_access with database_ids and mcp_ids arrays.
     """
-    from app.services.auth.permissions import (
+    from app.auth.permissions import (
         update_user_permissions, update_user_connection_access,
     )
     data = request.get_json() or {}
@@ -171,13 +172,13 @@ def get_my_permissions():
     fetch their own permissions so the frontend knows what to show/hide.
     """
     from app.services.auth.rbac import get_request_identity
-    from app.services.auth.permissions import get_user_permissions
+    from app.auth.permissions import get_user_permissions
 
     identity = get_request_identity()
 
     # Admins always get full access
     if identity.is_admin:
-        from app.services.auth.permissions import DEFAULT_PERMISSIONS
+        from app.auth.permissions import DEFAULT_PERMISSIONS
         return jsonify({"success": True, "permissions": DEFAULT_PERMISSIONS}), 200
 
     perms = get_user_permissions(identity.user_id)

@@ -32,6 +32,20 @@ without needing @require_auth on each route.
 """
 from flask import Blueprint, request, jsonify, g
 
+from app.api.auth.middleware import validate_token  # noqa: E402
+
+from app.api.auth import auth_bp
+from app.api.chats import chats_bp
+from app.api.messages import messages_bp
+from app.api.prompts import prompts_bp
+from app.api.google import google_bp
+from app.api.projects import projects_bp
+from app.api.transcription import transcription_bp
+from app.api.settings import settings_bp
+from app.api.sources import sources_bp
+from app.api.studio import studio_bp
+from app.api.brand import brand_bp
+
 # Create the main API blueprint
 api_bp = Blueprint('api', __name__)
 
@@ -41,8 +55,6 @@ api_bp = Blueprint('api', __name__)
 # Educational Note: before_request runs before every request to any route
 # under api_bp. We skip auth endpoints (login, signup, refresh) since those
 # are public. All other routes require a valid JWT token.
-
-from app.utils.auth_middleware import validate_token  # noqa: E402
 
 @api_bp.route('/health', methods=['GET'])
 def health_check():
@@ -75,18 +87,6 @@ def authenticate_request():
 # Register Nested Blueprints (Modular)
 # =============================================================================
 # These blueprints have their own folders with __init__.py and routes.py
-
-from app.api.auth import auth_bp
-from app.api.chats import chats_bp
-from app.api.messages import messages_bp
-from app.api.prompts import prompts_bp
-from app.api.google import google_bp
-from app.api.projects import projects_bp
-from app.api.transcription import transcription_bp
-from app.api.settings import settings_bp
-from app.api.sources import sources_bp
-from app.api.studio import studio_bp
-from app.api.brand import brand_bp
 
 # Register nested blueprints with the main api blueprint
 # No url_prefix needed - routes already have full paths

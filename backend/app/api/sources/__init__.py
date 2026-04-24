@@ -49,7 +49,7 @@ sources_bp = Blueprint('sources', __name__)
 
 
 # Verify project ownership for all source routes that have a project_id
-from app.utils.auth_middleware import verify_project_access  # noqa: E402
+from app.api.auth.middleware import verify_project_access  # noqa: E402
 
 @sources_bp.before_request
 def check_project_access():
@@ -63,7 +63,7 @@ def check_project_access():
 
 
 # Import routes to register them with the blueprint
-from app.api.sources import routes  # noqa: F401
-from app.api.sources import uploads  # noqa: F401
-from app.api.sources import processing  # noqa: F401
-from app.api.sources import content  # noqa: F401
+from app.api.sources import routes  # noqa: F401, E402
+from app.api.sources import uploads  # noqa: F401, E402
+from app.api.sources import processing  # noqa: F401, E402
+from app.api.sources import content  # noqa: F401, E402

@@ -36,7 +36,7 @@ from app.services.studio_services import studio_index_service
 from app.services.tool_executors.blog_agent_executor import blog_agent_executor
 from app.services.integrations.supabase import storage_service
 from app.api.studio.logo_utils import resolve_logo
-from app.services.auth import require_permission
+from app.auth.guards import require_permission
 
 
 @studio_bp.route('/projects/<project_id>/studio/blog', methods=['POST'])

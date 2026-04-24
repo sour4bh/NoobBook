@@ -35,7 +35,7 @@ from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
 from app.api.studio.logo_utils import resolve_logo
-from app.services.auth import require_permission
+from app.auth.guards import require_permission
 from app.sources import index
 
 

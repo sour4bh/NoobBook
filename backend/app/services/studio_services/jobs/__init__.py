@@ -147,14 +147,9 @@ from .marketing_strategy_jobs import (
     delete_marketing_strategy_job,
 )
 
-# Blog Jobs
-from .blog_jobs import (
-    create_blog_job,
-    update_blog_job,
-    get_blog_job,
-    list_blog_jobs,
-    delete_blog_job,
-)
+# Blog Jobs: moved to app/studio/documents/blog/job.py (NBB-504). Consumers
+# import directly from studio_index_service (re-exports from new home) or from
+# app.studio.documents.blog.job.
 
 # Business Report Jobs
 from .business_report_jobs import (

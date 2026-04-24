@@ -76,3 +76,15 @@ NBB-503,python,backend/app/services/tool_executors/website_agent_executor.py,,,,
 NBB-503,python,backend/app/services/ai_agents/website_agent_service.py,,,,text_reference_check,string_ref_scan.py
 NBB-503,json,backend/app/services/tools/website_agent,,,,text_reference_check,string_ref_scan.py
 NBB-503,python,backend/app/studio/design/website/tool.py,backend/app/studio/design/website/tool.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-504,python,backend/app/services/ai_agents/blog_agent_service.py,backend/app/studio/documents/blog/write.py,,,python_module_move,manual
+NBB-504,python,backend/app/studio/documents/blog/write.py,backend/app/studio/documents/blog/write.py,BlogAgentService,BlogWriter,python_symbol_rename,manual
+NBB-504,python,backend/app/services/tool_executors/blog_tool_executor.py,backend/app/studio/documents/blog/tool.py,,,python_module_move,manual
+NBB-504,python,backend/app/studio/documents/blog/tool.py,backend/app/studio/documents/blog/tool.py,BlogToolExecutor,BlogDispatcher,python_symbol_rename,manual
+NBB-504,python,backend/app/studio/documents/blog/tool.py,backend/app/studio/documents/blog/tool.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-504,python,backend/app/services/tool_executors/blog_agent_executor.py,backend/app/studio/documents/blog/run.py,,,python_module_move,manual
+NBB-504,python,backend/app/studio/documents/blog/run.py,backend/app/studio/documents/blog/run.py,BlogAgentExecutor,BlogRunner,python_symbol_rename,manual
+NBB-504,python,backend/app/services/studio_services/jobs/blog_jobs.py,backend/app/studio/documents/blog/job.py,,,python_module_move,manual
+NBB-504,json,backend/data/prompts/blog_agent_prompt.json,backend/app/studio/documents/blog/prompts/blog_agent_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-504,json,backend/app/services/tools/blog_agent/generate_blog_image.json,backend/app/studio/documents/blog/tools/generate_blog_image.json,,,json_asset_move,json_asset_move.sh
+NBB-504,json,backend/app/services/tools/blog_agent/plan_blog_post.json,backend/app/studio/documents/blog/tools/plan_blog_post.json,,,json_asset_move,json_asset_move.sh
+NBB-504,json,backend/app/services/tools/blog_agent/write_blog_post.json,backend/app/studio/documents/blog/tools/write_blog_post.json,,,json_asset_move,json_asset_move.sh

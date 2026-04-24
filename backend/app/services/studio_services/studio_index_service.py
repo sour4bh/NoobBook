@@ -33,7 +33,7 @@ Architecture:
     ├── presentation_jobs.py
     ├── prd_jobs.py
     ├── marketing_strategy_jobs.py
-    ├── blog_jobs.py
+    ├── blog_jobs.py             (moved to app/studio/documents/blog/job.py)
     └── business_report_jobs.py
 """
 import logging
@@ -419,7 +419,7 @@ from app.services.studio_services.jobs.marketing_strategy_jobs import (
     delete_marketing_strategy_job,
 )
 
-from app.services.studio_services.jobs.blog_jobs import (
+from app.studio.documents.blog.job import (
     create_blog_job,
     update_blog_job,
     get_blog_job,

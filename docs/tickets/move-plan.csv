@@ -76,3 +76,7 @@ NBB-503,python,backend/app/services/tool_executors/website_agent_executor.py,,,,
 NBB-503,python,backend/app/services/ai_agents/website_agent_service.py,,,,text_reference_check,string_ref_scan.py
 NBB-503,json,backend/app/services/tools/website_agent,,,,text_reference_check,string_ref_scan.py
 NBB-503,python,backend/app/studio/design/website/tool.py,backend/app/studio/design/website/tool.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-209C,python,backend/app/services/data_services/user_service.py,backend/app/auth/user/user_service.py,,,python_module_move,refactory:move_module
+NBB-209C,python,backend/app/auth/user/user_service.py,backend/app/auth/user/store.py,,,python_module_move,refactory:move_module
+NBB-209C,python,backend/app/auth/user/store.py,backend/app/auth/user/store.py,UserService,UserStore,python_symbol_rename,refactory:rename_symbol
+NBB-209C,python,backend/app/utils/password_utils.py,backend/app/auth/password.py,,,python_module_move,refactory:move_module

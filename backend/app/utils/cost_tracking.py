@@ -297,7 +297,7 @@ def check_user_spending_limit(user_id: Optional[str]) -> Optional[str]:
         return None
 
     try:
-        from app.services.data_services.user_service import get_user_service
+        from app.auth.user.store import get_user_service
         from datetime import datetime
         svc = get_user_service()
         settings = svc.get_user_settings_raw(user_id)
@@ -354,7 +354,7 @@ def record_user_period_spend(user_id: Optional[str], call_cost: float) -> None:
     if not user_id or call_cost <= 0:
         return
     try:
-        from app.services.data_services.user_service import get_user_service
+        from app.auth.user.store import get_user_service
         svc = get_user_service()
         svc.increment_period_spend(user_id, call_cost)
     except Exception as e:

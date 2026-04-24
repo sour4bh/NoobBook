@@ -24,7 +24,7 @@ from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.connectors.database.connection.store import database_connection_service
 from app.connectors.mcp.connection.store import mcp_connection_service
-from app.services.data_services.user_service import get_user_service
+from app.auth.user.store import get_user_service
 
 __all__ = [
     "chat_service",

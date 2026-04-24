@@ -18,12 +18,13 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-
-logger = logging.getLogger(__name__)
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
 from app.services.studio_services import studio_index_service
 from app.config import prompt_loader, brand_context_loader
+
+
+logger = logging.getLogger(__name__)
 
 
 # Platform to Gemini aspect ratio mapping
@@ -34,7 +35,7 @@ PLATFORM_ASPECT_RATIOS = {
 }
 
 
-class SocialPostsService:
+class SocialPostWriter:
     """
     Service for generating social media posts with images.
 
@@ -409,4 +410,4 @@ class SocialPostsService:
 
 
 # Singleton instance
-social_posts_service = SocialPostsService()
+social_posts_service = SocialPostWriter()

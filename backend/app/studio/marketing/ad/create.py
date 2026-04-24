@@ -17,15 +17,16 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-
-logger = logging.getLogger(__name__)
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.studio_services import studio_index_service
 from app.config import prompt_loader, brand_context_loader
 from app.services.integrations.supabase import storage_service
 
 
-class AdCreativeService:
+logger = logging.getLogger(__name__)
+
+
+class AdCreator:
     """
     Service for generating ad creatives.
 
@@ -327,4 +328,4 @@ class AdCreativeService:
 
 
 # Singleton instance
-ad_creative_service = AdCreativeService()
+ad_creative_service = AdCreator()

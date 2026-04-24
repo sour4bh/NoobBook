@@ -310,7 +310,7 @@ from app.services.studio_services.jobs.video_jobs import (
     delete_video_job,
 )
 
-from app.services.studio_services.jobs.ad_jobs import (
+from app.studio.marketing.ad.job import (
     create_ad_job,
     update_ad_job,
     get_ad_job,
@@ -342,7 +342,7 @@ from app.services.studio_services.jobs.quiz_jobs import (
     delete_quiz_job,
 )
 
-from app.services.studio_services.jobs.social_post_jobs import (
+from app.studio.marketing.social_post.job import (
     create_social_post_job,
     update_social_post_job,
     get_social_post_job,
@@ -350,7 +350,7 @@ from app.services.studio_services.jobs.social_post_jobs import (
     delete_social_post_job,
 )
 
-from app.services.studio_services.jobs.infographic_jobs import (
+from app.studio.marketing.infographic.job import (
     create_infographic_job,
     update_infographic_job,
     get_infographic_job,
@@ -358,7 +358,7 @@ from app.services.studio_services.jobs.infographic_jobs import (
     delete_infographic_job,
 )
 
-from app.services.studio_services.jobs.email_jobs import (
+from app.studio.marketing.email.job import (
     create_email_job,
     update_email_job,
     get_email_job,
@@ -414,7 +414,7 @@ from app.studio.documents.prd.job import (
     delete_prd_job,
 )
 
-from app.services.studio_services.jobs.marketing_strategy_jobs import (
+from app.studio.marketing.strategy.job import (
     create_marketing_strategy_job,
     update_marketing_strategy_job,
     get_marketing_strategy_job,

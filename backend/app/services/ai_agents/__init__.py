@@ -36,7 +36,7 @@ Key patterns:
 """
 
 from app.services.ai_agents.web_agent_service import web_agent_service
-from app.services.ai_agents.email_agent_service import email_agent_service
+from app.studio.marketing.email.write import email_agent_service
 from app.studio.design.wireframe.draw import wireframe_agent_service
 
 # website_agent_service moved to app.studio.design.website.build (NBB-503);
@@ -45,6 +45,7 @@ from app.studio.design.wireframe.draw import wireframe_agent_service
 # business_report_agent_service moved to app.studio.documents.business_report.write (NBB-504);
 # presentation_agent_service moved to app.studio.documents.presentation.compose (NBB-504);
 # prd_agent_service moved to app.studio.documents.prd.write (NBB-504);
+# email_agent_service moved to app.studio.marketing.email.write (NBB-505);
 # consumers import the singleton directly from the new home.
 
 __all__ = [

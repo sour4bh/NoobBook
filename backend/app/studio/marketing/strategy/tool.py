@@ -15,10 +15,10 @@ from app.services.studio_services import studio_index_service
 logger = logging.getLogger(__name__)
 
 
-class MarketingStrategyToolExecutor:
+class MarketingStrategyDispatcher:
     """Executes marketing strategy agent tools."""
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -240,4 +240,4 @@ class MarketingStrategyToolExecutor:
 
 
 # Singleton instance
-marketing_strategy_tool_executor = MarketingStrategyToolExecutor()
+marketing_strategy_tool_executor = MarketingStrategyDispatcher()

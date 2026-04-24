@@ -203,6 +203,11 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
     "business_report_agent": "studio/documents/business_report/prompts",
     "prd_agent": "studio/documents/prd/prompts",
     "presentation_agent": "studio/documents/presentation/prompts",
+    "ad_creative": "studio/marketing/ad/prompts",
+    "email_agent": "studio/marketing/email/prompts",
+    "infographic": "studio/marketing/infographic/prompts",
+    "marketing_strategy_agent": "studio/marketing/strategy/prompts",
+    "social_posts": "studio/marketing/social_post/prompts",
 }
 
 
@@ -229,6 +234,8 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
     "business_report_agent": "studio/documents/business_report/tools",
     "prd_agent": "studio/documents/prd/tools",
     "presentation_agent": "studio/documents/presentation/tools",
+    "email_agent": "studio/marketing/email/tools",
+    "marketing_strategy_agent": "studio/marketing/strategy/tools",
 }
 
 

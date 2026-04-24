@@ -17,12 +17,12 @@ from app.services.integrations.google import imagen_service
 logger = logging.getLogger(__name__)
 
 
-class EmailToolExecutor:
+class EmailDispatcher:
     """Executes email agent tools."""
 
     TERMINATION_TOOL = "write_email_code"
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -372,4 +372,4 @@ class EmailToolExecutor:
 
 
 # Singleton instance
-email_tool_executor = EmailToolExecutor()
+email_tool_executor = EmailDispatcher()

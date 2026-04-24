@@ -97,18 +97,20 @@ Worker prompts must be self-contained and include:
 - primary write scope;
 - any known collision or sequencing notes;
 - required verification commands;
-- instruction to use `nbb-worker` in an isolated worktree;
+- a note that the worker runs in a harness-isolated worktree created by the dispatcher's `Agent(isolation="worktree")` call; do not ask the worker to create a worktree or choose a branch name, the harness provides both;
 - instruction to return the exact `nbb-worker` final response contract.
 
 Reviewer prompts must be self-contained and include:
 
 - ticket key;
-- worker branch and worktree path;
+- worker branch and worktree path (taken from the worker's final response);
 - base branch/commit;
 - worker final response;
 - dependency statement used for the worker;
-- instruction to use `nbb-reviewer`;
+- a note that the reviewer runs in a harness-isolated worktree created by the dispatcher's `Agent(isolation="worktree")` call; git worktrees share the underlying `.git`, so the worker's branch is visible without `git fetch`;
 - instruction to return the exact `nbb-reviewer` final response contract.
+
+When describing main-checkout repo state inside worker or reviewer prompts, use phrasing like "at base commit <sha>" or "in the main checkout". Avoid "current branch" or "current repo state" because those phrases collide with the subagent's own worktree state.
 
 ## Outcome Handling
 

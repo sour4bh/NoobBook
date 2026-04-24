@@ -31,7 +31,7 @@ VALID_AUTH_TYPES = {"none", "bearer", "api_key", "header"}
 VALID_TRANSPORTS = {"sse", "stdio"}
 
 
-class McpConnectionService:
+class McpConnectionStore:
     """
     CRUD + validation + tool caching for MCP server connections stored in Supabase.
     """
@@ -69,7 +69,7 @@ class McpConnectionService:
         masked = {}
         for key, value in auth_config.items():
             if isinstance(value, str):
-                masked[key] = McpConnectionService._mask_value(value)
+                masked[key] = McpConnectionStore._mask_value(value)
             else:
                 masked[key] = value
         return masked
@@ -93,7 +93,7 @@ class McpConnectionService:
         env = stdio_config.get("env")
         if env and isinstance(env, dict):
             masked["env_masked"] = {
-                k: McpConnectionService._mask_value(v) if isinstance(v, str) else v
+                k: McpConnectionStore._mask_value(v) if isinstance(v, str) else v
                 for k, v in env.items()
             }
 
@@ -509,4 +509,4 @@ class McpConnectionService:
 
 
 # Singleton instance
-mcp_connection_service = McpConnectionService()
+mcp_connection_service = McpConnectionStore()

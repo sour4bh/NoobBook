@@ -62,7 +62,7 @@ class McpToolService:
             - List of Claude tool definitions
             - Registry dict: {namespaced_name: (connection_id, original_name)}
         """
-        from app.services.data_services.mcp_connection_service import mcp_connection_service
+        from app.connectors.mcp.connection.store import mcp_connection_service
 
         connections = mcp_connection_service.get_tool_enabled_connections(user_id=user_id)
 
@@ -134,7 +134,7 @@ class McpToolService:
         connection_id, original_name = registry[tool_name]
 
         # Load connection with secrets for tool execution
-        from app.services.data_services.mcp_connection_service import mcp_connection_service
+        from app.connectors.mcp.connection.store import mcp_connection_service
 
         connection = mcp_connection_service.get_connection(
             connection_id=connection_id,

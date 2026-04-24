@@ -23,7 +23,7 @@ from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
 from app.services.auth.rbac import require_admin, get_request_identity
-from app.services.data_services.mcp_connection_service import mcp_connection_service, DEFAULT_USER_ID
+from app.connectors.mcp.connection.store import mcp_connection_service, DEFAULT_USER_ID
 
 
 @settings_bp.route("/settings/mcp", methods=["GET"])

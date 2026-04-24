@@ -49,6 +49,8 @@ NoobBook ships against two different enforcement stacks. The inventory below ass
 
 Both modes are live. Migration changes must keep both modes consistent or state explicitly which mode is affected.
 
+**Auth-required precondition.** The `@before_request` project guard in `backend/app/__init__.py::enforce_auth` runs only when `is_auth_required()` is True. Self-hosted single-user deployments with auth disabled have no per-request access barrier by design; cross-user isolation does not apply because there is exactly one user. Any "backend guard" claim below presumes an auth-required deployment (hosted or self-hosted multi-user).
+
 ## Project-owned table access model (NBB-204 inventory)
 
 For every project-owned table, "Enforced by" names the guard actually rejecting a cross-user read/write today. "Both" means the guard is defence-in-depth.

@@ -15,6 +15,8 @@
 
 Every checklist row must pass in **both** modes. If a test has to skip one mode, state the reason inline.
 
+**Auth-required precondition.** Every row below assumes `is_auth_required()` is True in the test fixture. The `@before_request` project guard in `backend/app/__init__.py::enforce_auth` short-circuits when auth is disabled, and self-hosted single-user deployments with auth disabled have no per-request access barrier by design. For those configurations these rows are **not applicable**, not pass — a single-user fixture that returns 200 for a cross-user path would satisfy a response-code assertion for the wrong reason.
+
 ## 1. Projects
 
 | # | Attempt | Expected | Guard of record |
@@ -82,7 +84,7 @@ Every checklist row must pass in **both** modes. If a test has to skip one mode,
 
 ## Guardrails for test authors (NBB-107, NBB-702, NBB-703)
 
-1. Each test must create at least two distinct users (A and B) and at least one project owned by A. Do not rely on a single-user fixture.
+1. Each test must create at least two distinct users (A and B) and at least one project owned by A. Do not rely on a single-user fixture. Set `is_auth_required()` to True in the fixture; a single-user-mode run is not a substitute.
 2. Tests must run against both deployment modes if the test harness supports it. At minimum, annotate the test with which mode it ran in.
 3. Assert on the **guard path**: use a log probe, a spy on `has_project_access`, or an SQL-level RLS check. Do not assert only on HTTP status code — a silent bypass that returns 404 for an unrelated reason will still look green.
 4. Do not assume hosted-mode RLS is defence-in-depth where this checklist says it is not. `studio_jobs`, `database_connections`, `mcp_connections`, and `freshdesk_tickets` have no RLS by design.

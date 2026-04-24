@@ -17,7 +17,7 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
 from app.utils import claude_parsing_utils
-from app.utils.source_content_utils import get_source_content
+from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.prd_tool_executor import prd_tool_executor
 from app.chat.message.store import message_service

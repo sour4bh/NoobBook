@@ -15,8 +15,8 @@ from typing import Any, Dict, Optional
 
 from app.services.integrations.freshdesk.freshdesk_service import freshdesk_service
 from app.services.integrations.supabase import storage_service
-from app.services.source_services import source_index_service
 from app.background.tasks import task_service
+from app.sources import index
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def add_freshdesk_source(
         },
     }
 
-    source_index_service.add_source_to_index(project_id, source_metadata)
+    index.add_source_to_index(project_id, source_metadata)
 
     # Always run the processor — it skips the API sync if global tickets
     # already exist, but still generates the processed text summary.

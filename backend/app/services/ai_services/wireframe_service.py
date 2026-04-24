@@ -10,12 +10,12 @@ from typing import Dict, Any
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-from app.services.source_services import source_index_service
 from app.services.studio_services import studio_index_service
 from app.config import prompt_loader, tool_loader
 from app.utils import claude_parsing_utils
-from app.utils.source_content_utils import get_source_content
+from app.sources.content import get_source_content
 from app.utils.excalidraw_utils import convert_to_excalidraw_elements
+from app.sources import index
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class WireframeService:
 
         try:
             # Get source metadata
-            source = source_index_service.get_source_from_index(project_id, source_id)
+            source = index.get_source_from_index(project_id, source_id)
             if not source:
                 raise ValueError(f"Source {source_id} not found")
 

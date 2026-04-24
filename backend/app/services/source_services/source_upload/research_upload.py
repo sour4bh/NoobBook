@@ -17,9 +17,9 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any, List
 
-from app.services.source_services import source_index_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
+from app.sources import index
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,7 @@ def upload_research(
     }
 
     # Add to index
-    source_index_service.add_source_to_index(project_id, source_metadata)
+    index.add_source_to_index(project_id, source_metadata)
 
     # Submit processing as background task
     _submit_processing_task(project_id, source_id)

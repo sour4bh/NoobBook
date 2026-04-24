@@ -22,6 +22,6 @@ Files:
 - link_processor.py: URL content extraction via web agent
 - youtube_processor.py: YouTube transcript extraction
 """
-from app.services.source_services.source_processing.source_processing_service import source_processing_service
+from app.sources.pipeline import source_processing_service
 
 __all__ = ["source_processing_service"]

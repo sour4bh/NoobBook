@@ -11,8 +11,8 @@ ensuring the script covers all source material even for large sources.
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 
-from app.services.source_services import source_index_service
 from app.services.integrations.supabase import storage_service
+from app.sources import index
 
 
 class StudioAudioExecutor:
@@ -90,7 +90,7 @@ class StudioAudioExecutor:
             return "Error: source_id is required", False
 
         # Get source metadata
-        source = source_index_service.get_source_from_index(project_id, source_id)
+        source = index.get_source_from_index(project_id, source_id)
         if not source:
             return f"Error: Source not found: {source_id}", False
 

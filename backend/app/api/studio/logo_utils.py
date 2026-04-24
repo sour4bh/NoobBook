@@ -100,7 +100,7 @@ def resolve_source_logo(project_id: str, source_id: str) -> Tuple[Optional[bytes
     Returns:
         Tuple of (image_bytes, mime_type). Bytes is None if not found.
     """
-    from app.services.source_services.source_service import source_service
+    from app.sources.catalog import source_service
 
     try:
         source = source_service.get_source(project_id, source_id)

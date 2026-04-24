@@ -33,7 +33,7 @@ from app.api.google import google_bp
 from app.services.integrations.google import google_drive_service
 from app.services.auth.rbac import get_request_identity
 from app.services.auth import require_permission
-from app.services.source_services import source_service
+from app.sources.catalog import source_service
 
 
 def _get_current_user_id() -> Optional[str]:

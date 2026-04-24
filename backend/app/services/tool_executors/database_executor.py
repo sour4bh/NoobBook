@@ -23,7 +23,7 @@ from psycopg2.extras import RealDictCursor
 import pymysql
 
 from app.connectors.database.connection.store import database_connection_service
-from app.services.source_services import source_service
+from app.sources.catalog import source_service
 
 logger = logging.getLogger(__name__)
 

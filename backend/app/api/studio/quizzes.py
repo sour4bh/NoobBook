@@ -29,9 +29,9 @@ from flask import jsonify, request, current_app
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.studio_services.quiz_service import quiz_service
-from app.services.source_services import source_index_service
 from app.background.tasks import task_service
 from app.services.auth import require_permission
+from app.sources import index
 
 
 @studio_bp.route('/projects/<project_id>/studio/quiz', methods=['POST'])
@@ -108,7 +108,7 @@ def generate_quiz(project_id: str):
             previous_content = json.dumps(questions, indent=2)
 
         # Get source info for the job record
-        source = source_index_service.get_source_from_index(project_id, source_id)
+        source = index.get_source_from_index(project_id, source_id)
         if not source:
             return jsonify({
                 'success': False,

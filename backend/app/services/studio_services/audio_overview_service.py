@@ -20,15 +20,16 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-
-logger = logging.getLogger(__name__)
 from app.services.integrations.elevenlabs import tts_service
-from app.services.source_services import source_index_service
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.studio_audio_executor import studio_audio_executor
 from app.config import prompt_loader, tool_loader
 from app.utils import claude_parsing_utils
 from app.services.integrations.supabase import storage_service
+from app.sources import index
+
+
+logger = logging.getLogger(__name__)
 
 
 class AudioOverviewService:
@@ -107,7 +108,7 @@ class AudioOverviewService:
         )
 
         # Step 1: Get source metadata
-        source = source_index_service.get_source_from_index(project_id, source_id)
+        source = index.get_source_from_index(project_id, source_id)
         if not source:
             studio_index_service.update_audio_job(
                 project_id, job_id,

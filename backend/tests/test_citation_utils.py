@@ -7,7 +7,7 @@ Covers:
 """
 import pytest
 
-from app.utils.citation_utils import (
+from app.sources.citations import (
     parse_chunk_id,
     extract_citations_from_text,
 )

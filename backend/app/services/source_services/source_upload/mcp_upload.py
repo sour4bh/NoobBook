@@ -16,8 +16,8 @@ from typing import Any, Dict, List, Optional
 
 from app.connectors.mcp.connection.store import mcp_connection_service, DEFAULT_USER_ID
 from app.services.integrations.supabase import storage_service
-from app.services.source_services import source_index_service
 from app.background.tasks import task_service
+from app.sources import index
 
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ def add_mcp_source(
         },
     }
 
-    source_index_service.add_source_to_index(project_id, source_metadata)
+    index.add_source_to_index(project_id, source_metadata)
 
     # Trigger processing in background
     _submit_processing_task(project_id, source_id)

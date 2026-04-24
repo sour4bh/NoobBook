@@ -18,11 +18,11 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
-from app.utils.source_content_utils import get_source_content
+from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
-from app.services.source_services import source_index_service
 from app.services.tool_executors.wireframe_tool_executor import wireframe_tool_executor
 from app.chat.message.store import message_service
+from app.sources import index
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class WireframeAgentService:
             source_content = ""
             source_name = "Direction Only"
             if source_id:
-                source = source_index_service.get_source_from_index(project_id, source_id)
+                source = index.get_source_from_index(project_id, source_id)
                 if not source:
                     raise ValueError(f"Source {source_id} not found")
                 source_name = source.get("name", "Unknown Source")

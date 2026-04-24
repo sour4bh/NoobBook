@@ -36,12 +36,9 @@ Routes:
 """
 from flask import jsonify, request, current_app
 from app.api.sources import sources_bp
-from app.services.source_services import SourceService
+from app.sources.catalog import source_service
 from app.services.auth.rbac import get_request_identity
 from app.services.auth import require_permission
-
-# Initialize service
-source_service = SourceService()
 
 
 @sources_bp.route('/projects/<project_id>/sources/url', methods=['POST'])

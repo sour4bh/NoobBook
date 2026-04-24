@@ -16,7 +16,7 @@ from pathlib import Path
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
-from app.utils.source_content_utils import get_source_content
+from app.sources.content import get_source_content
 from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.services.integrations.supabase import storage_service

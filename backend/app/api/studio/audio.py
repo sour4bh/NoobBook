@@ -31,11 +31,11 @@ import uuid
 from flask import jsonify, request, current_app, send_file
 from app.api.studio import studio_bp
 from app.services.studio_services import audio_overview_service, studio_index_service
-from app.services.source_services import source_index_service
 from app.services.integrations.elevenlabs import tts_service
 from app.services.integrations.supabase import storage_service  # For downloading previous scripts during edits
 from app.background.tasks import task_service
 from app.services.auth import require_permission
+from app.sources import index
 
 
 @studio_bp.route('/projects/<project_id>/studio/audio-overview', methods=['POST'])
@@ -131,7 +131,7 @@ def generate_audio_overview(project_id: str):
             }), 400
 
         # Get source info for the job record
-        source = source_index_service.get_source_from_index(project_id, source_id)
+        source = index.get_source_from_index(project_id, source_id)
         if not source:
             return jsonify({
                 'success': False,

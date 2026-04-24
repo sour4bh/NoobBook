@@ -198,6 +198,7 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
     "ad_creative": "studio/marketing/ad/prompts",
     "email_agent": "studio/marketing/email/prompts",
     "infographic": "studio/marketing/infographic/prompts",
+    "marketing_strategy_agent": "studio/marketing/strategy/prompts",
 }
 
 
@@ -219,6 +220,7 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
     "deep_research": "sources/analysis/research/tools",
     "website_agent": "studio/design/website/tools",
     "email_agent": "studio/marketing/email/tools",
+    "marketing_strategy_agent": "studio/marketing/strategy/tools",
 }
 
 

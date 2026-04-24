@@ -96,3 +96,12 @@ NBB-505,python,backend/app/services/studio_services/infographic_service.py,backe
 NBB-505,python,backend/app/studio/marketing/infographic/create.py,backend/app/studio/marketing/infographic/create.py,InfographicService,InfographicCreator,python_symbol_rename,refactory:rename_symbol
 NBB-505,python,backend/app/services/studio_services/jobs/infographic_jobs.py,backend/app/studio/marketing/infographic/job.py,,,python_module_move,refactory:move_module
 NBB-505,json,backend/data/prompts/infographic_prompt.json,backend/app/studio/marketing/infographic/prompts/infographic_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-505,python,backend/app/services/ai_agents/marketing_strategy_agent_service.py,backend/app/studio/marketing/strategy/plan.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/strategy/plan.py,backend/app/studio/marketing/strategy/plan.py,MarketingStrategyAgentService,MarketingStrategyPlanner,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/services/tool_executors/marketing_strategy_tool_executor.py,backend/app/studio/marketing/strategy/tool.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/strategy/tool.py,backend/app/studio/marketing/strategy/tool.py,MarketingStrategyToolExecutor,MarketingStrategyDispatcher,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/studio/marketing/strategy/tool.py,backend/app/studio/marketing/strategy/tool.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-505,python,backend/app/services/studio_services/jobs/marketing_strategy_jobs.py,backend/app/studio/marketing/strategy/job.py,,,python_module_move,refactory:move_module
+NBB-505,json,backend/data/prompts/marketing_strategy_agent_prompt.json,backend/app/studio/marketing/strategy/prompts/marketing_strategy_agent_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-505,json,backend/app/services/tools/marketing_strategy_agent/plan_marketing_strategy.json,backend/app/studio/marketing/strategy/tools/plan_marketing_strategy.json,,,json_asset_move,json_asset_move.sh
+NBB-505,json,backend/app/services/tools/marketing_strategy_agent/write_marketing_section.json,backend/app/studio/marketing/strategy/tools/write_marketing_section.json,,,json_asset_move,json_asset_move.sh

@@ -23,6 +23,7 @@ from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
+from app.studio.marketing.strategy.plan import marketing_strategy_agent_service
 
 
 @studio_bp.route('/projects/<project_id>/studio/marketing-strategy', methods=['POST'])
@@ -40,7 +41,6 @@ def generate_marketing_strategy(project_id: str):
     Returns:
         202 Accepted with job_id for polling
     """
-    from app.services.ai_agents import marketing_strategy_agent_service
     from app.services.source_services import source_service
     from app.background.tasks import task_service
     import uuid
@@ -112,7 +112,7 @@ def generate_marketing_strategy(project_id: str):
         task_service.submit_task(
             task_type="marketing_strategy",
             target_id=job_id,
-            callable_func=marketing_strategy_agent_service.marketing_strategy_agent_service.generate_marketing_strategy,
+            callable_func=marketing_strategy_agent_service.generate_marketing_strategy,
             project_id=project_id,
             source_id=source_id,
             job_id=job_id,

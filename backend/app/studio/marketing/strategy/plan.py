@@ -17,13 +17,13 @@ from app.config import prompt_loader, tool_loader
 from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.marketing_strategy_tool_executor import marketing_strategy_tool_executor
+from app.studio.marketing.strategy.tool import marketing_strategy_tool_executor
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class MarketingStrategyAgentService:
+class MarketingStrategyPlanner:
     """Marketing strategy generation agent - orchestration only."""
 
     AGENT_NAME = "marketing_strategy_agent"
@@ -153,7 +153,7 @@ class MarketingStrategyAgentService:
                     }
 
                     # Execute tool via executor
-                    result, is_termination = marketing_strategy_tool_executor.execute_tool(
+                    result, is_termination = marketing_strategy_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 
@@ -226,4 +226,4 @@ class MarketingStrategyAgentService:
 
 
 # Singleton instance
-marketing_strategy_agent_service = MarketingStrategyAgentService()
+marketing_strategy_agent_service = MarketingStrategyPlanner()

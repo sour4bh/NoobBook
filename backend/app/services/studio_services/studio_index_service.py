@@ -411,7 +411,7 @@ from app.services.studio_services.jobs.prd_jobs import (
     delete_prd_job,
 )
 
-from app.services.studio_services.jobs.marketing_strategy_jobs import (
+from app.studio.marketing.strategy.job import (
     create_marketing_strategy_job,
     update_marketing_strategy_job,
     get_marketing_strategy_job,

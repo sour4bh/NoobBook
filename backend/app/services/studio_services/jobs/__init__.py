@@ -106,7 +106,7 @@ from .prd_jobs import (
     list_prd_jobs,
     delete_prd_job,
 )
-from .marketing_strategy_jobs import (
+from app.studio.marketing.strategy.job import (
     create_marketing_strategy_job,
     update_marketing_strategy_job,
     get_marketing_strategy_job,

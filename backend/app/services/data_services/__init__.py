@@ -17,9 +17,9 @@ These services typically:
 - Handle entity metadata and relationships
 - Provide structured queries for efficient lookups
 """
-from app.services.data_services.chat_service import chat_service
+from app.chat.store import chat_service
 from app.projects.store import project_service
-from app.services.data_services.message_service import message_service
+from app.chat.message.store import message_service
 from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.connectors.database.connection.store import database_connection_service

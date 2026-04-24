@@ -16,9 +16,7 @@ The service uses message_service for all message handling and tool parsing.
 import logging
 from typing import Dict, Any, Tuple, List, Optional, Callable
 
-from app.services.data_services import chat_service
 from app.services.integrations.claude import claude_service
-from app.services.data_services import message_service
 from app.config import prompt_loader, tool_loader, context_loader, brand_context_loader
 from app.services.tool_executors import source_search_executor
 from app.services.tool_executors import memory_executor
@@ -35,6 +33,8 @@ from app.projects.store import DEFAULT_USER_ID
 from app.utils import claude_parsing_utils
 from app.services.auth.permissions import user_has_permission
 from app.background.tasks import task_service
+from app.chat.store import chat_service
+from app.chat.message.store import message_service
 
 
 logger = logging.getLogger(__name__)

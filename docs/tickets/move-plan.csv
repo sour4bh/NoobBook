@@ -35,3 +35,7 @@ NBB-207C,json,backend/app/services/tools/deep_research/write_research_to_file.js
 NBB-207C,json,backend/app/services/tools/deep_research,,,,text_reference_check,string_ref_scan.py
 NBB-210,python,backend/app/services/background_services/task_service.py,backend/app/background/tasks.py,,,python_module_move,refactory:move_module
 NBB-210,python,backend/app/services/background_services/task_service.py,,,,text_reference_check,string_ref_scan.py
+NBB-209A,python,backend/app/services/data_services/chat_service.py,backend/app/chat/store.py,,,module,refactory:move_module
+NBB-209A,python,backend/app/chat/store.py,backend/app/chat/store.py,ChatService,ChatStore,symbol,refactory:rename_symbol
+NBB-209A,python,backend/app/services/data_services/message_service.py,backend/app/chat/message/store.py,,,module,refactory:move_module
+NBB-209A,python,backend/app/chat/message/store.py,backend/app/chat/message/store.py,MessageService,MessageStore,symbol,refactory:rename_symbol

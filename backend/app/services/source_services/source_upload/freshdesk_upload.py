@@ -13,10 +13,10 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.services.background_services import task_service
 from app.services.integrations.freshdesk.freshdesk_service import freshdesk_service
 from app.services.integrations.supabase import storage_service
 from app.services.source_services import source_index_service
+from app.background.tasks import task_service
 
 logger = logging.getLogger(__name__)
 

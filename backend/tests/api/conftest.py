@@ -39,8 +39,8 @@ os.environ.setdefault(
 os.environ.setdefault("NOOBBOOK_AUTH_REQUIRED", "false")
 
 # Replace the Supabase singleton before any app import. The startup hook in
-# `task_service._cleanup_stale_tasks` otherwise attempts a real network call
-# to Supabase during `create_app`.
+# `task_service._cleanup_stale_tasks` (see `backend/app/background/tasks.py`)
+# otherwise attempts a real network call to Supabase during `create_app`.
 from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
 
 _supabase_client.SupabaseClient._instance = MagicMock()

@@ -42,7 +42,7 @@ def generate_prd(project_id: str):
     """
     from app.services.ai_agents import prd_agent_service
     from app.services.source_services import source_service
-    from app.services.background_services.task_service import task_service
+    from app.background.tasks import task_service
     import uuid
 
     try:

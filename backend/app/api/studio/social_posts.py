@@ -34,7 +34,7 @@ from app.services.studio_services import studio_index_service
 from app.services.studio_services.social_posts_service import social_posts_service
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
-from app.services.background_services.task_service import task_service
+from app.background.tasks import task_service
 from app.services.auth import require_permission
 
 

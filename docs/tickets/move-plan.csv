@@ -33,3 +33,5 @@ NBB-207C,json,backend/app/services/tools/deep_research/tavily_search_advance.jso
 NBB-207C,json,backend/app/services/tools/deep_research/web_search.json,backend/app/sources/analysis/research/tools/web_search.json,,,json_asset_move,json_asset_move.sh
 NBB-207C,json,backend/app/services/tools/deep_research/write_research_to_file.json,backend/app/sources/analysis/research/tools/write_research_to_file.json,,,json_asset_move,json_asset_move.sh
 NBB-207C,json,backend/app/services/tools/deep_research,,,,text_reference_check,string_ref_scan.py
+NBB-210,python,backend/app/services/background_services/task_service.py,backend/app/background/tasks.py,,,python_module_move,refactory:move_module
+NBB-210,python,backend/app/services/background_services/task_service.py,,,,text_reference_check,string_ref_scan.py

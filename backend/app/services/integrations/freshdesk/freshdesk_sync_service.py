@@ -49,7 +49,7 @@ class FreshdeskSyncService:
         Supports cancellation via task_service.is_target_cancelled() and
         reports progress by updating the source's processing_info.
         """
-        from app.services.background_services import task_service
+        from app.background.tasks import task_service
 
         if not freshdesk_service.is_configured():
             return {

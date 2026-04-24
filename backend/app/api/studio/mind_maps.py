@@ -31,7 +31,7 @@ from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.studio_services.mind_map_service import mind_map_service
 from app.services.source_services import source_index_service
-from app.services.background_services.task_service import task_service
+from app.background.tasks import task_service
 from app.services.auth import require_permission
 
 

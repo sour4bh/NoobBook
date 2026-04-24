@@ -57,7 +57,7 @@ class EmailAgentExecutor:
             Job info with status and job_id for polling
         """
         from app.services.studio_services import studio_index_service
-        from app.services.background_services import task_service
+        from app.background.tasks import task_service
         from app.services.ai_agents import email_agent_service
         from app.services.source_services import source_service
 

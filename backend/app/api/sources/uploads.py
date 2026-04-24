@@ -416,7 +416,7 @@ def sync_freshdesk_source(project_id: str, source_id: str):
         if not freshdesk_service.is_configured():
             return jsonify({'success': False, 'error': 'Freshdesk not configured. Add API key and domain in Settings.'}), 400
 
-        from app.services.background_services import task_service
+        from app.background.tasks import task_service
 
         data = request.get_json(silent=True) or {}
         mode = data.get('mode', 'incremental')
@@ -446,7 +446,7 @@ def backfill_freshdesk_source(project_id: str, source_id: str):
         if not freshdesk_service.is_configured():
             return jsonify({'success': False, 'error': 'Freshdesk not configured. Add API key and domain in Settings.'}), 400
 
-        from app.services.background_services import task_service
+        from app.background.tasks import task_service
 
         task_service.submit_task(
             "freshdesk_backfill", source_id,

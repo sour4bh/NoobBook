@@ -27,9 +27,9 @@ Architecture:
     ├── infographic_jobs.py
     ├── email_jobs.py
     ├── website_jobs.py           (moved to app/studio/design/website/job.py)
-    ├── component_jobs.py
-    ├── flow_diagram_jobs.py
-    ├── wireframe_jobs.py
+    ├── component_jobs.py         (moved to app/studio/design/component/job.py)
+    ├── flow_diagram_jobs.py      (moved to app/studio/design/flow_diagram/job.py)
+    ├── wireframe_jobs.py         (moved to app/studio/design/wireframe/job.py)
     ├── presentation_jobs.py
     ├── prd_jobs.py
     ├── marketing_strategy_jobs.py
@@ -41,149 +41,6 @@ from typing import Dict, List, Any, Optional
 
 from app.services.integrations.supabase import get_supabase, is_supabase_enabled
 
-from app.services.studio_services.jobs.audio_jobs import (
-    create_audio_job,
-    update_audio_job,
-    get_audio_job,
-    list_audio_jobs,
-    delete_audio_job,
-)
-
-from app.services.studio_services.jobs.video_jobs import (
-    create_video_job,
-    update_video_job,
-    get_video_job,
-    list_video_jobs,
-    delete_video_job,
-)
-
-from app.services.studio_services.jobs.ad_jobs import (
-    create_ad_job,
-    update_ad_job,
-    get_ad_job,
-    list_ad_jobs,
-    delete_ad_job,
-)
-
-from app.services.studio_services.jobs.flash_card_jobs import (
-    create_flash_card_job,
-    update_flash_card_job,
-    get_flash_card_job,
-    list_flash_card_jobs,
-    delete_flash_card_job,
-)
-
-from app.services.studio_services.jobs.mind_map_jobs import (
-    create_mind_map_job,
-    update_mind_map_job,
-    get_mind_map_job,
-    list_mind_map_jobs,
-    delete_mind_map_job,
-)
-
-from app.services.studio_services.jobs.quiz_jobs import (
-    create_quiz_job,
-    update_quiz_job,
-    get_quiz_job,
-    list_quiz_jobs,
-    delete_quiz_job,
-)
-
-from app.services.studio_services.jobs.social_post_jobs import (
-    create_social_post_job,
-    update_social_post_job,
-    get_social_post_job,
-    list_social_post_jobs,
-    delete_social_post_job,
-)
-
-from app.services.studio_services.jobs.infographic_jobs import (
-    create_infographic_job,
-    update_infographic_job,
-    get_infographic_job,
-    list_infographic_jobs,
-    delete_infographic_job,
-)
-
-from app.services.studio_services.jobs.email_jobs import (
-    create_email_job,
-    update_email_job,
-    get_email_job,
-    list_email_jobs,
-    delete_email_job,
-)
-
-from app.studio.design.website.job import (
-    create_website_job,
-    update_website_job,
-    get_website_job,
-    list_website_jobs,
-    delete_website_job,
-)
-
-from app.studio.design.component.job import (
-    create_component_job,
-    update_component_job,
-    get_component_job,
-    list_component_jobs,
-    delete_component_job,
-)
-
-from app.studio.design.flow_diagram.job import (
-    create_flow_diagram_job,
-    update_flow_diagram_job,
-    get_flow_diagram_job,
-    list_flow_diagram_jobs,
-    delete_flow_diagram_job,
-)
-
-from app.studio.design.wireframe.job import (
-    create_wireframe_job,
-    update_wireframe_job,
-    get_wireframe_job,
-    list_wireframe_jobs,
-    delete_wireframe_job,
-)
-
-from app.services.studio_services.jobs.presentation_jobs import (
-    create_presentation_job,
-    update_presentation_job,
-    get_presentation_job,
-    list_presentation_jobs,
-    delete_presentation_job,
-)
-
-from app.services.studio_services.jobs.prd_jobs import (
-    create_prd_job,
-    update_prd_job,
-    get_prd_job,
-    list_prd_jobs,
-    delete_prd_job,
-)
-
-from app.services.studio_services.jobs.marketing_strategy_jobs import (
-    create_marketing_strategy_job,
-    update_marketing_strategy_job,
-    get_marketing_strategy_job,
-    list_marketing_strategy_jobs,
-    delete_marketing_strategy_job,
-)
-
-from app.services.studio_services.jobs.blog_jobs import (
-    create_blog_job,
-    update_blog_job,
-    get_blog_job,
-    list_blog_jobs,
-    delete_blog_job,
-)
-
-from app.services.studio_services.jobs.business_report_jobs import (
-    create_business_report_job,
-    update_business_report_job,
-    get_business_report_job,
-    list_business_report_jobs,
-    delete_business_report_job,
-)
 logger = logging.getLogger(__name__)
 
 
@@ -433,3 +290,150 @@ def delete_job(
 # =============================================================================
 # All job-specific functions are now in separate modules under jobs/
 # These re-exports ensure existing imports continue to work.
+# Imports MUST stay at the bottom of this file: each per-item job module imports
+# `create_job`/`update_job`/etc from this module, so `studio_index_service` must
+# define those generic CRUD helpers before the per-item modules load.
+
+from app.services.studio_services.jobs.audio_jobs import (
+    create_audio_job,
+    update_audio_job,
+    get_audio_job,
+    list_audio_jobs,
+    delete_audio_job,
+)
+
+from app.services.studio_services.jobs.video_jobs import (
+    create_video_job,
+    update_video_job,
+    get_video_job,
+    list_video_jobs,
+    delete_video_job,
+)
+
+from app.services.studio_services.jobs.ad_jobs import (
+    create_ad_job,
+    update_ad_job,
+    get_ad_job,
+    list_ad_jobs,
+    delete_ad_job,
+)
+
+from app.services.studio_services.jobs.flash_card_jobs import (
+    create_flash_card_job,
+    update_flash_card_job,
+    get_flash_card_job,
+    list_flash_card_jobs,
+    delete_flash_card_job,
+)
+
+from app.services.studio_services.jobs.mind_map_jobs import (
+    create_mind_map_job,
+    update_mind_map_job,
+    get_mind_map_job,
+    list_mind_map_jobs,
+    delete_mind_map_job,
+)
+
+from app.services.studio_services.jobs.quiz_jobs import (
+    create_quiz_job,
+    update_quiz_job,
+    get_quiz_job,
+    list_quiz_jobs,
+    delete_quiz_job,
+)
+
+from app.services.studio_services.jobs.social_post_jobs import (
+    create_social_post_job,
+    update_social_post_job,
+    get_social_post_job,
+    list_social_post_jobs,
+    delete_social_post_job,
+)
+
+from app.services.studio_services.jobs.infographic_jobs import (
+    create_infographic_job,
+    update_infographic_job,
+    get_infographic_job,
+    list_infographic_jobs,
+    delete_infographic_job,
+)
+
+from app.services.studio_services.jobs.email_jobs import (
+    create_email_job,
+    update_email_job,
+    get_email_job,
+    list_email_jobs,
+    delete_email_job,
+)
+
+from app.studio.design.website.job import (
+    create_website_job,
+    update_website_job,
+    get_website_job,
+    list_website_jobs,
+    delete_website_job,
+)
+
+from app.studio.design.component.job import (
+    create_component_job,
+    update_component_job,
+    get_component_job,
+    list_component_jobs,
+    delete_component_job,
+)
+
+from app.studio.design.flow_diagram.job import (
+    create_flow_diagram_job,
+    update_flow_diagram_job,
+    get_flow_diagram_job,
+    list_flow_diagram_jobs,
+    delete_flow_diagram_job,
+)
+
+from app.studio.design.wireframe.job import (
+    create_wireframe_job,
+    update_wireframe_job,
+    get_wireframe_job,
+    list_wireframe_jobs,
+    delete_wireframe_job,
+)
+
+from app.services.studio_services.jobs.presentation_jobs import (
+    create_presentation_job,
+    update_presentation_job,
+    get_presentation_job,
+    list_presentation_jobs,
+    delete_presentation_job,
+)
+
+from app.services.studio_services.jobs.prd_jobs import (
+    create_prd_job,
+    update_prd_job,
+    get_prd_job,
+    list_prd_jobs,
+    delete_prd_job,
+)
+
+from app.services.studio_services.jobs.marketing_strategy_jobs import (
+    create_marketing_strategy_job,
+    update_marketing_strategy_job,
+    get_marketing_strategy_job,
+    list_marketing_strategy_jobs,
+    delete_marketing_strategy_job,
+)
+
+from app.services.studio_services.jobs.blog_jobs import (
+    create_blog_job,
+    update_blog_job,
+    get_blog_job,
+    list_blog_jobs,
+    delete_blog_job,
+)
+
+from app.services.studio_services.jobs.business_report_jobs import (
+    create_business_report_job,
+    update_business_report_job,
+    get_business_report_job,
+    list_business_report_jobs,
+    delete_business_report_job,
+)

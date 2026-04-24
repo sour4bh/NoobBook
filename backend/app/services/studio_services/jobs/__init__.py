@@ -127,39 +127,6 @@ from .business_report_jobs import (
     list_business_report_jobs,
     delete_business_report_job,
 )
-# Video Jobs
 
-# Ad Jobs
-
-# Flash Card Jobs
-
-# Mind Map Jobs
-
-# Quiz Jobs
-
-# Social Post Jobs
-
-# Infographic Jobs
-
-# Email Jobs
-
-# Website Jobs: moved to app/studio/design/website/job.py (NBB-503). Consumers
-# that previously imported website job helpers via this package are rewritten to
-# import directly from studio_index_service (which re-exports from the new home)
-# or from app.studio.design.website.job.
-
-# Component Jobs
-
-# Flow Diagram Jobs
-
-# Wireframe Jobs
-
-# Presentation Jobs
-
-# PRD Jobs
-
-# Marketing Strategy Jobs
-
-# Blog Jobs
-
-# Business Report Jobs
+# Website jobs moved to app/studio/design/website/job.py (NBB-503).
+# Component, flow_diagram, wireframe jobs moved to app/studio/design/<item>/job.py (NBB-506).

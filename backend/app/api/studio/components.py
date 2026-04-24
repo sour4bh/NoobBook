@@ -30,7 +30,7 @@ import io
 from flask import g, jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
-from app.studio.design.component.run import component_agent_executor
+import app.studio.design.component.run
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 
@@ -83,8 +83,8 @@ def generate_components(project_id: str):
                     'error': 'Parent job not found or has no components to edit'
                 }), 404
 
-        # Execute via component_agent_executor (creates job and launches agent)
-        result = component_agent_executor.execute(
+        # Execute component generation (creates job and launches agent)
+        result = app.studio.design.component.run.run(
             project_id=project_id,
             source_id=source_id,
             direction=direction,

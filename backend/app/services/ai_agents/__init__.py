@@ -18,6 +18,11 @@ Agents:
 
 - website_agent_service: moved to app/studio/design/website/build.py (NBB-503)
 
+- component_agent_service: moved to app/studio/design/component/build.py (NBB-506)
+
+- wireframe_agent_service: moved to app/studio/design/wireframe/draw.py (NBB-506)
+  - Singleton kept here as temporary re-export shim (NBB-706 cleanup).
+
 - presentation_agent_service: Generates PowerPoint presentations
   - Uses agentic loop with MAX_ITERATIONS limit (40)
   - Tools: plan_presentation, create_base_styles, create_slide, finalize_presentation

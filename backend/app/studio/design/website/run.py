@@ -1,19 +1,18 @@
 """
-Website Agent Executor - Handles studio signal execution for website generation.
+Website runner - handles studio-signal execution for website generation.
 
-Educational Note: This executor is triggered by studio signals (from main chat)
-and launches the website agent as a background task. Similar to email_agent_executor,
-tool calls are handled inside website_agent_service itself.
+Triggered by studio signals (from main chat) and launches the website builder
+as a background task. Tool calls are handled inside build.py (WebsiteBuilder).
 """
 
 import logging
-from typing import Dict, Any, Optional
 import uuid
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 
-class WebsiteAgentExecutor:
+class WebsiteRunner:
     """
     Executor for website generation via studio signals.
 
@@ -54,7 +53,7 @@ class WebsiteAgentExecutor:
         """
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
-        from app.services.ai_agents import website_agent_service
+        from app.studio.design.website.build import website_agent_service
         from app.services.source_services import source_service
 
         # Get source info
@@ -86,10 +85,10 @@ class WebsiteAgentExecutor:
             edit_instructions=edit_instructions
         )
 
-        # Launch agent as background task
+        # Launch builder as background task
         def run_agent():
-            """Background task to run the website agent."""
-            logger.info("Starting website agent for job %s", job_id[:8])
+            """Background task to run the website builder."""
+            logger.info("Starting website builder for job %s", job_id[:8])
             try:
                 website_agent_service.generate_website(
                     project_id=project_id,
@@ -124,4 +123,27 @@ class WebsiteAgentExecutor:
 
 
 # Singleton instance
-website_agent_executor = WebsiteAgentExecutor()
+website_agent_executor = WebsiteRunner()
+
+
+def run(
+    project_id: str,
+    source_id: str,
+    direction: str = "",
+    edit_instructions: Optional[str] = None,
+    previous_markdown: Optional[str] = None,
+    previous_title: Optional[str] = None,
+    parent_job_id: Optional[str] = None,
+    parent_source_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Module-level entry point matching the `<item>/run.py::run(...)` naming rule."""
+    return website_agent_executor.execute(
+        project_id=project_id,
+        source_id=source_id,
+        direction=direction,
+        edit_instructions=edit_instructions,
+        previous_markdown=previous_markdown,
+        previous_title=previous_title,
+        parent_job_id=parent_job_id,
+        parent_source_name=parent_source_name,
+    )

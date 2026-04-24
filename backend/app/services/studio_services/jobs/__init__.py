@@ -88,14 +88,10 @@ from .email_jobs import (
     delete_email_job,
 )
 
-# Website Jobs
-from .website_jobs import (
-    create_website_job,
-    update_website_job,
-    get_website_job,
-    list_website_jobs,
-    delete_website_job,
-)
+# Website Jobs: moved to app/studio/design/website/job.py (NBB-503). Consumers
+# that previously imported website job helpers via this package are rewritten to
+# import directly from studio_index_service (which re-exports from the new home)
+# or from app.studio.design.website.job.
 
 # Component Jobs
 from .component_jobs import (

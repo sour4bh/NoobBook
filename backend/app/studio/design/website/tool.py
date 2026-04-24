@@ -16,7 +16,7 @@ from app.services.studio_services import studio_index_service
 logger = logging.getLogger(__name__)
 
 
-class WebsiteToolExecutor:
+class WebsiteDispatcher:
     """Executes website agent tools."""
 
     TERMINATION_TOOL = "finalize_website"
@@ -466,4 +466,4 @@ class WebsiteToolExecutor:
 
 
 # Singleton instance
-website_tool_executor = WebsiteToolExecutor()
+website_tool_executor = WebsiteDispatcher()

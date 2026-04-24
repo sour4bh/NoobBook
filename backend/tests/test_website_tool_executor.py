@@ -8,12 +8,12 @@ Covers:
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.services.tool_executors.website_tool_executor import WebsiteToolExecutor
+from app.studio.design.website.tool import WebsiteDispatcher
 
 
 @pytest.fixture
 def executor():
-    return WebsiteToolExecutor()
+    return WebsiteDispatcher()
 
 
 # ===========================================================================

@@ -18,13 +18,13 @@ from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.website_tool_executor import website_tool_executor
+from app.studio.design.website.tool import website_tool_executor
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class WebsiteAgentService:
+class WebsiteBuilder:
     """Website generation agent - orchestration only."""
 
     AGENT_NAME = "website_agent"
@@ -221,4 +221,4 @@ class WebsiteAgentService:
 
 
 # Singleton instance
-website_agent_service = WebsiteAgentService()
+website_agent_service = WebsiteBuilder()

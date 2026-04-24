@@ -8,8 +8,6 @@ Educational Note: A database source is represented similarly to URL sources:
 - Processing fetches schema + generates a processed text snapshot for RAG + summaries.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import uuid

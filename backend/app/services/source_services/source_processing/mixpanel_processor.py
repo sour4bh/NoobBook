@@ -8,8 +8,6 @@ happen live via the chat tools (mixpanel_list_events, mixpanel_query_events,
 mixpanel_segmentation, mixpanel_funnel, mixpanel_retention, mixpanel_jql).
 """
 
-from __future__ import annotations
-
 import logging
 from datetime import datetime
 from pathlib import Path

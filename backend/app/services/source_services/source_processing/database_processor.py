@@ -11,8 +11,6 @@ This enables:
 - A foundation for a database query agent (tool-based SQL querying)
 """
 
-from __future__ import annotations
-
 import json
 import logging
 from datetime import datetime

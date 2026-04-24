@@ -10,8 +10,6 @@ Security note:
 - The frontend only receives a masked URI for display.
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional

@@ -94,7 +94,7 @@ def get_chat(project_id, chat_id):
         }), 200
 
     except Exception as e:
-        current_app.logger.error(f"Error getting chat {chat_id}: {e}")
+        current_app.logger.exception("Error getting chat %s", chat_id)
         return jsonify({
             'success': False,
             'error': str(e)

@@ -19,8 +19,6 @@ Each tool call spawns a fresh MCP connection (SSE HTTP request or stdio subproce
 This is intentionally stateless — no persistent connections to manage.
 """
 
-from __future__ import annotations
-
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple

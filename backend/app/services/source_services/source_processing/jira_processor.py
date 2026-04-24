@@ -8,8 +8,6 @@ All actual Jira queries happen live via the chat tools (jira_list_projects,
 jira_search_issues, jira_get_issue, jira_get_project).
 """
 
-from __future__ import annotations
-
 import logging
 from datetime import datetime
 from pathlib import Path

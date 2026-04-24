@@ -15,8 +15,6 @@ creates a fresh connection to avoid stale session issues.
 Timeouts: 10s connect, 30s per resource/tool call.
 """
 
-from __future__ import annotations
-
 import asyncio
 import concurrent.futures
 import logging

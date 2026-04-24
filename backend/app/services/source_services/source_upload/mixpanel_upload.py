@@ -6,8 +6,6 @@ as a per-project flag that enables Mixpanel chat tools. No data is synced
 locally; all queries go live to the Mixpanel Query API.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import uuid

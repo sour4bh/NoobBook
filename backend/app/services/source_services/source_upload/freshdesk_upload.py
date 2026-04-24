@@ -7,8 +7,6 @@ in the global pool. If so, the source is marked ready immediately (no re-sync).
 If not, a full backfill sync is triggered.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import uuid

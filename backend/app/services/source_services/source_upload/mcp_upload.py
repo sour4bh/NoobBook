@@ -8,8 +8,6 @@ Educational Note: An MCP source is represented similarly to database sources:
 - Processing fetches resource content, builds processed text, and embeds for RAG.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import uuid

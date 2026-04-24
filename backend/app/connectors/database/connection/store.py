@@ -43,7 +43,7 @@ class DatabaseConnection:
     updated_at: str
 
 
-class DatabaseConnectionService:
+class DatabaseConnectionStore:
     """
     CRUD + validation for external database connections stored in Supabase.
     """
@@ -388,5 +388,5 @@ class DatabaseConnectionService:
 
 
 # Singleton instance
-database_connection_service = DatabaseConnectionService()
+database_connection_service = DatabaseConnectionStore()
 

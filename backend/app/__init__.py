@@ -42,6 +42,14 @@ auth, RBAC, project access, Supabase, or integrations must update this file.
      check.
 9. `register_error_handlers(app)` registers 400/404/500 JSON handlers.
 
+Observability and deployment boundaries are inventoried separately in
+`docs/deployment/observability.md` (NBB-208B). That file names which
+observability concerns are cross-cutting (logger bootstrap below),
+provider-owned (Opik on the Claude client), background-owned (task
+lifecycle logs), or chat-owned (SSE event emission), and lists the
+deployment constraints — Gunicorn single-worker, gevent monkey-patch,
+nginx SSE/Socket.IO passthrough — that movement tickets must preserve.
+
 Env/service reload semantics.
 `backend/app/services/app_settings/env_service.EnvService.reload_env()` calls
 `load_dotenv(override=True)` after each `.env` write. Integration services

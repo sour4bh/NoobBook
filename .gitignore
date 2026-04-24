@@ -75,8 +75,10 @@ bin/ping-db
 build/
 *.tsbuildinfo
 
-#claude
-.claude
+# Claude local files; project agent definitions are tracked.
+.claude/*
+!.claude/agents/
+!.claude/agents/nbb-worker.md
 
 # Personal sync notes
 gitsync.md

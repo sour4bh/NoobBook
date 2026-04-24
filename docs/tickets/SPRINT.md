@@ -17,11 +17,11 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of 2026-04-24, end of Phase 4 batch 6:
+As of 2026-04-24, mid Phase 4 batch 7:
 
-- Branch: `main` @ `aca375b`
-- Merged progress: 29 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5: NBB-501A, NBB-209A; batch 6: NBB-501B, NBB-402)
-- No workers in flight. Batch 7 planning pending.
+- Branch: `main` @ `5654c82`
+- Merged progress: 30 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5: NBB-501A, NBB-209A; batch 6: NBB-501B, NBB-402; batch 7 partial: NBB-502)
+- Batch 7 remaining in flight: NBB-201 (auth consolidation — 5 mechanical + 5 semantic; Cat A/B/C + barrel-rewrite pre-authorized).
 - Graph shape: 66 CSV rows, 7 epics, 59 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify each session with `tool_search` for refactory's `move_module` — either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (`--plugin-dir` plugin-framework load)

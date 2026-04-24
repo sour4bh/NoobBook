@@ -64,7 +64,7 @@ from .infographic_jobs import (
     list_infographic_jobs,
     delete_infographic_job,
 )
-from .email_jobs import (
+from app.studio.marketing.email.job import (
     create_email_job,
     update_email_job,
     get_email_job,

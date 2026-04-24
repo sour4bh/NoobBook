@@ -80,3 +80,15 @@ NBB-505,python,backend/app/services/studio_services/ad_creative_service.py,backe
 NBB-505,python,backend/app/studio/marketing/ad/create.py,backend/app/studio/marketing/ad/create.py,AdCreativeService,AdCreator,python_symbol_rename,refactory:rename_symbol
 NBB-505,python,backend/app/services/studio_services/jobs/ad_jobs.py,backend/app/studio/marketing/ad/job.py,,,python_module_move,refactory:move_module
 NBB-505,json,backend/data/prompts/ad_creative_prompt.json,backend/app/studio/marketing/ad/prompts/ad_creative_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-505,python,backend/app/services/ai_agents/email_agent_service.py,backend/app/studio/marketing/email/write.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/email/write.py,backend/app/studio/marketing/email/write.py,EmailAgentService,EmailWriter,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/services/tool_executors/email_tool_executor.py,backend/app/studio/marketing/email/tool.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/email/tool.py,backend/app/studio/marketing/email/tool.py,EmailToolExecutor,EmailDispatcher,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/studio/marketing/email/tool.py,backend/app/studio/marketing/email/tool.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-505,python,backend/app/services/tool_executors/email_agent_executor.py,backend/app/studio/marketing/email/run.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/email/run.py,backend/app/studio/marketing/email/run.py,EmailAgentExecutor,EmailRunner,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/services/studio_services/jobs/email_jobs.py,backend/app/studio/marketing/email/job.py,,,python_module_move,refactory:move_module
+NBB-505,json,backend/data/prompts/email_agent_prompt.json,backend/app/studio/marketing/email/prompts/email_agent_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-505,json,backend/app/services/tools/email_agent/generate_email_image.json,backend/app/studio/marketing/email/tools/generate_email_image.json,,,json_asset_move,json_asset_move.sh
+NBB-505,json,backend/app/services/tools/email_agent/plan_email_template.json,backend/app/studio/marketing/email/tools/plan_email_template.json,,,json_asset_move,json_asset_move.sh
+NBB-505,json,backend/app/services/tools/email_agent/write_email_code.json,backend/app/studio/marketing/email/tools/write_email_code.json,,,json_asset_move,json_asset_move.sh

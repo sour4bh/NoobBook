@@ -355,7 +355,7 @@ from app.services.studio_services.jobs.infographic_jobs import (
     delete_infographic_job,
 )
 
-from app.services.studio_services.jobs.email_jobs import (
+from app.studio.marketing.email.job import (
     create_email_job,
     update_email_job,
     get_email_job,

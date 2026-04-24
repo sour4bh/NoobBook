@@ -34,7 +34,7 @@ import zipfile
 from flask import g, jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.email_agent_executor import email_agent_executor
+from app.studio.marketing.email.run import email_agent_executor
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 

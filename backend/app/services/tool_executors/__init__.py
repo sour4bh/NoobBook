@@ -30,10 +30,11 @@ from app.services.tool_executors import csv_analyzer_agent_executor  # Module im
 from app.services.tool_executors import database_analyzer_agent_executor  # Module import (has execute function)
 from app.services.tool_executors.studio_signal_executor import studio_signal_executor
 from app.services.tool_executors.studio_audio_executor import studio_audio_executor
-from app.services.tool_executors.email_agent_executor import email_agent_executor
+from app.studio.marketing.email.run import email_agent_executor
+from app.services.tool_executors.presentation_agent_executor import presentation_agent_executor
+
 # website_agent_executor moved to app.studio.design.website.run (NBB-503);
 # consumers import the singleton directly from the new home.
-from app.services.tool_executors.presentation_agent_executor import presentation_agent_executor
 
 __all__ = [
     "memory_executor",

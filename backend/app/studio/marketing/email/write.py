@@ -21,14 +21,14 @@ from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.services.integrations.supabase import storage_service
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.email_tool_executor import email_tool_executor
+from app.studio.marketing.email.tool import email_tool_executor
 from app.projects.store import project_service
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class EmailAgentService:
+class EmailWriter:
     """Email template generation agent - orchestration only."""
 
     AGENT_NAME = "email_agent"
@@ -293,7 +293,7 @@ class EmailAgentService:
                     }
 
                     # Execute tool via executor
-                    result, is_termination = email_tool_executor.execute_tool(
+                    result, is_termination = email_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 
@@ -365,4 +365,4 @@ class EmailAgentService:
 
 
 # Singleton instance
-email_agent_service = EmailAgentService()
+email_agent_service = EmailWriter()

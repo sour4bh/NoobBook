@@ -13,7 +13,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-class ComponentAgentExecutor:
+class ComponentRunner:
     """
     Executor for UI component generation via studio signals.
 
@@ -49,7 +49,7 @@ class ComponentAgentExecutor:
         """
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
-        from app.services.ai_agents.component_agent_service import component_agent_service
+        from app.studio.design.component.build import component_agent_service
         from app.services.source_services import source_service
 
         # Get source info (optional — can generate from direction alone)
@@ -113,4 +113,23 @@ class ComponentAgentExecutor:
 
 
 # Singleton instance
-component_agent_executor = ComponentAgentExecutor()
+component_agent_executor = ComponentRunner()
+
+
+def run(
+    project_id: str,
+    source_id: Optional[str],
+    direction: str = "",
+    user_id: str = None,
+    previous_components: Optional[Dict] = None,
+    edit_instructions: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Module-level entry point matching the `<item>/run.py::run(...)` naming rule."""
+    return component_agent_executor.execute(
+        project_id=project_id,
+        source_id=source_id,
+        direction=direction,
+        user_id=user_id,
+        previous_components=previous_components,
+        edit_instructions=edit_instructions,
+    )

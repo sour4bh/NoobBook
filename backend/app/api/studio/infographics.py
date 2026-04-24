@@ -34,7 +34,7 @@ from app.services.studio_services.infographic_service import infographic_service
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
-from app.api.studio.logo_utils import resolve_logo
+from app.studio.design.logo.ops import resolve_logo
 from app.auth.guards import require_permission
 from app.sources import index
 

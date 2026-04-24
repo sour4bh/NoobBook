@@ -35,7 +35,7 @@ from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.blog_agent_executor import blog_agent_executor
 from app.services.integrations.supabase import storage_service
-from app.api.studio.logo_utils import resolve_logo
+from app.studio.design.logo.ops import resolve_logo
 from app.auth.guards import require_permission
 
 

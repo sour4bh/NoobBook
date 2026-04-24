@@ -30,7 +30,7 @@ import io
 import uuid
 from flask import g, jsonify, request, current_app, send_file
 from app.api.studio import studio_bp
-from app.api.studio.logo_utils import resolve_logo
+from app.studio.design.logo.ops import resolve_logo
 from app.services.studio_services import studio_index_service
 from app.services.studio_services.ad_creative_service import ad_creative_service
 from app.services.integrations.google.imagen_service import imagen_service

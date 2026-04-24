@@ -45,14 +45,15 @@ Key patterns:
 
 from app.services.ai_agents.web_agent_service import web_agent_service
 from app.services.ai_agents.email_agent_service import email_agent_service
-# website_agent_service moved to app.studio.design.website.build (NBB-503);
-# consumers import the singleton directly from the new home.
 from app.services.ai_agents.presentation_agent_service import presentation_agent_service
 from app.services.ai_agents.blog_agent_service import blog_agent_service
 from app.services.ai_agents.business_report_agent_service import (
     business_report_agent_service,
 )
-from app.services.ai_agents.wireframe_agent_service import wireframe_agent_service
+from app.studio.design.wireframe.draw import wireframe_agent_service
+
+# website_agent_service moved to app.studio.design.website.build (NBB-503);
+# consumers import the singleton directly from the new home.
 
 __all__ = [
     "web_agent_service",

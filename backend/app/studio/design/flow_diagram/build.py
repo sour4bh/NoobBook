@@ -33,7 +33,7 @@ from app.sources import index
 logger = logging.getLogger(__name__)
 
 
-class FlowDiagramService:
+class FlowDiagramBuilder:
     """
     Service for generating Mermaid flow diagrams from source content.
 
@@ -255,4 +255,4 @@ class FlowDiagramService:
 
 
 # Singleton instance
-flow_diagram_service = FlowDiagramService()
+flow_diagram_service = FlowDiagramBuilder()

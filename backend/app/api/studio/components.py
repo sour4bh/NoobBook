@@ -30,7 +30,7 @@ import io
 from flask import g, jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.component_agent_executor import component_agent_executor
+from app.studio.design.component.run import component_agent_executor
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 

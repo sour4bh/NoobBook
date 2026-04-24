@@ -560,3 +560,7 @@ class ProjectStore:
             .execute()
         )
         return bool(response.data)
+
+
+# Singleton instance
+project_service = ProjectStore()

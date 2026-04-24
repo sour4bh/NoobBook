@@ -18,15 +18,12 @@ These services typically:
 - Provide structured queries for efficient lookups
 """
 from app.services.data_services.chat_service import chat_service
-from app.projects.store import ProjectStore
+from app.projects.store import project_service
 from app.services.data_services.message_service import message_service
 from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.services.data_services.database_connection_service import database_connection_service
 from app.services.data_services.user_service import get_user_service
-
-# ProjectService needs to be instantiated fresh due to directory initialization
-project_service = ProjectStore()
 
 __all__ = [
     "chat_service",

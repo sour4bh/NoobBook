@@ -17,11 +17,11 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of 2026-04-24, end of Phase 4 batch 5; batch 6 in flight:
+As of 2026-04-24, mid Phase 4 batch 6:
 
-- Branch: `main` @ `2ef4bfc`
-- Merged progress: 27 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5: NBB-501A, NBB-209A)
-- Batch 6 workers in flight: NBB-501B (docs-only studio item registry) + NBB-402 (sources 7-row refactory with pre-authorized Cat A+B+C manual repair)
+- Branch: `main` @ `ed257a5`
+- Merged progress: 28 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5: NBB-501A, NBB-209A; batch 6 partial: NBB-501B)
+- Batch 6 remaining in flight: NBB-402 (sources 7-row refactory with pre-authorized Cat A+B+C manual repair)
 - Graph shape: 66 CSV rows, 7 epics, 59 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify each session with `tool_search` for refactory's `move_module` — either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (`--plugin-dir` plugin-framework load)
@@ -414,6 +414,7 @@ Update this table when work starts, merges, or blocks.
 | `NBB-401` | Sources and analysis | Merged | top-level dispatcher | `worktree-agent-a61b82a5209584c11` / cleaned up | `MERGE` | `5bbf9d5` (non-ff of `b592272`) | PASS worker/reviewer checks; PASS merge/push cleanup | Extended `backend/app/sources/CHARTER.md` with NBB-401 file-format ownership map; new `backend/app/sources/README.md`; 10 skeleton `__init__.py` markers at `sources/{upload,pdf,pptx,docx,image,link,youtube,audio,analysis,research}/`. Unblocks NBB-402 and the whole sources lane. |
 | `NBB-402` | Sources and analysis | Ready | unassigned |  |  |  |  | Newly unblocked by `NBB-401` merge. Deps merged: `NBB-106` at `efd8b5a`, `NBB-205` at `6273f9c`, `NBB-401` at `5bbf9d5`. Move source ingestion/importers/stores/citations into `sources/` via refactory (7-row target map). Collides with any other ticket editing `backend/app/api/sources/*` or `backend/app/utils/{file,citation,source_content}_utils.py`. |
 | `NBB-501A` | Studio | Merged | top-level dispatcher | `worktree-agent-a2e88760d7e174575` / cleaned up | `MERGE` (1 P3 wording polish) | `b41a791` (non-ff of `2d6b65a`) | PASS worker/reviewer checks; PASS merge/push cleanup | New `backend/app/studio/TAXONOMY.md` (5 categories × 19 items, locked verbatim from decision map) + `backend/app/studio/README.md`. 16 studio tool rows aligned with NBB-207C; `read_source_content.json` correctly listed as sources-owned. Logo-generation in `studio/design/logo/`, brand asset/config under `brand/`. `logo_utils.py` placement deferred to NBB-502/NBB-506. Unblocks NBB-501B. |
+| `NBB-501B` | Studio | Merged | top-level dispatcher | `worktree-agent-a28e132905d39f075` (redo) / cleaned up; prior rejected branch `worktree-agent-af69fbe44df5f1d3e` cleaned up | `MERGE` (after 1 DO_NOT_MERGE cycle — reviewer flagged 3 P2 prompt-ownership drifts vs NBB-207B; redo worker seeded from prior branch + applied inline reconciliation notes to exactly 3 rows) | `ed257a5` (non-ff of `7f11f05`) | PASS worker/reviewer checks; PASS merge/push cleanup; PASS both worktree cleanups | New `backend/app/studio/REGISTRY.md` (381 lines, 19 items matching TAXONOMY). Reconciliation notes flag category drift for infographic (NBB-207B says `studio/design/`, TAXONOMY locks `studio/marketing/`) — needs follow-up NBB-207B sweep + NBB-505 final placement. Unblocks NBB-502 (layer mapping). |
 | `NBB-602` | Frontend | Ready | unassigned |  |  |  |  | Deps merged: `NBB-601` at `0b09d4b`, `NBB-108A` at `6bdeb81`. Move feature-owned hooks/providers under owning domains. |
 | `NBB-603` | Frontend | Ready | unassigned |  |  |  |  | Deps merged: `NBB-601` at `0b09d4b`, `NBB-108A` at `6bdeb81`, `NBB-205` at `6273f9c`. Tighten lib/contexts/API clients/citations/logger ownership. |
 | `NBB-604` | Frontend | Blocked | unassigned |  |  |  |  | Blocked on `NBB-602` and `NBB-603` (neither merged). `NBB-108A` dep satisfied at `6bdeb81`. Normalize frontend domain subtrees + design-system guardrails. |

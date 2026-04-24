@@ -45,18 +45,21 @@ logger = logging.getLogger(__name__)
 #   /api/v1/projects/<id>/sources/<source_id>/download
 #   /api/v1/projects/<id>/brand/assets/<asset_id>/download
 #   /api/v1/projects/<id>/studio/<category>/<job_id>/<filename>
-#   /api/v1/projects/<id>/studio/<category>/<job_id>/preview/<filename>
-#   /api/v1/projects/<id>/studio/<category>/<job_id>/download/<filename>
-#   /api/v1/projects/<id>/studio/<category>/<job_id>/assets/<filename>
+#   /api/v1/projects/<id>/studio/<category>/<job_id>/<segment>/<filename...>
+#     where <segment> is one of preview, download, assets, slides,
+#     screenshots — all binary/HTML file-serving subpaths. `<filename...>`
+#     allows nested paths (e.g. websites serve assets under nested dirs).
 #
 # The patterns stay loose enough to cover new studio categories without
-# code changes, but strict enough that no JSON listing slips through.
+# code changes, but strict enough that no JSON listing (e.g.
+# `/studio/<cat>-jobs`, `/studio/<cat>-jobs/<id>`) slips through.
 _QUERY_TOKEN_ALLOWED_PATTERNS: Tuple[re.Pattern[str], ...] = (
     re.compile(r"^/api/v1/projects/[^/]+/sources/[^/]+/download$"),
     re.compile(r"^/api/v1/projects/[^/]+/brand/assets/[^/]+/download$"),
-    re.compile(r"^/api/v1/projects/[^/]+/studio/[^/]+/[^/]+/preview/[^/]+$"),
-    re.compile(r"^/api/v1/projects/[^/]+/studio/[^/]+/[^/]+/download/[^/]+$"),
-    re.compile(r"^/api/v1/projects/[^/]+/studio/[^/]+/[^/]+/assets/[^/]+$"),
+    re.compile(
+        r"^/api/v1/projects/[^/]+/studio/[^/]+/[^/]+/"
+        r"(?:preview|download|assets|slides|screenshots)/.+$"
+    ),
     re.compile(r"^/api/v1/projects/[^/]+/studio/[^/]+/[^/]+/[^/]+$"),
 )
 

@@ -92,13 +92,43 @@ def test_auth_signin_route_skips_jwt_guard(auth_client):
 
 
 # ---------------------------------------------------------------------------
-# Query-parameter token fallback (used by <img>, <video>, <iframe>)
+# Query-parameter token policy (NBB-201)
+#
+# `?token=` is honored only for browser-loaded media/file/embed routes that
+# cannot attach `Authorization` headers. JSON/CRUD routes must send
+# `Authorization: Bearer` and 401 on `?token=` alone.
 # ---------------------------------------------------------------------------
 
-def test_query_param_token_fallback_authenticates(auth_client):
-    """Browser elements that can't send headers use ?token= — the guard
-    accepts valid tokens there too. Captures the current fallback; NBB-201
-    will reassess the query-token policy."""
+def test_query_param_token_rejected_on_json_route(auth_client):
+    """JSON listing endpoints reject `?token=` with 401 under NBB-201's
+    allowlist. Before NBB-201 the middleware accepted the query token on
+    any GET; the new policy narrows it to browser-asset paths only."""
+    with patch(
+        "app.api.auth.middleware.get_supabase"
+    ) as mock_get_supabase:
+        supabase = MagicMock()
+        # Mock still wired in case the middleware mistakenly called it —
+        # if the allowlist rejects first (correct behavior), get_user is
+        # never hit.
+        supabase.auth.get_user.return_value = MagicMock(
+            user=MagicMock(id="user-abc")
+        )
+        mock_get_supabase.return_value = supabase
+
+        response = auth_client.get(
+            "/api/v1/projects?token=valid-looking-jwt",
+        )
+
+    assert response.status_code == 401
+    body = response.get_json()
+    assert body == {"success": False, "error": "Authentication required"}
+    assert supabase.auth.get_user.called is False
+
+
+def test_query_param_token_accepted_on_allowlisted_media_path(auth_client):
+    """Browser-loaded media/file/embed routes (e.g. source download) still
+    accept `?token=` so <img>/<video>/<iframe>/<audio> can authenticate
+    without setting headers."""
     with patch(
         "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
@@ -109,11 +139,12 @@ def test_query_param_token_fallback_authenticates(auth_client):
         mock_get_supabase.return_value = supabase
 
         response = auth_client.get(
-            "/api/v1/projects?token=valid-looking-jwt",
+            "/api/v1/projects/proj-1/sources/src-1/download?token=valid-looking-jwt",
         )
 
+    # Guard passes; the downstream route may 404/500 on mocked project
+    # access, but it must not be stopped by the 401 guard.
     assert response.status_code != 401
-    assert response.status_code != 404
 
 
 # ---------------------------------------------------------------------------

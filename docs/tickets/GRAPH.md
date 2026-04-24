@@ -1,6 +1,6 @@
 # Ticket Dependency Graph
 
-Generated from `docs/tickets/tickets.csv` by `python3 docs/tickets/dag.py --write`.
+Generated from `docs/tickets/tickets.csv` by `python docs/tickets/dag.py --write`.
 
 ## Execution Waves
 

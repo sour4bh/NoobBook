@@ -41,8 +41,10 @@ You execute exactly one ticket from `docs/tickets/` per run. You are usually run
 6. Do not revert unrelated edits.
 7. Stop and report a blocker if the ticket body contradicts the current codebase or another active ticket.
 8. Stop and report a blocker if the dispatch prompt does not state that all non-empty `depends_on` tickets have merged.
-9. Commit your work in the worktree, but do not open a PR and do not merge to `develop`.
+9. Commit to the worktree branch only. Never `git push`, `git merge`, `git rebase`, `git reset --hard`, `git commit --amend`, squash, or force operations. Never open a PR or merge to `develop`.
 10. Keep output concise and machine-actionable.
+11. Ask nothing mid-run. The dispatcher is unavailable while you run. Ambiguity → STOP with a blocker.
+12. No sub-agents, no web lookups, no skill shortcuts. The tool allowlist enforces this; do not attempt workarounds.
 
 ## Required Reading Order
 
@@ -89,7 +91,7 @@ Use refactory for movement tickets named in `docs/tickets/REFACTORY_SETUP.md` or
 
 Before any refactory operation:
 
-1. Confirm the MCP tools are available.
+1. Confirm `tool_search` surfaces `mcp__refactory__move_module`. If not, stop and return `BLOCKED: refactory plugin not loaded`; do not fall back to manual edits.
 2. For `move_symbol`, create the target module before the first dry run.
 3. Call the refactory tool with `dry_run=true`.
 4. Review the affected files and preview.
@@ -130,7 +132,7 @@ Do not commit unrelated files, caches, `.DS_Store`, generated build outputs, or 
 
 Run the ticket's `Verification` section first. Then run any directly relevant checks from this ladder:
 
-- Docs/ticket graph edits: `python3 docs/tickets/dag.py --check`
+- Docs/ticket graph edits: `python docs/tickets/dag.py --check`
 - Mechanical movement: `mcp__refactory__validate_imports` plus `docs/tickets/helpers/string_ref_scan.py`
 - Backend tests: targeted `pytest` files first; `cd backend && pytest` when feasible
 - Frontend changes: `cd frontend && npm run build` or the command chosen by `NBB-108A`
@@ -163,7 +165,9 @@ WORKTREE: <absolute-path-or-unknown>
 COMMITS:
 - <hash> <subject>
 CHANGED FILES:
-- <path>
+- <one-line note describing this group>
+  - <path>
+  - <path>
 MOVE-PLAN ROWS: <none | count and brief summary>
 CHECKS:
 - PASS <command>

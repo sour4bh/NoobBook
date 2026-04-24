@@ -82,19 +82,19 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 Regenerate `docs/tickets/GRAPH.md` from `tickets.csv`:
 
 ```bash
-python3 docs/tickets/dag.py --write
+python docs/tickets/dag.py --write
 ```
 
 Run CSV integrity checks (row/epic/task counts, dangling deps, anchor resolution, stale aggregate/removed-row references); exits non-zero on any issue:
 
 ```bash
-python3 docs/tickets/dag.py --check
+python docs/tickets/dag.py --check
 ```
 
 Combined pass for CI:
 
 ```bash
-python3 docs/tickets/dag.py --check --write
+python docs/tickets/dag.py --check --write
 ```
 
 `dag.py --check` automates the machine-checkable CSV rules. Reviewers still verify manually:
@@ -133,7 +133,7 @@ Helpers for cases refactory does not cover (owned by `NBB-103`):
 docs/tickets/helpers/json_asset_move.sh <old_path> <new_path>
    # prompt/tool JSON moves (NBB-207B/C); git mv + flags loader-registry refs
 
-python3 docs/tickets/helpers/string_ref_scan.py <pattern>
+python docs/tickets/helpers/string_ref_scan.py <pattern>
    # grep for string module refs in docs/tests/configs
    # (monkeypatch targets, importlib strings, CLAUDE.md/AGENTS.md mentions)
 ```

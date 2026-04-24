@@ -78,7 +78,7 @@ build/
 # Claude local files; project agent definitions are tracked.
 .claude/*
 !.claude/agents/
-!.claude/agents/nbb-worker.md
+!.claude/agents/*.md
 
 # Personal sync notes
 gitsync.md

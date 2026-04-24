@@ -1,5 +1,5 @@
 """
-Tests for WebsiteToolExecutor.
+Tests for WebsiteDispatcher (renamed from WebsiteToolExecutor in NBB-503).
 
 Covers:
 - _get_content_type mapping
@@ -42,8 +42,8 @@ class TestGetContentType:
 class TestUploadFailureHandling:
     """upload_studio_file returning None should produce an error message."""
 
-    @patch("app.services.tool_executors.website_tool_executor.studio_index_service")
-    @patch("app.services.tool_executors.website_tool_executor.storage_service")
+    @patch("app.studio.design.website.tool.studio_index_service")
+    @patch("app.studio.design.website.tool.storage_service")
     def test_create_file_error_on_upload_failure(
         self, mock_storage, mock_studio, executor
     ):
@@ -64,8 +64,8 @@ class TestUploadFailureHandling:
         assert "Error" in result["message"]
         assert "upload" in result["message"].lower() or "storage" in result["message"].lower()
 
-    @patch("app.services.tool_executors.website_tool_executor.studio_index_service")
-    @patch("app.services.tool_executors.website_tool_executor.storage_service")
+    @patch("app.studio.design.website.tool.studio_index_service")
+    @patch("app.studio.design.website.tool.storage_service")
     def test_update_file_lines_error_on_upload_failure(
         self, mock_storage, mock_studio, executor
     ):
@@ -81,8 +81,8 @@ class TestUploadFailureHandling:
 
         assert "Error" in result["message"]
 
-    @patch("app.services.tool_executors.website_tool_executor.studio_index_service")
-    @patch("app.services.tool_executors.website_tool_executor.storage_service")
+    @patch("app.studio.design.website.tool.studio_index_service")
+    @patch("app.studio.design.website.tool.storage_service")
     def test_insert_code_error_on_upload_failure(
         self, mock_storage, mock_studio, executor
     ):

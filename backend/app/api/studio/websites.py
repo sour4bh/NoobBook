@@ -57,8 +57,6 @@ def generate_website(project_id: str):
     Returns:
         202 Accepted with job_id for polling
     """
-    from app.services.tool_executors import website_agent_executor
-
     try:
         data = request.get_json()
         source_id = data.get('source_id')
@@ -115,7 +113,7 @@ def generate_website(project_id: str):
             }), 400
 
         # Execute website generation (background task)
-        result = app.studio.design.website.run.execute(
+        result = app.studio.design.website.run.run(
             project_id=project_id,
             source_id=source_id or '',
             direction=direction,

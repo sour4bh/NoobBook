@@ -34,7 +34,7 @@ Architecture:
     ├── prd_jobs.py
     ├── marketing_strategy_jobs.py
     ├── blog_jobs.py             (moved to app/studio/documents/blog/job.py)
-    └── business_report_jobs.py
+    └── business_report_jobs.py  (moved to app/studio/documents/business_report/job.py)
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -427,7 +427,7 @@ from app.studio.documents.blog.job import (
     delete_blog_job,
 )
 
-from app.services.studio_services.jobs.business_report_jobs import (
+from app.studio.documents.business_report.job import (
     create_business_report_job,
     update_business_report_job,
     get_business_report_job,

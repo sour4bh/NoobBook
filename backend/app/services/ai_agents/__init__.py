@@ -18,6 +18,7 @@ Agents:
 
 - website_agent_service: moved to app/studio/design/website/build.py (NBB-503)
 - blog_agent_service: moved to app/studio/documents/blog/write.py (NBB-504)
+- business_report_agent_service: moved to app/studio/documents/business_report/write.py (NBB-504)
 
 - presentation_agent_service: Generates PowerPoint presentations
   - Uses agentic loop with MAX_ITERATIONS limit (40)
@@ -48,17 +49,14 @@ from app.services.ai_agents.web_agent_service import web_agent_service
 from app.services.ai_agents.email_agent_service import email_agent_service
 # website_agent_service moved to app.studio.design.website.build (NBB-503);
 # blog_agent_service moved to app.studio.documents.blog.write (NBB-504);
+# business_report_agent_service moved to app.studio.documents.business_report.write (NBB-504);
 # consumers import the singleton directly from the new home.
 from app.services.ai_agents.presentation_agent_service import presentation_agent_service
-from app.services.ai_agents.business_report_agent_service import (
-    business_report_agent_service,
-)
 from app.services.ai_agents.wireframe_agent_service import wireframe_agent_service
 
 __all__ = [
     "web_agent_service",
     "email_agent_service",
     "presentation_agent_service",
-    "business_report_agent_service",
     "wireframe_agent_service",
 ]

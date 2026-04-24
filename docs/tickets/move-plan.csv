@@ -88,3 +88,16 @@ NBB-504,json,backend/data/prompts/blog_agent_prompt.json,backend/app/studio/docu
 NBB-504,json,backend/app/services/tools/blog_agent/generate_blog_image.json,backend/app/studio/documents/blog/tools/generate_blog_image.json,,,json_asset_move,json_asset_move.sh
 NBB-504,json,backend/app/services/tools/blog_agent/plan_blog_post.json,backend/app/studio/documents/blog/tools/plan_blog_post.json,,,json_asset_move,json_asset_move.sh
 NBB-504,json,backend/app/services/tools/blog_agent/write_blog_post.json,backend/app/studio/documents/blog/tools/write_blog_post.json,,,json_asset_move,json_asset_move.sh
+NBB-504,python,backend/app/services/ai_agents/business_report_agent_service.py,backend/app/studio/documents/business_report/write.py,,,python_module_move,manual
+NBB-504,python,backend/app/studio/documents/business_report/write.py,backend/app/studio/documents/business_report/write.py,BusinessReportAgentService,BusinessReportWriter,python_symbol_rename,manual
+NBB-504,python,backend/app/services/tool_executors/business_report_tool_executor.py,backend/app/studio/documents/business_report/tool.py,,,python_module_move,manual
+NBB-504,python,backend/app/studio/documents/business_report/tool.py,backend/app/studio/documents/business_report/tool.py,BusinessReportToolExecutor,BusinessReportDispatcher,python_symbol_rename,manual
+NBB-504,python,backend/app/studio/documents/business_report/tool.py,backend/app/studio/documents/business_report/tool.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-504,python,backend/app/services/tool_executors/business_report_agent_executor.py,backend/app/studio/documents/business_report/run.py,,,python_module_move,manual
+NBB-504,python,backend/app/studio/documents/business_report/run.py,backend/app/studio/documents/business_report/run.py,BusinessReportAgentExecutor,BusinessReportRunner,python_symbol_rename,manual
+NBB-504,python,backend/app/services/studio_services/jobs/business_report_jobs.py,backend/app/studio/documents/business_report/job.py,,,python_module_move,manual
+NBB-504,json,backend/data/prompts/business_report_agent_prompt.json,backend/app/studio/documents/business_report/prompts/business_report_agent_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-504,json,backend/app/services/tools/business_report_agent/analyze_csv_data.json,backend/app/studio/documents/business_report/tools/analyze_csv_data.json,,,json_asset_move,json_asset_move.sh
+NBB-504,json,backend/app/services/tools/business_report_agent/plan_business_report.json,backend/app/studio/documents/business_report/tools/plan_business_report.json,,,json_asset_move,json_asset_move.sh
+NBB-504,json,backend/app/services/tools/business_report_agent/search_source_content.json,backend/app/studio/documents/business_report/tools/search_source_content.json,,,json_asset_move,json_asset_move.sh
+NBB-504,json,backend/app/services/tools/business_report_agent/write_business_report.json,backend/app/studio/documents/business_report/tools/write_business_report.json,,,json_asset_move,json_asset_move.sh

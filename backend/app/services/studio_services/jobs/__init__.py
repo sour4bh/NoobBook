@@ -151,11 +151,5 @@ from .marketing_strategy_jobs import (
 # import directly from studio_index_service (re-exports from new home) or from
 # app.studio.documents.blog.job.
 
-# Business Report Jobs
-from .business_report_jobs import (
-    create_business_report_job,
-    update_business_report_job,
-    get_business_report_job,
-    list_business_report_jobs,
-    delete_business_report_job,
-)
+# Business Report Jobs: moved to app/studio/documents/business_report/job.py (NBB-504).
+# Consumers import from studio_index_service or app.studio.documents.business_report.job.

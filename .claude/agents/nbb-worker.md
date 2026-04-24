@@ -45,6 +45,7 @@ You execute exactly one ticket from `docs/tickets/` per run. You are usually run
 10. Keep output concise and machine-actionable.
 11. Ask nothing mid-run. The dispatcher is unavailable while you run. Ambiguity → STOP with a blocker.
 12. No sub-agents, no web lookups, no skill shortcuts. The tool allowlist enforces this; do not attempt workarounds.
+13. Operate only inside your own harness-isolated worktree root. Never edit or run mutating commands against the main checkout path `/Users/sour4bh/dev/NoobBook`. If an absolute path points there instead of your worktree, stop with `BLOCKED: main checkout path would be touched`.
 
 ## Required Reading Order
 
@@ -76,13 +77,14 @@ Before editing:
 
 1. Run `git status --short --branch`.
 2. Verify base commit: run `git rev-parse HEAD` and confirm it equals the dispatch's declared base commit exactly. If they differ, stop and return `BLOCKED: base mismatch — declared <declared-base>, HEAD at <actual-sha>`. Do not commit anything on a mismatched base.
-3. Confirm the ticket key, title, `doc_path`, anchor, dependencies, and primary write scope.
-4. Identify whether the ticket is:
+3. Record your worktree root with `pwd`. All file edits and mutating shell commands must use relative paths from that root or absolute paths under that root. Do not use `/Users/sour4bh/dev/NoobBook/...` absolute paths unless your `pwd` is exactly `/Users/sour4bh/dev/NoobBook`, which should not be true for worker runs.
+4. Confirm the ticket key, title, `doc_path`, anchor, dependencies, and primary write scope.
+5. Identify whether the ticket is:
    - docs-only
    - behavior/test implementation
    - mechanical movement
    - mixed mechanical plus semantic
-5. Create a short todo list for the ticket.
+6. Create a short todo list for the ticket.
 
 If the worktree already has unrelated local modifications, stop and report them.
 

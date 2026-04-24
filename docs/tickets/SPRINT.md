@@ -381,8 +381,8 @@ Update this table when work starts, merges, or blocks.
 
 | Ticket | Lane | Status | Owner | Worker branch/worktree | Reviewer | Merge commit | Checks | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `NBB-101` | Foundation and CI | Ready | unassigned |  |  |  |  | Must run first. |
-| `NBB-102` | Foundation and CI | Blocked | unassigned |  |  |  |  | Waits on `NBB-101`. |
+| `NBB-101` | Foundation and CI | Merged | top-level dispatcher | `worktree-agent-ab1316b6b8b3c4fa8` / cleaned up | `MERGE` | `683173c` | PASS worker/reviewer checks; PASS merge/push cleanup | Merged to `origin/main`; backup branches preserved. |
+| `NBB-102` | Foundation and CI | Ready | unassigned |  |  |  |  | `NBB-101` merged. |
 | `NBB-103` | Foundation and CI | Blocked | unassigned |  |  |  |  | Waits on `NBB-102`; blocks movement safety. |
 | `NBB-104` | Policy and contracts | Blocked | unassigned |  |  |  |  | Waits on `NBB-102`; high fan-out. |
 | `NBB-105` | Frontend | Blocked | unassigned |  |  |  |  | Waits on `NBB-102`. |

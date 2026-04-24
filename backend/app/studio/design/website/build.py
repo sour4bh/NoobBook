@@ -153,7 +153,7 @@ class WebsiteBuilder:
                     }
 
                     # Execute tool via executor
-                    result, is_termination = website_tool_executor.execute_tool(
+                    result, is_termination = website_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 

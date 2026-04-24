@@ -50,7 +50,7 @@ class TestUploadFailureHandling:
         mock_storage.upload_studio_file.return_value = None
         mock_studio.get_website_job.return_value = {"images": []}
 
-        result, is_term = executor.execute_tool(
+        result, is_term = executor.dispatch(
             "create_file",
             {"filename": "index.html", "content": "<h1>Hi</h1>"},
             {
@@ -73,7 +73,7 @@ class TestUploadFailureHandling:
         mock_storage.upload_studio_file.return_value = None
         mock_studio.get_website_job.return_value = {"images": []}
 
-        result, is_term = executor.execute_tool(
+        result, is_term = executor.dispatch(
             "update_file_lines",
             {"filename": "index.html", "start_line": 1, "end_line": 1, "new_content": "replaced"},
             {"project_id": "p1", "job_id": "j1", "created_files": [], "generated_images": []},
@@ -90,7 +90,7 @@ class TestUploadFailureHandling:
         mock_storage.upload_studio_file.return_value = None
         mock_studio.get_website_job.return_value = {"images": []}
 
-        result, is_term = executor.execute_tool(
+        result, is_term = executor.dispatch(
             "insert_code",
             {"filename": "index.html", "after_line": 1, "content": "inserted"},
             {"project_id": "p1", "job_id": "j1", "created_files": [], "generated_images": []},

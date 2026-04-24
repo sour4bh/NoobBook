@@ -30,7 +30,7 @@ class WebsiteDispatcher:
         else:
             return "text/html; charset=utf-8"
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],

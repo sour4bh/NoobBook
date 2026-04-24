@@ -75,3 +75,4 @@ NBB-503,python,backend/app/services/tool_executors/website_tool_executor.py,,,,t
 NBB-503,python,backend/app/services/tool_executors/website_agent_executor.py,,,,text_reference_check,string_ref_scan.py
 NBB-503,python,backend/app/services/ai_agents/website_agent_service.py,,,,text_reference_check,string_ref_scan.py
 NBB-503,json,backend/app/services/tools/website_agent,,,,text_reference_check,string_ref_scan.py
+NBB-503,python,backend/app/studio/design/website/tool.py,backend/app/studio/design/website/tool.py,execute_tool,dispatch,python_symbol_rename,manual

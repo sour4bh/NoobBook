@@ -30,7 +30,7 @@ from app.services.integrations.supabase import get_supabase, is_supabase_enabled
 logger = logging.getLogger(__name__)
 
 
-class MessageService:
+class MessageStore:
     """
     Service class for message persistence using Supabase.
 
@@ -736,4 +736,4 @@ class MessageService:
 
 
 # Singleton instance for easy import
-message_service = MessageService()
+message_service = MessageStore()

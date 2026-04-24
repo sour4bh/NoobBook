@@ -16,9 +16,9 @@ from typing import Any, Dict, List, Optional
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.services.data_services import message_service
 from app.services.tool_executors.database_executor import DatabaseExecutor
 from app.utils import claude_parsing_utils
+from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 

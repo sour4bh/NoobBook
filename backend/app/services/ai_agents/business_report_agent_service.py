@@ -16,9 +16,9 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
-from app.services.data_services import message_service
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.business_report_tool_executor import business_report_tool_executor
+from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 

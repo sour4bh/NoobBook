@@ -32,8 +32,8 @@ from app.services.tool_executors.analysis_executor import (
     raw_analysis_enabled,
     RAW_ANALYSIS_DISABLED_MESSAGE,
 )
-from app.services.data_services import message_service
 from app.utils import claude_parsing_utils
+from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 

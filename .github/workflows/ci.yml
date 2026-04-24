@@ -4,6 +4,9 @@
 #   - no-new-legacy-files : structural guardrail that blocks new files under
 #                           frozen legacy destinations (see STRUCTURE.md and
 #                           docs/tickets/epics/NBB-001.md#nbb-103).
+#   - verify-architecture : early root + providers/connectors import-direction
+#                           checks from NBB-104 and NBB-206 (see
+#                           docs/tickets/epics/NBB-007.md#nbb-704a).
 #   - backend-tests       : pytest suite at HEAD (NBB-106/107 extend coverage).
 
 name: ci
@@ -39,6 +42,21 @@ jobs:
 
       - name: Check no new legacy files
         run: python scripts/ci/check_no_new_legacy_files.py --base "${{ steps.base.outputs.ref }}"
+
+  verify-architecture:
+    name: verify-architecture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify early architecture checks
+        run: python backend/scripts/verify_architecture.py
 
   backend-tests:
     name: backend-tests

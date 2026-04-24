@@ -5,3 +5,7 @@ NBB-209D,python,backend/app/services/data_services/brand_config_service.py,backe
 NBB-209D,python,backend/app/brand/config/store.py,backend/app/brand/config/store.py,BrandConfigService,BrandConfigStore,symbol,refactory:rename_symbol
 NBB-209B,python,backend/app/services/data_services/project_service.py,backend/app/projects/store.py,,,python_module_move,refactory:move_module
 NBB-209B,python,,,ProjectService,ProjectStore,python_symbol_rename,refactory:rename_symbol
+NBB-209E,python,backend/app/services/data_services/database_connection_service.py,backend/app/connectors/database/connection/store.py,,,module,refactory:move_module
+NBB-209E,python,backend/app/connectors/database/connection/store.py,backend/app/connectors/database/connection/store.py,DatabaseConnectionService,DatabaseConnectionStore,symbol,refactory:rename_symbol
+NBB-209E,python,backend/app/services/data_services/mcp_connection_service.py,backend/app/connectors/mcp/connection/store.py,,,module,refactory:move_module
+NBB-209E,python,backend/app/connectors/mcp/connection/store.py,backend/app/connectors/mcp/connection/store.py,McpConnectionService,McpConnectionStore,symbol,refactory:rename_symbol

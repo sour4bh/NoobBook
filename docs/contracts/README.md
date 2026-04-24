@@ -918,6 +918,56 @@ runtime validator; the storage layer itself does not schema-check.
 
 ---
 
+## Contract 15 - `chats.selected_source_ids` tri-state
+
+This contract is pulled in explicitly because `backend/app/chat/CHARTER.md` (NBB-204)
+names NBB-205 as its shape owner.
+
+**Backend owner:**
+- Column: `backend/supabase/migrations/00013_chat_selected_sources.sql`
+- Write path: `backend/app/services/data_services/chat_service.py::update_chat`
+  (allowed_fields includes `selected_source_ids`, line 344)
+- Read path: `backend/app/services/chat_services/main_chat_service.py::_run_message_flow`
+  (line 430) + `context_loader.get_active_sources`
+
+**Frontend consumer:** `frontend/src/lib/api/chats.ts` plus the chat-view source
+picker. Updates via `PUT /api/v1/projects/<id>/chats/<chat_id>`.
+
+**Compatibility expectation:** Three-valued contract. Any chat-store migration
+(NBB-209A, NBB-301) must preserve the null-vs-empty distinction; collapsing `NULL`
+into `[]` silently breaks legacy chats.
+
+| Value | Meaning |
+|---|---|
+| `NULL` | Legacy chat or never-set; fall back to all `ready + active` project sources. |
+| `[]` | Explicit "no sources selected"; chat runs with zero source context. |
+| `["uuid", ...]` | Explicit subset of project source ids. |
+
+**Minimal valid example:** `null`, `[]`, or `["a1b2c3d4"]`.
+
+**Realistic current-production example:**
+
+```json
+{"selected_source_ids": ["a1b2c3d4-e5f6-7890-1234-56789abcdef0",
+                         "b2c3d4e5-f6a7-8901-2345-6789abcdef01"]}
+```
+
+**Invalid example:** No runtime enum validator; any non-null/non-array write would
+break `context_loader.get_active_sources`. `chat_service.update_chat` only whitelists
+the column, it does not type-check its value. Downstream the read path treats
+non-list + non-null as a bug and will raise. In practice the upstream writers
+(chat-edit endpoint and source picker UI) are the shape guards.
+
+**Test plan:**
+- `backend/tests/test_selected_source_ids_contract.py` (new). Three cases:
+  (a) `NULL` stored -> `_run_message_flow` reads all `ready + active` sources;
+  (b) `[]` stored -> zero sources in context;
+  (c) `["<id>"]` stored -> exactly that subset reaches `context_loader`.
+  Reuse the NBB-106 route-smoke test app + a mock for
+  `main_chat_service._call_claude`.
+
+---
+
 ## Cross-reference
 
 - Access-control (who can call these endpoints) is owned by `NBB-107` tests and the

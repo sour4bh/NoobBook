@@ -1,0 +1,12 @@
+# Allowlist for check_no_new_legacy_files.py.
+#
+# Every entry is one repo-relative path that may be added under a frozen
+# destination (see STRUCTURE.md and docs/tickets/epics/NBB-001.md#nbb-103).
+# Each entry must have a reviewer-approved reason captured in the pull request
+# that introduces it. This file stays empty until a ticket explicitly needs a
+# temporary shim in a frozen bucket.
+#
+# Format:
+#   backend/app/services/example/shim_module.py  # NBB-XYZ: forwarding shim
+#
+# Blank lines and comments (lines starting with '#') are ignored.

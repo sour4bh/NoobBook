@@ -15,4 +15,6 @@ Allowed imports:
 
 Migration source: `backend/app/services/integrations/` feeds this root; Claude
 and related provider utilities move under `NBB-705C`.
+
+See `CHARTER.md` in this directory for the NBB-206 boundary overlay.
 """

@@ -57,6 +57,12 @@ api/ -> domain public surfaces -> connector public surfaces -> provider clients
 
 Rich import-boundary enforcement is owned by `NBB-704A` and `NBB-704B`.
 
+### Providers/Connectors boundary (NBB-206)
+
+`providers/` owns raw SDK clients, auth primitives, and runtime IO adapters; `connectors/<name>/` owns product-configured capabilities with user/project state and permission-gated tool schemas. See `backend/app/providers/CHARTER.md` and `backend/app/connectors/CHARTER.md` for the full inventory, the validator/reload cross-reference to `NBB-208A`, and the downstream move tickets (`NBB-705C`, `NBB-207C`, `NBB-209E`, `NBB-202B`).
+
+`platform/files/` and `providers/files/` are explicitly rejected as default homes. File-format ownership follows `NBB-401` (`docs/tickets/epics/NBB-004.md#nbb-401`); it is never a provider or connector concern.
+
 ## Frozen Destinations
 
 The following paths are frozen. New files must not be added to them unless they are explicitly allowlisted temporary shims justified by an active ticket:

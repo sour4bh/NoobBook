@@ -75,7 +75,7 @@ DEFAULT_FEATURE_SETTINGS = {
 }
 
 
-class BrandConfigService:
+class BrandConfigStore:
     """
     Service class for managing brand configuration using Supabase.
 
@@ -373,4 +373,4 @@ class BrandConfigService:
 
 
 # Singleton instance
-brand_config_service = BrandConfigService()
+brand_config_service = BrandConfigStore()

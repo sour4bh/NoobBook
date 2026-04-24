@@ -23,8 +23,9 @@ import io
 import logging
 from flask import request, jsonify, g, send_file
 from app.api.brand import brand_bp
-from app.services.data_services import brand_asset_service, brand_config_service
 from app.services.integrations.supabase import storage_service
+from app.brand.asset.store import brand_asset_service
+from app.brand.config.store import brand_config_service
 
 logger = logging.getLogger(__name__)
 

@@ -382,10 +382,10 @@ Update this table when work starts, merges, or blocks.
 | Ticket | Lane | Status | Owner | Worker branch/worktree | Reviewer | Merge commit | Checks | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `NBB-101` | Foundation and CI | Merged | top-level dispatcher | `worktree-agent-ab1316b6b8b3c4fa8` / cleaned up | `MERGE` | `683173c` | PASS worker/reviewer checks; PASS merge/push cleanup | Merged to `origin/main`; backup branches preserved. |
-| `NBB-102` | Foundation and CI | Ready | unassigned |  |  |  |  | `NBB-101` merged. |
-| `NBB-103` | Foundation and CI | Blocked | unassigned |  |  |  |  | Waits on `NBB-102`; blocks movement safety. |
-| `NBB-104` | Policy and contracts | Blocked | unassigned |  |  |  |  | Waits on `NBB-102`; high fan-out. |
-| `NBB-105` | Frontend | Blocked | unassigned |  |  |  |  | Waits on `NBB-102`. |
+| `NBB-102` | Foundation and CI | Merged | top-level dispatcher | `worktree-agent-a212eb3d66f0839f7` / cleaned up | `MERGE` | `0c31b21` | PASS worker/reviewer checks; PASS merge/push cleanup | STRUCTURE.md published; placement checklist + frozen list locked. |
+| `NBB-103` | Foundation and CI | Ready | unassigned |  |  |  |  | `NBB-102` merged at `0c31b21`. Refactory harness pre-seeded; remaining scope is CI workflow + structural guardrail + allowlist. |
+| `NBB-104` | Policy and contracts | Ready | unassigned |  |  |  |  | `NBB-102` merged at `0c31b21`. Canonical owner of STRUCTURE.md backend root list; must preserve Placement Checklist + Frozen Destinations blocks. High fan-out unblocker for Phase 3. |
+| `NBB-105` | Frontend | Ready | unassigned |  |  |  |  | `NBB-102` merged at `0c31b21`. Frontend skeleton docs only. |
 
 Status values:
 

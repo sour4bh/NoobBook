@@ -98,6 +98,7 @@ Worker prompts must be self-contained and include:
 - any known collision or sequencing notes;
 - required verification commands;
 - a note that the worker runs in a harness-isolated worktree created by the dispatcher's `Agent(isolation="worktree")` call; do not ask the worker to create a worktree or choose a branch name, the harness provides both;
+- all file paths in the prompt MUST be repo-relative (e.g. `backend/app/providers/CHARTER.md`), NEVER absolute paths rooted at the main checkout (e.g. `/Users/sour4bh/dev/NoobBook/backend/app/providers/CHARTER.md`). Workers apply Rule 13 path safety strictly and will BLOCK if a dispatch prompt directs them at the main checkout. Doc-read paths for ticket specs (like `docs/tickets/epics/NBB-001.md`) must also be repo-relative so the worker resolves them against its own worktree root;
 - instruction to return the exact `nbb-worker` final response contract.
 
 Reviewer prompts must be self-contained and include:

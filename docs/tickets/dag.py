@@ -12,6 +12,8 @@ CSV_PATH = ROOT / "tickets.csv"
 GRAPH_PATH = ROOT / "GRAPH.md"
 REPO_ROOT = ROOT.parent.parent
 
+# These targets intentionally pin the current migration graph. Update them
+# only when adding or removing tickets deliberately.
 TARGET_ROW_COUNT = 66
 TARGET_EPIC_COUNT = 7
 TARGET_TASK_COUNT = 59

@@ -63,7 +63,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | Epic 004 Sources | Skeleton/map work starts after `NBB-104` and `NBB-206`; behavior moves wait on exact task deps such as `NBB-106`, `NBB-203`, `NBB-205`, `NBB-207A/B/C`, and `NBB-202B` where applicable |
 | Epic 005 Studio | Taxonomy starts after `NBB-104` and `NBB-207C`; registry and implementation work wait on exact task deps for route smokes, contracts, provider/connector boundaries, prompt/tool ownership, and background ownership |
 | Epic 006 Frontend | `NBB-105` and `NBB-108A`; `NBB-108B` may run in parallel if frontend tests are chosen |
-| Epic 007 Cleanup | Relevant owning migrations completed, then split cleanup tasks land by owner; `NBB-704C` type/AST safety checks gate `NBB-706` |
+| Epic 007 Cleanup | Some split tasks, especially `NBB-704A` and `NBB-705C`, intentionally run early as owner-specific guardrails/drains; `NBB-706` is the final cleanup gate and waits for `NBB-704C` type/AST safety checks |
 
 ## Epics
 

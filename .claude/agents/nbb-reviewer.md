@@ -43,7 +43,7 @@ You review exactly one completed or blocked ticket result from `docs/tickets/`. 
 The dispatch prompt must provide:
 
 - Ticket key, for example `NBB-209A`.
-- Worker branch or absolute worktree path.
+- Worker branch and absolute worker worktree path.
 - Base branch or base commit, usually `develop@<sha>`.
 - Worker final response, including commits and checks, if available.
 - Dependency statement copied from the worker dispatch.
@@ -66,8 +66,11 @@ Then inspect the worker diff, changed files, and relevant code. Do not rely on a
 ## Review Procedure
 
 1. Run `git status --short --branch`.
-2. Identify the current branch, base branch/commit, and worker commits.
-3. Inspect `git diff --stat <base>...HEAD` and `git diff --name-only <base>...HEAD`.
+2. Identify the current reviewer branch, base branch/commit, worker branch, absolute worker worktree path, and worker commits.
+3. Inspect the worker diff, not the reviewer worktree diff:
+   - Prefer `git -C <worker-worktree> diff --stat <base>...HEAD` and `git -C <worker-worktree> diff --name-only <base>...HEAD`.
+   - If the worker worktree path is unavailable but the worker branch is available, inspect `git diff --stat <base>...<worker-branch>` and `git diff --name-only <base>...<worker-branch>`.
+   - Do not switch to the worker branch from the reviewer worktree; that branch may already be checked out in the worker worktree.
 4. Compare changed files against the ticket's primary write scope.
 5. Read the full diff for behavioral risk, spec mismatches, missing tests, and accidental unrelated edits.
 6. Check that commit messages use `NBB-XXX: <short imperative summary>`.
@@ -78,7 +81,7 @@ Then inspect the worker diff, changed files, and relevant code. Do not rely on a
    - old import paths and string references were scanned;
    - `mcp__refactory__validate_imports` was run or a precise skip reason exists.
 9. Run the ticket's verification commands when feasible. If not feasible, report the exact skipped command and reason.
-10. Run `git diff --check <base>...HEAD` or equivalent whitespace validation.
+10. Run `git -C <worker-worktree> diff --check <base>...HEAD` or equivalent whitespace validation against the worker diff.
 
 If test commands create cache files or local artifacts, report them. Do not clean them unless the dispatch prompt explicitly permits cleanup.
 

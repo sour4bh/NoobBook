@@ -108,6 +108,7 @@ Reviewer prompts must be self-contained and include:
 - worker final response;
 - dependency statement used for the worker;
 - a note that the reviewer runs in a harness-isolated worktree created by the dispatcher's `Agent(isolation="worktree")` call; git worktrees share the underlying `.git`, so the worker's branch is visible without `git fetch`;
+- instruction to inspect the worker diff via `git -C <worker-worktree> diff <base>...HEAD` or `<base>...<worker-branch>`, and not by diffing the reviewer's own `HEAD`;
 - instruction to return the exact `nbb-reviewer` final response contract.
 
 When describing main-checkout repo state inside worker or reviewer prompts, use phrasing like "at base commit <sha>" or "in the main checkout". Avoid "current branch" or "current repo state" because those phrases collide with the subagent's own worktree state.

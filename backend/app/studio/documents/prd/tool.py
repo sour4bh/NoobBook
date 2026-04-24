@@ -17,10 +17,10 @@ from app.services.studio_services import studio_index_service
 logger = logging.getLogger(__name__)
 
 
-class PRDToolExecutor:
+class PRDDispatcher:
     """Executes PRD agent tools."""
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -247,4 +247,4 @@ class PRDToolExecutor:
 
 
 # Singleton instance
-prd_tool_executor = PRDToolExecutor()
+prd_tool_executor = PRDDispatcher()

@@ -19,13 +19,13 @@ from app.config import prompt_loader, tool_loader
 from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.prd_tool_executor import prd_tool_executor
+from app.studio.documents.prd.tool import prd_tool_executor
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class PRDAgentService:
+class PRDWriter:
     """PRD generation agent - orchestration only."""
 
     AGENT_NAME = "prd_agent"
@@ -155,7 +155,7 @@ class PRDAgentService:
                     }
 
                     # Execute tool via executor
-                    result, is_termination = prd_tool_executor.execute_tool(
+                    result, is_termination = prd_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 
@@ -228,4 +228,4 @@ class PRDAgentService:
 
 
 # Singleton instance
-prd_agent_service = PRDAgentService()
+prd_agent_service = PRDWriter()

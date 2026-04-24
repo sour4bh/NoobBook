@@ -31,7 +31,7 @@ Architecture:
     ├── flow_diagram_jobs.py
     ├── wireframe_jobs.py
     ├── presentation_jobs.py
-    ├── prd_jobs.py
+    ├── prd_jobs.py              (moved to app/studio/documents/prd/job.py)
     ├── marketing_strategy_jobs.py
     ├── blog_jobs.py             (moved to app/studio/documents/blog/job.py)
     └── business_report_jobs.py  (moved to app/studio/documents/business_report/job.py)
@@ -403,7 +403,7 @@ from app.services.studio_services.jobs.presentation_jobs import (
     delete_presentation_job,
 )
 
-from app.services.studio_services.jobs.prd_jobs import (
+from app.studio.documents.prd.job import (
     create_prd_job,
     update_prd_job,
     get_prd_job,

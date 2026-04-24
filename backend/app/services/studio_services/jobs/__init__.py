@@ -129,14 +129,8 @@ from .presentation_jobs import (
     delete_presentation_job,
 )
 
-# PRD Jobs
-from .prd_jobs import (
-    create_prd_job,
-    update_prd_job,
-    get_prd_job,
-    list_prd_jobs,
-    delete_prd_job,
-)
+# PRD Jobs: moved to app/studio/documents/prd/job.py (NBB-504). Consumers
+# import from studio_index_service or app.studio.documents.prd.job.
 
 # Marketing Strategy Jobs
 from .marketing_strategy_jobs import (

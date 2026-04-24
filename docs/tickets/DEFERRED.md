@@ -40,20 +40,24 @@ Production analysis remains disabled. No ticket may re-enable CSV/database-style
 
 **Suggested owner:** Security/providers/connectors owner.
 
-## D-004 - Full frontend test expansion if `NBB-108A` chooses deferral
+## D-004 - Full frontend test expansion (deferred by `NBB-108A`)
 
-**Status:** Conditional
-**Unblocks when:** `NBB-108A` chooses deferral.
+**Status:** Deferred
+**Decision:** `NBB-108A` chose deferral on 2026-04-24. Baseline frontend ownership/render smoke tests will not ship as part of this migration sprint. `NBB-108B` remains in the backlog at P1 as the follow-up implementation ticket and is the re-entry point when the frontend owner picks this up.
 
-**Reason:** `NBB-108A` must either send baseline frontend ownership/render smoke tests to `NBB-108B` or explicitly defer them here.
+**Reason:** The sprint is backend-structure-heavy. Adding a frontend test toolchain (test runner selection, config wiring, CI extension, mock/jsdom setup) during migration adds surface area and tooling risk for no movement-safety win — frontend moves in Epic 006 (`NBB-602`, `NBB-603`, `NBB-604`) are guarded by the existing `npm run build` in CI plus backend route/contract tests from `NBB-106`, `NBB-107`, and `NBB-205`. Frontend shells (`NBB-105`, `NBB-601`) are docs-only and do not change runtime behavior that a smoke test would catch. No shim or forwarding module in `NBB-706` depends on a frontend test pass.
 
-**Minimum follow-up if deferred:**
+**Risk accepted:** Shell render regressions and permission-provider wiring bugs may reach `develop` during frontend moves without automated catch. Mitigation: reviewers manually smoke the running app (`bin/dev`) for app boot, chat/sources/studio shell mount, and permission-provider state during review of `NBB-602`/`NBB-603`/`NBB-604`.
+
+**Minimum follow-up when `NBB-108B` is picked up:**
 - app render smoke
 - chat/sources/studio shell render smoke
 - permission-provider behavior smoke
 - citation UI contract smoke
 
-**Suggested owner:** Frontend owner.
+Concrete command and CI placement are deferred to `NBB-108B`; Vitest plus React Testing Library is the expected baseline but is not locked here.
+
+**Suggested owner:** Frontend owner (accepts the risk above until `NBB-108B` lands).
 
 ## D-005 - Cross-stack contract redesign beyond preservation
 

@@ -75,13 +75,14 @@ Do not use epic-row dependencies to decide whether the task can start.
 Before editing:
 
 1. Run `git status --short --branch`.
-2. Confirm the ticket key, title, `doc_path`, anchor, dependencies, and primary write scope.
-3. Identify whether the ticket is:
+2. Verify base commit: run `git rev-parse HEAD` and confirm it equals the dispatch's declared base commit exactly. If they differ, stop and return `BLOCKED: base mismatch — declared <declared-base>, HEAD at <actual-sha>`. Do not commit anything on a mismatched base.
+3. Confirm the ticket key, title, `doc_path`, anchor, dependencies, and primary write scope.
+4. Identify whether the ticket is:
    - docs-only
    - behavior/test implementation
    - mechanical movement
    - mixed mechanical plus semantic
-4. Create a short todo list for the ticket.
+5. Create a short todo list for the ticket.
 
 If the worktree already has unrelated local modifications, stop and report them.
 

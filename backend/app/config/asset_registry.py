@@ -199,6 +199,10 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
     "flow_diagram": "studio/design/flow_diagram/prompts",
     "wireframe": "studio/design/wireframe/prompts",
     "wireframe_agent": "studio/design/wireframe/prompts",
+    "blog_agent": "studio/documents/blog/prompts",
+    "business_report_agent": "studio/documents/business_report/prompts",
+    "prd_agent": "studio/documents/prd/prompts",
+    "presentation_agent": "studio/documents/presentation/prompts",
 }
 
 
@@ -221,6 +225,10 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
     "website_agent": "studio/design/website/tools",
     "component_agent": "studio/design/component/tools",
     "wireframe_agent": "studio/design/wireframe/tools",
+    "blog_agent": "studio/documents/blog/tools",
+    "business_report_agent": "studio/documents/business_report/tools",
+    "prd_agent": "studio/documents/prd/tools",
+    "presentation_agent": "studio/documents/presentation/tools",
 }
 
 

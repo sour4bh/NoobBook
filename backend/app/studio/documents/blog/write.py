@@ -1,12 +1,10 @@
 """
-PRD Agent Service - AI agent for generating Product Requirements Documents.
+Blog Agent Service - AI agent for generating comprehensive blog posts.
 
-Orchestrates the PRD generation workflow:
-1. Agent plans the PRD structure (plan_prd tool)
-2. Agent writes sections incrementally (write_prd_section tool - can be called multiple times)
-3. Agent signals completion via is_last_section=true flag
-
-The markdown output can be rendered on frontend and exported to PDF.
+Orchestrates the blog generation workflow:
+1. Agent plans the blog structure (plan_blog_post)
+2. Agent generates images (generate_blog_image)
+3. Agent writes the final markdown (write_blog_post - termination)
 """
 
 import logging
@@ -15,21 +13,21 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-from app.config import prompt_loader, tool_loader
+from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.prd_tool_executor import prd_tool_executor
+from app.studio.documents.blog.tool import blog_tool_executor
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class PRDAgentService:
-    """PRD generation agent - orchestration only."""
+class BlogWriter:
+    """Blog post generation agent - orchestration only."""
 
-    AGENT_NAME = "prd_agent"
-    MAX_ITERATIONS = 15  # Detailed PRDs: 1 plan + 6-8 sections
+    AGENT_NAME = "blog_agent"
+    MAX_ITERATIONS = 20
 
     def __init__(self):
         self._prompt_config = None
@@ -37,7 +35,7 @@ class PRDAgentService:
 
     def _load_config(self) -> Dict[str, Any]:
         if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("prd_agent")
+            self._prompt_config = prompt_loader.get_prompt_config("blog_agent")
         return self._prompt_config
 
     def _load_tools(self) -> List[Dict[str, Any]]:
@@ -45,16 +43,22 @@ class PRDAgentService:
             self._tools = tool_loader.load_tools_for_agent(self.AGENT_NAME)
         return self._tools
 
-    def generate_prd(
+    def generate_blog_post(
         self,
         project_id: str,
         source_id: Optional[str],
         job_id: str,
         direction: str = "",
-        previous_document: Optional[Dict] = None,
-        edit_instructions: Optional[str] = None
+        target_keyword: str = "",
+        blog_type: str = "how_to_guide",
+        logo_image_bytes: Optional[bytes] = None,
+        logo_mime_type: str = "image/png",
+        user_id: Optional[str] = None,
+        edit_instructions: Optional[str] = None,
+        previous_markdown: Optional[str] = None,
+        previous_title: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Run the agent to generate a PRD document."""
+        """Run the agent to generate a blog post."""
         config = self._load_config()
         tools = self._load_tools()
 
@@ -62,61 +66,73 @@ class PRDAgentService:
         started_at = datetime.now().isoformat()
 
         # Update job status
-        studio_index_service.update_prd_job(
+        studio_index_service.update_blog_job(
             project_id, job_id,
             status="processing",
-            status_message="Starting PRD generation...",
-            started_at=started_at
+            status_message="Starting blog post generation..."
         )
 
-        # Get source content (if source provided)
-        source_content = ""
-        if source_id:
-            source_content = get_source_content(project_id, source_id, max_chars=15000)
-
-        # Build user message from config or direction-only fallback
-        # Guard against error messages AND unprocessed sources (e.g., "Content not yet processed")
-        effective_direction = direction if direction else config.get("default_direction", "")
-        has_valid_content = (source_content
-                            and not source_content.startswith("Error")
-                            and "not yet processed" not in source_content)
-        if has_valid_content:
-            user_message = config.get("user_message", "").format(
-                source_content=source_content,
-                direction=effective_direction
-            )
+        # Get source content — skip in edit mode since previous blog already encodes it
+        if previous_markdown:
+            source_content = "Editing a previous blog post — see the PREVIOUS BLOG POST section below."
         else:
-            user_message = f"Create a comprehensive Product Requirements Document (PRD).\n\nDirection from user: {effective_direction}\n\nPlease create a detailed, complete PRD following the workflow:\n1. First, plan the document structure using the plan_prd tool\n2. Then write each section one at a time using the write_prd_section tool\n3. Set is_last_section=true when you write the final section"
+            source_content = get_source_content(project_id, source_id) if source_id else "No source document provided. Use the direction below as the basis for your blog post."
+        blog_types = config.get("blog_types", {})
+        blog_type_display = blog_types.get(blog_type, blog_type.replace("_", " ").title())
 
-        # Edit mode: include previous document for refinement (capped to control token costs)
-        if previous_document and edit_instructions:
-            prev_markdown = previous_document.get('markdown_content', '')
-            if len(prev_markdown) > 15000:
-                prev_markdown = prev_markdown[:15000] + "\n\n[... document truncated for context limit ...]"
-            edit_context = "\n\n## EDIT MODE — REFINE PREVIOUS DOCUMENT\n"
-            edit_context += f"Previous document title: {previous_document.get('document_title', 'N/A')}\n"
-            edit_context += f"Previous sections: {previous_document.get('sections_written', 0)}\n"
-            edit_context += "\n### PREVIOUS DOCUMENT CONTENT:\n"
-            edit_context += prev_markdown
-            edit_context += f"\n\n### EDIT INSTRUCTIONS:\n{edit_instructions}\n"
-            edit_context += "Rewrite the document applying the edit instructions. Preserve sections and content the user didn't ask to change. Focus modifications on what the edit instructions specify."
-            user_message = user_message + edit_context
+        user_message = config.get("user_message", "").format(
+            source_content=source_content,
+            target_keyword=target_keyword or "Use your best judgment based on the content",
+            blog_type_display=blog_type_display,
+            direction=direction or "No specific direction provided - use your best judgment based on the content."
+        )
+
+        # Edit mode: append previous blog content + edit instructions to user message
+        if previous_markdown:
+            edit_context = (
+                f"\n\n=== PREVIOUS BLOG POST (refine this based on the edit instructions) ===\n"
+                f"Previous Title: {previous_title or 'Untitled'}\n\n"
+                f"{previous_markdown}\n"
+                f"=== END PREVIOUS BLOG POST ===\n\n"
+                f"EDIT INSTRUCTIONS: {edit_instructions or 'No specific edits requested — improve the post as you see fit.'}\n\n"
+                f"Use the previous blog post as your baseline. Apply the edit instructions "
+                f"to refine it. Keep elements the user didn't ask to change."
+            )
+            user_message += edit_context
         elif edit_instructions:
-            user_message = user_message + f"\n\nADDITIONAL INSTRUCTIONS: {edit_instructions}"
+            # No parent content but user provided edit instructions — treat as additional guidance
+            user_message += f"\n\nADDITIONAL INSTRUCTIONS: {edit_instructions}"
 
         messages = [{"role": "user", "content": user_message}]
 
+        # Load brand context if configured for blog feature
+        brand_context = brand_context_loader.load_brand_context(
+            project_id, "blog", user_id=user_id
+        )
+        system_prompt = config["system_prompt"]
+        if brand_context:
+            system_prompt = f"{system_prompt}\n\n{brand_context}"
+
+        # Only use logo if brand is enabled (tied to brand context being non-empty)
+        effective_logo = logo_image_bytes if brand_context else None
+        if effective_logo:
+            system_prompt += (
+                "\n\nNOTE: A brand logo/icon is available and will be passed to "
+                "the image generator. When calling generate_blog_image, write image "
+                "prompts that describe incorporating the logo naturally into the design."
+            )
+
         total_input_tokens = 0
         total_output_tokens = 0
-        sections_written = 0
+        generated_images = []
 
-        logger.info("Starting PRD agent job %s", job_id[:8])
+        logger.info("Starting blog agent job %s", job_id[:8])
 
         for iteration in range(1, self.MAX_ITERATIONS + 1):
 
             response = claude_service.send_message(
                 messages=messages,
-                system_prompt=config["system_prompt"],
+                system_prompt=system_prompt,
                 model=config["model"],
                 max_tokens=config["max_tokens"],
                 temperature=config["temperature"],
@@ -148,23 +164,23 @@ class PRDAgentService:
                         "project_id": project_id,
                         "job_id": job_id,
                         "source_id": source_id,
-                        "sections_written": sections_written,
+                        "generated_images": generated_images,
                         "iterations": iteration,
                         "input_tokens": total_input_tokens,
-                        "output_tokens": total_output_tokens
+                        "output_tokens": total_output_tokens,
+                        "target_keyword": target_keyword,
+                        "blog_type": blog_type,
+                        "logo_image_bytes": effective_logo,
+                        "logo_mime_type": logo_mime_type
                     }
 
                     # Execute tool via executor
-                    result, is_termination = prd_tool_executor.execute_tool(
+                    result, is_termination = blog_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 
-                    # Track sections written
-                    if tool_name == "write_prd_section":
-                        sections_written += 1
-
                     if is_termination:
-                        logger.info("Completed in %d iterations, %d sections", iteration, sections_written)
+                        logger.info("Completed in %d iterations", iteration)
                         self._save_execution(
                             project_id, execution_id, job_id, messages,
                             result, started_at, source_id
@@ -187,11 +203,10 @@ class PRDAgentService:
             "success": False,
             "error_message": f"Agent reached maximum iterations ({self.MAX_ITERATIONS})",
             "iterations": self.MAX_ITERATIONS,
-            "sections_written": sections_written,
             "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
         }
 
-        studio_index_service.update_prd_job(
+        studio_index_service.update_blog_job(
             project_id, job_id,
             status="error",
             error_message=error_result["error_message"]
@@ -219,7 +234,7 @@ class PRDAgentService:
             project_id=project_id,
             agent_name=self.AGENT_NAME,
             execution_id=execution_id,
-            task=f"Generate PRD (job: {job_id[:8]})",
+            task=f"Generate blog post (job: {job_id[:8]})",
             messages=messages,
             result=result,
             started_at=started_at,
@@ -228,4 +243,4 @@ class PRDAgentService:
 
 
 # Singleton instance
-prd_agent_service = PRDAgentService()
+blog_agent_service = BlogWriter()

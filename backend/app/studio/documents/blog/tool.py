@@ -17,12 +17,12 @@ from app.services.studio_services import studio_index_service
 logger = logging.getLogger(__name__)
 
 
-class BlogToolExecutor:
+class BlogDispatcher:
     """Executes blog agent tools."""
 
     TERMINATION_TOOL = "write_blog_post"
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -292,4 +292,4 @@ class BlogToolExecutor:
 
 
 # Singleton instance
-blog_tool_executor = BlogToolExecutor()
+blog_tool_executor = BlogDispatcher()

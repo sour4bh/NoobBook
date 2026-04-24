@@ -15,7 +15,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-class BlogAgentExecutor:
+class BlogRunner:
     """
     Executor for blog post generation via studio signals.
 
@@ -61,7 +61,7 @@ class BlogAgentExecutor:
         """
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
-        from app.services.ai_agents import blog_agent_service
+        from app.studio.documents.blog.write import blog_agent_service
         from app.services.source_services import source_service
 
         # Get source info (optional — blog can be generated from direction alone)
@@ -139,4 +139,37 @@ class BlogAgentExecutor:
 
 
 # Singleton instance
-blog_agent_executor = BlogAgentExecutor()
+blog_agent_executor = BlogRunner()
+
+
+def run(
+    project_id: str,
+    source_id: Optional[str],
+    direction: str = "",
+    target_keyword: str = "",
+    blog_type: str = "how_to_guide",
+    logo_image_bytes: Optional[bytes] = None,
+    logo_mime_type: str = "image/png",
+    user_id: Optional[str] = None,
+    edit_instructions: Optional[str] = None,
+    previous_markdown: Optional[str] = None,
+    previous_title: Optional[str] = None,
+    parent_job_id: Optional[str] = None,
+    parent_source_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Module-level entry point matching the `<item>/run.py::run(...)` naming rule."""
+    return blog_agent_executor.execute(
+        project_id=project_id,
+        source_id=source_id,
+        direction=direction,
+        target_keyword=target_keyword,
+        blog_type=blog_type,
+        logo_image_bytes=logo_image_bytes,
+        logo_mime_type=logo_mime_type,
+        user_id=user_id,
+        edit_instructions=edit_instructions,
+        previous_markdown=previous_markdown,
+        previous_title=previous_title,
+        parent_job_id=parent_job_id,
+        parent_source_name=parent_source_name,
+    )

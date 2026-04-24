@@ -40,7 +40,7 @@ def generate_prd(project_id: str):
     Returns:
         202 Accepted with job_id for polling
     """
-    from app.services.ai_agents import prd_agent_service
+    from app.studio.documents.prd.write import prd_agent_service
     from app.services.source_services import source_service
     from app.background.tasks import task_service
     import uuid
@@ -112,7 +112,7 @@ def generate_prd(project_id: str):
         task_service.submit_task(
             task_type="prd",
             target_id=job_id,
-            callable_func=prd_agent_service.prd_agent_service.generate_prd,
+            callable_func=prd_agent_service.generate_prd,
             project_id=project_id,
             source_id=source_id,
             job_id=job_id,

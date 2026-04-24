@@ -17,7 +17,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-class BusinessReportAgentExecutor:
+class BusinessReportRunner:
     """
     Executor for business report generation via studio signals.
 
@@ -64,7 +64,7 @@ class BusinessReportAgentExecutor:
         """
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
-        from app.services.ai_agents import business_report_agent_service
+        from app.studio.documents.business_report.write import business_report_agent_service
         from app.services.source_services import source_service
 
         csv_source_ids = csv_source_ids or []
@@ -141,4 +141,33 @@ class BusinessReportAgentExecutor:
 
 
 # Singleton instance
-business_report_agent_executor = BusinessReportAgentExecutor()
+business_report_agent_executor = BusinessReportRunner()
+
+
+def run(
+    project_id: str,
+    source_id: str,
+    direction: str = "",
+    report_type: str = "executive_summary",
+    csv_source_ids: Optional[List[str]] = None,
+    context_source_ids: Optional[List[str]] = None,
+    focus_areas: Optional[List[str]] = None,
+    edit_instructions: Optional[str] = None,
+    previous_markdown: Optional[str] = None,
+    previous_title: Optional[str] = None,
+    parent_job_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Module-level entry point matching the `<item>/run.py::run(...)` naming rule."""
+    return business_report_agent_executor.execute(
+        project_id=project_id,
+        source_id=source_id,
+        direction=direction,
+        report_type=report_type,
+        csv_source_ids=csv_source_ids,
+        context_source_ids=context_source_ids,
+        focus_areas=focus_areas,
+        edit_instructions=edit_instructions,
+        previous_markdown=previous_markdown,
+        previous_title=previous_title,
+        parent_job_id=parent_job_id,
+    )

@@ -92,20 +92,13 @@ from app.studio.design.wireframe.job import (
     list_wireframe_jobs,
     delete_wireframe_job,
 )
-from .presentation_jobs import (
-    create_presentation_job,
-    update_presentation_job,
-    get_presentation_job,
-    list_presentation_jobs,
-    delete_presentation_job,
-)
-from .prd_jobs import (
-    create_prd_job,
-    update_prd_job,
-    get_prd_job,
-    list_prd_jobs,
-    delete_prd_job,
-)
+# Presentation Jobs: moved to app/studio/documents/presentation/job.py (NBB-504).
+# Consumers import from studio_index_service or app.studio.documents.presentation.job.
+
+# PRD Jobs: moved to app/studio/documents/prd/job.py (NBB-504). Consumers
+# import from studio_index_service or app.studio.documents.prd.job.
+
+# Marketing Strategy Jobs
 from .marketing_strategy_jobs import (
     create_marketing_strategy_job,
     update_marketing_strategy_job,
@@ -113,20 +106,12 @@ from .marketing_strategy_jobs import (
     list_marketing_strategy_jobs,
     delete_marketing_strategy_job,
 )
-from .blog_jobs import (
-    create_blog_job,
-    update_blog_job,
-    get_blog_job,
-    list_blog_jobs,
-    delete_blog_job,
-)
-from .business_report_jobs import (
-    create_business_report_job,
-    update_business_report_job,
-    get_business_report_job,
-    list_business_report_jobs,
-    delete_business_report_job,
-)
+# Blog Jobs: moved to app/studio/documents/blog/job.py (NBB-504). Consumers
+# import directly from studio_index_service (re-exports from new home) or from
+# app.studio.documents.blog.job.
+
+# Business Report Jobs: moved to app/studio/documents/business_report/job.py (NBB-504).
+# Consumers import from studio_index_service or app.studio.documents.business_report.job.
 
 # Website jobs moved to app/studio/design/website/job.py (NBB-503).
 # Component, flow_diagram, wireframe jobs moved to app/studio/design/<item>/job.py (NBB-506).

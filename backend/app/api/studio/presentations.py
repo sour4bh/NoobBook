@@ -52,7 +52,7 @@ def generate_presentation(project_id: str):
     Returns:
         202 Accepted with job_id for polling
     """
-    from app.services.tool_executors import presentation_agent_executor
+    from app.studio.documents.presentation.run import presentation_agent_executor
 
     try:
         data = request.get_json()

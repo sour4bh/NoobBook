@@ -17,13 +17,13 @@ from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.business_report_tool_executor import business_report_tool_executor
+from app.studio.documents.business_report.tool import business_report_tool_executor
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class BusinessReportAgentService:
+class BusinessReportWriter:
     """Business report generation agent - orchestration only."""
 
     AGENT_NAME = "business_report_agent"
@@ -150,7 +150,7 @@ class BusinessReportAgentService:
                     }
 
                     # Execute tool via executor
-                    result, is_termination = business_report_tool_executor.execute_tool(
+                    result, is_termination = business_report_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 
@@ -309,4 +309,4 @@ class BusinessReportAgentService:
 
 
 # Singleton instance
-business_report_agent_service = BusinessReportAgentService()
+business_report_agent_service = BusinessReportWriter()

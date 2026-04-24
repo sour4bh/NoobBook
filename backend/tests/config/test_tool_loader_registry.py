@@ -64,15 +64,11 @@ LEGACY_TOOL_CATEGORIES: List[str] = [
     "memory_tools",
     "studio_tools",
     "analysis_agent",
-    "blog_agent",
-    "business_report_agent",
     "csv_tool",
     "database_agent",
     "email_agent",
     "freshdesk_agent",
     "marketing_strategy_agent",
-    "prd_agent",
-    "presentation_agent",
 ]
 
 

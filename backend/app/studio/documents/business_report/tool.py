@@ -16,12 +16,12 @@ from app.services.ai_agents.csv_analyzer_agent import csv_analyzer_agent
 logger = logging.getLogger(__name__)
 
 
-class BusinessReportToolExecutor:
+class BusinessReportDispatcher:
     """Executes business report agent tools."""
 
     TERMINATION_TOOL = "write_business_report"
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -364,4 +364,4 @@ class BusinessReportToolExecutor:
 
 
 # Singleton instance
-business_report_tool_executor = BusinessReportToolExecutor()
+business_report_tool_executor = BusinessReportDispatcher()

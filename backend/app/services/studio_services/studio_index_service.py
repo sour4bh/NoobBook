@@ -30,11 +30,11 @@ Architecture:
     ├── component_jobs.py         (moved to app/studio/design/component/job.py)
     ├── flow_diagram_jobs.py      (moved to app/studio/design/flow_diagram/job.py)
     ├── wireframe_jobs.py         (moved to app/studio/design/wireframe/job.py)
-    ├── presentation_jobs.py
-    ├── prd_jobs.py
+    ├── presentation_jobs.py      (moved to app/studio/documents/presentation/job.py)
+    ├── prd_jobs.py               (moved to app/studio/documents/prd/job.py)
     ├── marketing_strategy_jobs.py
-    ├── blog_jobs.py
-    └── business_report_jobs.py
+    ├── blog_jobs.py             (moved to app/studio/documents/blog/job.py)
+    └── business_report_jobs.py  (moved to app/studio/documents/business_report/job.py)
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -398,7 +398,7 @@ from app.studio.design.wireframe.job import (
     delete_wireframe_job,
 )
 
-from app.services.studio_services.jobs.presentation_jobs import (
+from app.studio.documents.presentation.job import (
     create_presentation_job,
     update_presentation_job,
     get_presentation_job,
@@ -406,7 +406,7 @@ from app.services.studio_services.jobs.presentation_jobs import (
     delete_presentation_job,
 )
 
-from app.services.studio_services.jobs.prd_jobs import (
+from app.studio.documents.prd.job import (
     create_prd_job,
     update_prd_job,
     get_prd_job,
@@ -422,7 +422,7 @@ from app.services.studio_services.jobs.marketing_strategy_jobs import (
     delete_marketing_strategy_job,
 )
 
-from app.services.studio_services.jobs.blog_jobs import (
+from app.studio.documents.blog.job import (
     create_blog_job,
     update_blog_job,
     get_blog_job,
@@ -430,7 +430,7 @@ from app.services.studio_services.jobs.blog_jobs import (
     delete_blog_job,
 )
 
-from app.services.studio_services.jobs.business_report_jobs import (
+from app.studio.documents.business_report.job import (
     create_business_report_job,
     update_business_report_job,
     get_business_report_job,

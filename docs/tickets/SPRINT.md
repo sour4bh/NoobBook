@@ -383,9 +383,9 @@ Update this table when work starts, merges, or blocks.
 |---|---|---|---|---|---|---|---|---|
 | `NBB-101` | Foundation and CI | Merged | top-level dispatcher | `worktree-agent-ab1316b6b8b3c4fa8` / cleaned up | `MERGE` | `683173c` | PASS worker/reviewer checks; PASS merge/push cleanup | Merged to `origin/main`; backup branches preserved. |
 | `NBB-102` | Foundation and CI | Merged | top-level dispatcher | `worktree-agent-a212eb3d66f0839f7` / cleaned up | `MERGE` | `0c31b21` | PASS worker/reviewer checks; PASS merge/push cleanup | STRUCTURE.md published; placement checklist + frozen list locked. |
-| `NBB-103` | Foundation and CI | Ready | unassigned |  |  |  |  | `NBB-102` merged at `0c31b21`. Refactory harness pre-seeded; remaining scope is CI workflow + structural guardrail + allowlist. |
-| `NBB-104` | Policy and contracts | Ready | unassigned |  |  |  |  | `NBB-102` merged at `0c31b21`. Canonical owner of STRUCTURE.md backend root list; must preserve Placement Checklist + Frozen Destinations blocks. High fan-out unblocker for Phase 3. |
-| `NBB-105` | Frontend | Ready | unassigned |  |  |  |  | `NBB-102` merged at `0c31b21`. Frontend skeleton docs only. |
+| `NBB-103` | Foundation and CI | Ready | unassigned |  |  |  |  | Deps merged: `NBB-102` at `0c31b21`. Refactory harness pre-seeded (`.mcp.json.example`, `REFACTORY_SETUP.md`, `move-plan.csv`, `helpers/*`, CONTRIBUTING link, README Move-bookkeeping section); remaining real work is `.github/workflows/`, structural guardrail script, explicit allowlist, doc mentions of the new CI check name, and `mcp__refactory__move_module` dry-run smoke. |
+| `NBB-104` | Policy and contracts | Merged | top-level dispatcher | `worktree-agent-a7f6352a32780bf16` / cleaned up | `MERGE` | `b12bf50` | PASS worker/reviewer checks; PASS merge/push cleanup | 11 new backend roots + api charter + STRUCTURE.md extensions; locked Placement Checklist + Frozen Destinations blocks preserved. |
+| `NBB-105` | Frontend | Ready | unassigned |  |  |  |  | Deps merged: `NBB-102` at `0c31b21`. Frontend skeleton docs only; no source moves. Recommend a new `frontend/STRUCTURE.md` to keep write scope disjoint from `NBB-103`. |
 
 Status values:
 

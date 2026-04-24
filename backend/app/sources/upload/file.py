@@ -15,15 +15,15 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from werkzeug.datastructures import FileStorage
 
-from app.services.source_services import source_index_service
 from app.services.integrations.supabase import storage_service
-from app.utils.file_utils import (
+from app.sources.file_contract import (
     ALLOWED_EXTENSIONS,
     is_allowed_file,
     get_file_info,
     validate_file_size,
 )
 from app.background.tasks import task_service
+from app.sources import index
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ def upload_file(
     }
 
     # Add to Supabase sources table
-    source_index_service.add_source_to_index(project_id, source_metadata)
+    index.add_source_to_index(project_id, source_metadata)
 
     # Submit processing as a background task
     _submit_processing_task(project_id, source_id)
@@ -204,7 +204,7 @@ def create_from_existing_file(
     }
 
     # Add to Supabase sources table
-    source_index_service.add_source_to_index(project_id, source_metadata)
+    index.add_source_to_index(project_id, source_metadata)
 
     # Submit processing as a background task
     _submit_processing_task(project_id, source_id)

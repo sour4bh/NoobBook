@@ -17,7 +17,19 @@ Processing Pipeline:
 2. Index: source_index_service manages metadata in Supabase sources table
 3. Process: source_processing/ extracts content, generates embeddings and summaries
 """
-from app.services.source_services.source_service import source_service, SourceService
-from app.services.source_services import source_index_service
-
 __all__ = ["source_service", "SourceService", "source_index_service"]
+
+
+def __getattr__(name):
+    # Lazy re-export avoids circular imports with app.sources.catalog,
+    # which imports back into source_services.source_upload at module load.
+    if name == "source_service":
+        from app.sources.catalog import source_service
+        return source_service
+    if name == "SourceService":
+        from app.sources.catalog import SourceCatalog
+        return SourceCatalog
+    if name == "source_index_service":
+        from app.sources import index
+        return index
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

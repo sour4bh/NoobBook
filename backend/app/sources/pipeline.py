@@ -38,7 +38,7 @@ from app.services.integrations.supabase import storage_service
 logger = logging.getLogger(__name__)
 
 
-class SourceProcessingService:
+class SourcePipeline:
     """
     Service class for orchestrating source file processing.
 
@@ -343,4 +343,4 @@ class SourceProcessingService:
 
 
 # Singleton instance
-source_processing_service = SourceProcessingService()
+source_processing_service = SourcePipeline()

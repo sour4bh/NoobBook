@@ -31,12 +31,12 @@ from flask import jsonify, request, current_app, send_file, g
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.studio_services.infographic_service import infographic_service
-from app.services.source_services import source_index_service
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
 from app.api.studio.logo_utils import resolve_logo
 from app.services.auth import require_permission
+from app.sources import index
 
 
 @studio_bp.route('/projects/<project_id>/studio/infographic', methods=['POST'])
@@ -107,7 +107,7 @@ def generate_infographic(project_id: str):
         # Look up source if provided, otherwise use "Chat Context"
         source_name = 'Chat Context'
         if source_id:
-            source = source_index_service.get_source_from_index(project_id, source_id)
+            source = index.get_source_from_index(project_id, source_id)
             if not source:
                 return jsonify({
                     'success': False,

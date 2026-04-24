@@ -36,12 +36,9 @@ from typing import Optional, Tuple
 
 from flask import jsonify, request, current_app, send_file, redirect
 from app.api.sources import sources_bp
-from app.services.source_services import SourceService
+from app.sources.catalog import source_service
 from app.services.auth.rbac import get_request_identity
 from app.services.auth.permissions import user_has_permission
-
-# Initialize service
-source_service = SourceService()
 
 
 # Map file extensions to permission (category, item) tuples.

@@ -7,7 +7,7 @@ Educational Note: Upload logic is separated by type for cleaner code:
 - text_upload: Pasted text content
 - research_upload: Deep research sources (AI agent researched topics)
 """
-from app.services.source_services.source_upload.file_upload import (
+from app.sources.upload.file import (
     upload_file,
     create_from_existing_file
 )

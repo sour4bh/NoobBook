@@ -17,8 +17,8 @@ from urllib.parse import urlparse
 
 from app.connectors.database.connection.store import database_connection_service, DEFAULT_USER_ID
 from app.services.integrations.supabase import storage_service
-from app.services.source_services import source_index_service
 from app.background.tasks import task_service
+from app.sources import index
 
 
 logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ def add_database_source(
         },
     }
 
-    source_index_service.add_source_to_index(project_id, source_metadata)
+    index.add_source_to_index(project_id, source_metadata)
 
     # Trigger processing in background (uses existing source_processing_service)
     _submit_processing_task(project_id, source_id)

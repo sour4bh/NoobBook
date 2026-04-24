@@ -40,10 +40,7 @@ Routes:
 """
 from flask import jsonify, current_app
 from app.api.sources import sources_bp
-from app.services.source_services import SourceService
-
-# Initialize service
-source_service = SourceService()
+from app.sources.catalog import source_service
 
 
 @sources_bp.route('/projects/<project_id>/sources/<source_id>/cancel', methods=['POST'])

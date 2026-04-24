@@ -19,10 +19,10 @@ from flask import jsonify, request, current_app
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.ai_agents.wireframe_agent_service import wireframe_agent_service
-from app.services.source_services import source_index_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
 from app.services.auth import require_permission
+from app.sources import index
 
 
 @studio_bp.route("/projects/<project_id>/studio/wireframe", methods=["POST"])
@@ -118,7 +118,7 @@ def generate_wireframe(project_id: str):
         # Source is optional — can generate from direction alone
         source_name = "Direction Only"
         if source_id:
-            source = source_index_service.get_source_from_index(project_id, source_id)
+            source = index.get_source_from_index(project_id, source_id)
             if not source:
                 return jsonify(
                     {"success": False, "error": f"Source not found: {source_id}"}

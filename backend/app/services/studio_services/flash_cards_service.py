@@ -16,13 +16,14 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-
-logger = logging.getLogger(__name__)
 from app.services.integrations.supabase import storage_service
-from app.services.source_services import source_index_service
 from app.services.studio_services import studio_index_service
 from app.config import prompt_loader, tool_loader
 from app.utils import claude_parsing_utils
+from app.sources import index
+
+
+logger = logging.getLogger(__name__)
 
 
 class FlashCardsService:
@@ -64,7 +65,7 @@ class FlashCardsService:
         Content is downloaded from Supabase Storage.
         """
         # Get source metadata
-        source = source_index_service.get_source_from_index(project_id, source_id)
+        source = index.get_source_from_index(project_id, source_id)
         if not source:
             return ""
 
@@ -135,7 +136,7 @@ class FlashCardsService:
 
         try:
             # Get source metadata
-            source = source_index_service.get_source_from_index(project_id, source_id)
+            source = index.get_source_from_index(project_id, source_id)
             if not source:
                 raise ValueError(f"Source {source_id} not found")
 

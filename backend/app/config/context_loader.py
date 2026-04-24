@@ -12,8 +12,6 @@ The context is rebuilt on every message to reflect the current state
 import logging
 from typing import Dict, Any, List, Optional
 
-from app.services.source_services import source_service
-
 logger = logging.getLogger(__name__)
 
 
@@ -51,6 +49,8 @@ class ContextLoader:
         Returns:
             List of source metadata dicts for selected/ready sources
         """
+        from app.sources.catalog import source_service
+
         all_sources = source_service.list_sources(project_id)
 
         if selected_source_ids is None:

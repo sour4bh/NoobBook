@@ -14,13 +14,14 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-
-logger = logging.getLogger(__name__)
 from app.services.integrations.google.imagen_service import imagen_service
-from app.services.source_services import source_index_service
 from app.services.studio_services import studio_index_service
 from app.config import prompt_loader, brand_context_loader
 from app.services.integrations.supabase import storage_service
+from app.sources import index
+
+
+logger = logging.getLogger(__name__)
 
 
 # Infographic aspect ratio - landscape for modal display
@@ -61,7 +62,7 @@ class InfographicService:
         Content is downloaded from Supabase Storage.
         """
         # Get source metadata
-        source = source_index_service.get_source_from_index(project_id, source_id)
+        source = index.get_source_from_index(project_id, source_id)
         if not source:
             return ""
 
@@ -140,7 +141,7 @@ class InfographicService:
             # Get source content if a source is provided
             content = ""
             if source_id:
-                source = source_index_service.get_source_from_index(project_id, source_id)
+                source = index.get_source_from_index(project_id, source_id)
                 if not source:
                     raise ValueError(f"Source {source_id} not found")
                 content = self._get_source_content(project_id, source_id)

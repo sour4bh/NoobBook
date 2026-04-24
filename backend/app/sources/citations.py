@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
 from app.services.integrations.supabase import storage_service
-from app.services.source_services import source_index_service
+from app.sources import index
 
 
 def parse_chunk_id(chunk_id: str) -> Optional[Dict[str, Any]]:
@@ -93,7 +93,7 @@ def get_chunk_content(
         return None
 
     # Get source name from source index
-    source = source_index_service.get_source_from_index(project_id, source_id)
+    source = index.get_source_from_index(project_id, source_id)
     source_name = source.get("name", "Unknown") if source else "Unknown"
 
     return {

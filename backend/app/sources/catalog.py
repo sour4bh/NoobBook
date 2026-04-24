@@ -14,9 +14,6 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 from werkzeug.datastructures import FileStorage
 
-logger = logging.getLogger(__name__)
-
-from app.services.source_services import source_index_service
 from app.services.source_services.source_upload import (
     upload_file,
     create_from_existing_file,
@@ -29,16 +26,20 @@ from app.services.source_services.source_upload import (
     add_mcp_source,
     add_mixpanel_source,
 )
-# Local path utils used for temp file staging during source processing
 from app.utils.path_utils import (
     get_raw_dir,
     get_processed_dir,
     get_chunks_dir
 )
-from app.utils.file_utils import ALLOWED_EXTENSIONS
+from app.sources.file_contract import ALLOWED_EXTENSIONS
+from app.sources import index
 
 
-class SourceService:
+logger = logging.getLogger(__name__)
+# Local path utils used for temp file staging during source processing
+
+
+class SourceCatalog:
     """
     Service class for managing project sources.
 
@@ -61,7 +62,7 @@ class SourceService:
         Returns:
             List of source metadata dictionaries (newest first)
         """
-        return source_index_service.list_sources_from_index(project_id)
+        return index.list_sources_from_index(project_id)
 
     def get_source(self, project_id: str, source_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -74,7 +75,7 @@ class SourceService:
         Returns:
             Source metadata or None if not found
         """
-        return source_index_service.get_source_from_index(project_id, source_id)
+        return index.get_source_from_index(project_id, source_id)
 
     def get_source_file_url(self, project_id: str, source_id: str) -> Optional[str]:
         """
@@ -191,7 +192,7 @@ class SourceService:
         if summary_info is not None:
             updates["summary_info"] = summary_info
 
-        result = source_index_service.update_source_in_index(project_id, source_id, updates)
+        result = index.update_source_in_index(project_id, source_id, updates)
 
         return result
 
@@ -248,7 +249,7 @@ class SourceService:
             storage_service.delete_source_files(project_id, source_id, stored_filename)
 
         # Remove from index
-        source_index_service.remove_source_from_index(project_id, source_id)
+        index.remove_source_from_index(project_id, source_id)
 
         return True
 
@@ -510,4 +511,4 @@ class SourceService:
 
 
 # Singleton instance
-source_service = SourceService()
+source_service = SourceCatalog()

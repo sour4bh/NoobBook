@@ -10,8 +10,8 @@ from datetime import datetime
 from flask import jsonify, current_app
 
 from app.api.projects import projects_bp
-from app.services.source_services import source_service
 from app.services.integrations.supabase import get_supabase
+from app.sources.catalog import source_service
 
 
 @projects_bp.route("/projects/<project_id>/active-tasks", methods=["GET"])

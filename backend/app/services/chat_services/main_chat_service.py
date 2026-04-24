@@ -29,12 +29,12 @@ from app.services.tool_executors import studio_signal_executor
 from app.services.integrations.knowledge_bases import knowledge_base_service
 from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
 from app.services.ai_services.chat_naming_service import chat_naming_service
-from app.services.background_services import task_service
 from flask import has_request_context
 from app.services.auth.rbac import get_request_identity
 from app.projects.store import DEFAULT_USER_ID
 from app.utils import claude_parsing_utils
 from app.services.auth.permissions import user_has_permission
+from app.background.tasks import task_service
 
 
 logger = logging.getLogger(__name__)

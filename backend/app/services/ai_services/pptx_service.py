@@ -21,7 +21,6 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.services.integrations.claude import claude_service
-from app.services.background_services import task_service
 from app.config import tool_loader, prompt_loader, get_anthropic_config
 from app.utils import claude_parsing_utils
 from app.utils.batching_utils import create_batches, DEFAULT_BATCH_SIZE
@@ -31,6 +30,7 @@ from app.utils.pptx_utils import convert_pptx_to_pdf
 from app.utils.rate_limit_utils import RateLimiter
 from app.utils.text import build_processed_output
 from app.utils.embedding_utils import count_tokens
+from app.background.tasks import task_service
 
 logger = logging.getLogger(__name__)
 

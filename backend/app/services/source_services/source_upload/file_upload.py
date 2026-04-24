@@ -16,7 +16,6 @@ from typing import Optional, Dict, Any
 from werkzeug.datastructures import FileStorage
 
 from app.services.source_services import source_index_service
-from app.services.background_services import task_service
 from app.services.integrations.supabase import storage_service
 from app.utils.file_utils import (
     ALLOWED_EXTENSIONS,
@@ -24,6 +23,7 @@ from app.utils.file_utils import (
     get_file_info,
     validate_file_size,
 )
+from app.background.tasks import task_service
 
 logger = logging.getLogger(__name__)
 

@@ -16,13 +16,13 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-from app.services.background_services import task_service
 from app.config import tool_loader, prompt_loader, get_anthropic_config
 from app.utils import claude_parsing_utils
 from app.utils.encoding_utils import encode_file_to_base64, get_media_type
 from app.utils.rate_limit_utils import RateLimiter
 from app.utils.text import build_processed_output
 from app.utils.embedding_utils import count_tokens
+from app.background.tasks import task_service
 
 logger = logging.getLogger(__name__)
 

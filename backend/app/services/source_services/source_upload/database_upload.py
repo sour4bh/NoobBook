@@ -15,10 +15,10 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-from app.services.background_services import task_service
 from app.connectors.database.connection.store import database_connection_service, DEFAULT_USER_ID
 from app.services.integrations.supabase import storage_service
 from app.services.source_services import source_index_service
+from app.background.tasks import task_service
 
 
 logger = logging.getLogger(__name__)

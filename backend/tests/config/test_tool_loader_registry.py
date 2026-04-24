@@ -74,7 +74,6 @@ LEGACY_TOOL_CATEGORIES: List[str] = [
     "marketing_strategy_agent",
     "prd_agent",
     "presentation_agent",
-    "website_agent",
     "wireframe_agent",
 ]
 

@@ -1,5 +1,5 @@
 """
-Tests for WebsiteToolExecutor.
+Tests for WebsiteDispatcher (renamed from WebsiteToolExecutor in NBB-503).
 
 Covers:
 - _get_content_type mapping
@@ -8,12 +8,12 @@ Covers:
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.services.tool_executors.website_tool_executor import WebsiteToolExecutor
+from app.studio.design.website.tool import WebsiteDispatcher
 
 
 @pytest.fixture
 def executor():
-    return WebsiteToolExecutor()
+    return WebsiteDispatcher()
 
 
 # ===========================================================================
@@ -42,15 +42,15 @@ class TestGetContentType:
 class TestUploadFailureHandling:
     """upload_studio_file returning None should produce an error message."""
 
-    @patch("app.services.tool_executors.website_tool_executor.studio_index_service")
-    @patch("app.services.tool_executors.website_tool_executor.storage_service")
+    @patch("app.studio.design.website.tool.studio_index_service")
+    @patch("app.studio.design.website.tool.storage_service")
     def test_create_file_error_on_upload_failure(
         self, mock_storage, mock_studio, executor
     ):
         mock_storage.upload_studio_file.return_value = None
         mock_studio.get_website_job.return_value = {"images": []}
 
-        result, is_term = executor.execute_tool(
+        result, is_term = executor.dispatch(
             "create_file",
             {"filename": "index.html", "content": "<h1>Hi</h1>"},
             {
@@ -64,8 +64,8 @@ class TestUploadFailureHandling:
         assert "Error" in result["message"]
         assert "upload" in result["message"].lower() or "storage" in result["message"].lower()
 
-    @patch("app.services.tool_executors.website_tool_executor.studio_index_service")
-    @patch("app.services.tool_executors.website_tool_executor.storage_service")
+    @patch("app.studio.design.website.tool.studio_index_service")
+    @patch("app.studio.design.website.tool.storage_service")
     def test_update_file_lines_error_on_upload_failure(
         self, mock_storage, mock_studio, executor
     ):
@@ -73,7 +73,7 @@ class TestUploadFailureHandling:
         mock_storage.upload_studio_file.return_value = None
         mock_studio.get_website_job.return_value = {"images": []}
 
-        result, is_term = executor.execute_tool(
+        result, is_term = executor.dispatch(
             "update_file_lines",
             {"filename": "index.html", "start_line": 1, "end_line": 1, "new_content": "replaced"},
             {"project_id": "p1", "job_id": "j1", "created_files": [], "generated_images": []},
@@ -81,8 +81,8 @@ class TestUploadFailureHandling:
 
         assert "Error" in result["message"]
 
-    @patch("app.services.tool_executors.website_tool_executor.studio_index_service")
-    @patch("app.services.tool_executors.website_tool_executor.storage_service")
+    @patch("app.studio.design.website.tool.studio_index_service")
+    @patch("app.studio.design.website.tool.storage_service")
     def test_insert_code_error_on_upload_failure(
         self, mock_storage, mock_studio, executor
     ):
@@ -90,7 +90,7 @@ class TestUploadFailureHandling:
         mock_storage.upload_studio_file.return_value = None
         mock_studio.get_website_job.return_value = {"images": []}
 
-        result, is_term = executor.execute_tool(
+        result, is_term = executor.dispatch(
             "insert_code",
             {"filename": "index.html", "after_line": 1, "content": "inserted"},
             {"project_id": "p1", "job_id": "j1", "created_files": [], "generated_images": []},

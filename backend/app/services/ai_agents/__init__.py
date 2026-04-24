@@ -16,11 +16,7 @@ Agents:
   - Tools: plan_email_template, generate_email_image, write_email_code
   - Orchestrates planning → image generation → HTML code writing
 
-- website_agent_service: Generates complete websites (HTML/CSS/JS)
-  - Uses agentic loop with MAX_ITERATIONS limit (30)
-  - Tools: plan_website, generate_website_image, read_file, create_file,
-    update_file_lines, insert_code, finalize_website
-  - Orchestrates planning → image generation → iterative file creation/editing
+- website_agent_service: moved to app/studio/design/website/build.py (NBB-503)
 
 - presentation_agent_service: Generates PowerPoint presentations
   - Uses agentic loop with MAX_ITERATIONS limit (40)
@@ -49,7 +45,8 @@ Key patterns:
 
 from app.services.ai_agents.web_agent_service import web_agent_service
 from app.services.ai_agents.email_agent_service import email_agent_service
-from app.services.ai_agents.website_agent_service import website_agent_service
+# website_agent_service moved to app.studio.design.website.build (NBB-503);
+# consumers import the singleton directly from the new home.
 from app.services.ai_agents.presentation_agent_service import presentation_agent_service
 from app.services.ai_agents.blog_agent_service import blog_agent_service
 from app.services.ai_agents.business_report_agent_service import (
@@ -60,7 +57,6 @@ from app.services.ai_agents.wireframe_agent_service import wireframe_agent_servi
 __all__ = [
     "web_agent_service",
     "email_agent_service",
-    "website_agent_service",
     "presentation_agent_service",
     "blog_agent_service",
     "business_report_agent_service",

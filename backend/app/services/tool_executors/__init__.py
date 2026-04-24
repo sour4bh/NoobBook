@@ -16,7 +16,7 @@ Executors:
 - studio_signal_executor: Handles studio_signal tool calls (non-blocking, background task)
 - studio_audio_executor: Handles audio overview tools (read_source_content, write_script_section)
 - email_agent_executor: Handles email template generation (background task)
-- website_agent_executor: Handles website generation (background task)
+- website_agent_executor: moved to app/studio/design/website/run.py (NBB-503)
 - presentation_agent_executor: Handles presentation generation (background task)
 
 Note: Knowledge base integrations (Jira, Notion, GitHub) are handled directly by
@@ -31,7 +31,8 @@ from app.services.tool_executors import database_analyzer_agent_executor  # Modu
 from app.services.tool_executors.studio_signal_executor import studio_signal_executor
 from app.services.tool_executors.studio_audio_executor import studio_audio_executor
 from app.services.tool_executors.email_agent_executor import email_agent_executor
-from app.services.tool_executors.website_agent_executor import website_agent_executor
+# website_agent_executor moved to app.studio.design.website.run (NBB-503);
+# consumers import the singleton directly from the new home.
 from app.services.tool_executors.presentation_agent_executor import presentation_agent_executor
 
 __all__ = [
@@ -44,6 +45,5 @@ __all__ = [
     "studio_signal_executor",
     "studio_audio_executor",
     "email_agent_executor",
-    "website_agent_executor",
     "presentation_agent_executor"
 ]

@@ -37,6 +37,7 @@ from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
+import app.studio.design.website.run
 
 
 @studio_bp.route('/projects/<project_id>/studio/website', methods=['POST'])
@@ -56,8 +57,6 @@ def generate_website(project_id: str):
     Returns:
         202 Accepted with job_id for polling
     """
-    from app.services.tool_executors import website_agent_executor
-
     try:
         data = request.get_json()
         source_id = data.get('source_id')
@@ -114,7 +113,7 @@ def generate_website(project_id: str):
             }), 400
 
         # Execute website generation (background task)
-        result = website_agent_executor.execute(
+        result = app.studio.design.website.run.run(
             project_id=project_id,
             source_id=source_id or '',
             direction=direction,

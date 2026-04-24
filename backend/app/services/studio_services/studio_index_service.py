@@ -26,7 +26,7 @@ Architecture:
     ├── social_post_jobs.py
     ├── infographic_jobs.py
     ├── email_jobs.py
-    ├── website_jobs.py
+    ├── website_jobs.py           (moved to app/studio/design/website/job.py)
     ├── component_jobs.py
     ├── flow_diagram_jobs.py
     ├── wireframe_jobs.py
@@ -363,7 +363,7 @@ from app.services.studio_services.jobs.email_jobs import (
     delete_email_job,
 )
 
-from app.services.studio_services.jobs.website_jobs import (
+from app.studio.design.website.job import (
     create_website_job,
     update_website_job,
     get_website_job,

@@ -347,7 +347,7 @@ from app.services.studio_services.jobs.social_post_jobs import (
     delete_social_post_job,
 )
 
-from app.services.studio_services.jobs.infographic_jobs import (
+from app.studio.marketing.infographic.job import (
     create_infographic_job,
     update_infographic_job,
     get_infographic_job,

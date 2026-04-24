@@ -57,7 +57,7 @@ from .social_post_jobs import (
     list_social_post_jobs,
     delete_social_post_job,
 )
-from .infographic_jobs import (
+from app.studio.marketing.infographic.job import (
     create_infographic_job,
     update_infographic_job,
     get_infographic_job,

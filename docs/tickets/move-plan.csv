@@ -92,3 +92,7 @@ NBB-505,json,backend/data/prompts/email_agent_prompt.json,backend/app/studio/mar
 NBB-505,json,backend/app/services/tools/email_agent/generate_email_image.json,backend/app/studio/marketing/email/tools/generate_email_image.json,,,json_asset_move,json_asset_move.sh
 NBB-505,json,backend/app/services/tools/email_agent/plan_email_template.json,backend/app/studio/marketing/email/tools/plan_email_template.json,,,json_asset_move,json_asset_move.sh
 NBB-505,json,backend/app/services/tools/email_agent/write_email_code.json,backend/app/studio/marketing/email/tools/write_email_code.json,,,json_asset_move,json_asset_move.sh
+NBB-505,python,backend/app/services/studio_services/infographic_service.py,backend/app/studio/marketing/infographic/create.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/infographic/create.py,backend/app/studio/marketing/infographic/create.py,InfographicService,InfographicCreator,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/services/studio_services/jobs/infographic_jobs.py,backend/app/studio/marketing/infographic/job.py,,,python_module_move,refactory:move_module
+NBB-505,json,backend/data/prompts/infographic_prompt.json,backend/app/studio/marketing/infographic/prompts/infographic_prompt.json,,,json_asset_move,json_asset_move.sh

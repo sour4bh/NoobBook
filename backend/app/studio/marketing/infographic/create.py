@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 INFOGRAPHIC_ASPECT_RATIO = "16:9"
 
 
-class InfographicService:
+class InfographicCreator:
     """
     Service for generating infographic images from source content.
 
@@ -410,4 +410,4 @@ class InfographicService:
 
 
 # Singleton instance
-infographic_service = InfographicService()
+infographic_service = InfographicCreator()

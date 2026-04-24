@@ -30,7 +30,7 @@ import uuid
 from flask import jsonify, request, current_app, send_file, g
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
-from app.services.studio_services.infographic_service import infographic_service
+from app.studio.marketing.infographic.create import infographic_service
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service

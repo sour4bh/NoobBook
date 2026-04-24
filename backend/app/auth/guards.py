@@ -1,7 +1,21 @@
+"""
+Route and service guard decorators.
+
+Built on the canonical identity resolver in `app.auth.identity`:
+- `require_auth`: deny unauthenticated callers (bypassed in dev mode).
+- `require_admin`: deny non-admin callers; distinguishes 401 vs 403.
+- `require_permission(category, item)`: per-user module-permission gate.
+
+Admins always pass the permission check; non-admins go through
+`app.auth.permissions.user_has_permission`.
+"""
+
 from functools import wraps
 from typing import Any
+
 from flask import jsonify
-from app.services.auth.rbac import ROLE_ADMIN, T, is_auth_required, get_request_identity
+
+from app.auth.identity import ROLE_ADMIN, T, get_request_identity, is_auth_required
 
 
 def require_permission(category: str, item: str | None = None):

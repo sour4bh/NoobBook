@@ -29,11 +29,11 @@ def _make_flask_app() -> Flask:
 def test_identity_from_valid_jwt(auth_required_env):
     """JWT path: Supabase resolves the token, users-table lookup returns
     the role."""
-    from app.services.auth import rbac
+    from app.auth import identity as identity_mod
 
     app = _make_flask_app()
-    with patch.object(rbac, "is_supabase_enabled", return_value=True), patch.object(
-        rbac, "get_supabase"
+    with patch.object(identity_mod, "is_supabase_enabled", return_value=True), patch.object(
+        identity_mod, "get_supabase"
     ) as mock_supabase:
         mock_client = MagicMock()
         mock_client.auth.get_user.return_value = MagicMock(
@@ -50,7 +50,7 @@ def test_identity_from_valid_jwt(auth_required_env):
         with app.test_request_context(
             "/x", headers={"Authorization": "Bearer jwt-xyz"}
         ):
-            identity = rbac.get_request_identity()
+            identity = identity_mod.get_request_identity()
 
     assert identity.user_id == "user-jwt"
     assert identity.email == "jwt@example.com"
@@ -61,10 +61,10 @@ def test_identity_from_valid_jwt(auth_required_env):
 
 def test_identity_from_dev_headers(auth_required_env):
     """Dev-headers path: `X-NoobBook-User-Id` wins when Supabase disabled."""
-    from app.services.auth import rbac
+    from app.auth import identity as identity_mod
 
     app = _make_flask_app()
-    with patch.object(rbac, "is_supabase_enabled", return_value=False):
+    with patch.object(identity_mod, "is_supabase_enabled", return_value=False):
         with app.test_request_context(
             "/x",
             headers={
@@ -72,7 +72,7 @@ def test_identity_from_dev_headers(auth_required_env):
                 "X-NoobBook-Role": "admin",
             },
         ):
-            identity = rbac.get_request_identity()
+            identity = identity_mod.get_request_identity()
 
     assert identity.user_id == "dev-user-1"
     assert identity.role == "admin"
@@ -82,13 +82,13 @@ def test_identity_from_dev_headers(auth_required_env):
 def test_identity_single_user_fallback_when_auth_required(auth_required_env):
     """No token, no dev headers, auth required: fallback to DEFAULT_USER_ID
     with the 'user' role (not admin)."""
-    from app.services.auth import rbac
+    from app.auth import identity as identity_mod
     from app.projects.store import DEFAULT_USER_ID
 
     app = _make_flask_app()
-    with patch.object(rbac, "is_supabase_enabled", return_value=False):
+    with patch.object(identity_mod, "is_supabase_enabled", return_value=False):
         with app.test_request_context("/x"):
-            identity = rbac.get_request_identity()
+            identity = identity_mod.get_request_identity()
 
     assert identity.user_id == DEFAULT_USER_ID
     assert identity.role == "user"
@@ -99,13 +99,13 @@ def test_identity_single_user_fallback_when_auth_required(auth_required_env):
 def test_identity_single_user_fallback_in_dev_mode(auth_optional_env):
     """Dev/single-user mode: fallback promotes to admin role. Captures
     current documented behavior; NBB-202A will reconsider."""
-    from app.services.auth import rbac
+    from app.auth import identity as identity_mod
     from app.projects.store import DEFAULT_USER_ID
 
     app = _make_flask_app()
-    with patch.object(rbac, "is_supabase_enabled", return_value=False):
+    with patch.object(identity_mod, "is_supabase_enabled", return_value=False):
         with app.test_request_context("/x"):
-            identity = rbac.get_request_identity()
+            identity = identity_mod.get_request_identity()
 
     assert identity.user_id == DEFAULT_USER_ID
     assert identity.role == "admin"
@@ -118,11 +118,11 @@ def test_identity_jwt_exception_falls_through_to_fallback(auth_required_env):
     lookup raises, `get_request_identity` silently falls through to
     dev-header / single-user resolution. NBB-202A will tighten; the test
     pins current behavior so any change is explicit."""
-    from app.services.auth import rbac
+    from app.auth import identity as identity_mod
 
     app = _make_flask_app()
-    with patch.object(rbac, "is_supabase_enabled", return_value=True), patch.object(
-        rbac, "get_supabase"
+    with patch.object(identity_mod, "is_supabase_enabled", return_value=True), patch.object(
+        identity_mod, "get_supabase"
     ) as mock_supabase:
         mock_client = MagicMock()
         mock_client.auth.get_user.side_effect = Exception("network down")
@@ -131,7 +131,7 @@ def test_identity_jwt_exception_falls_through_to_fallback(auth_required_env):
         with app.test_request_context(
             "/x", headers={"Authorization": "Bearer bad-jwt"}
         ):
-            identity = rbac.get_request_identity()
+            identity = identity_mod.get_request_identity()
 
     # Falls through to single-user fallback rather than raising or 401-ing.
     assert identity.is_authenticated is False

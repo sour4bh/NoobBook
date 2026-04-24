@@ -150,9 +150,9 @@ def test_admin_route_with_non_admin_role_returns_403(auth_client, monkeypatch):
     with patch(
         "app.api.auth.middleware.get_supabase"
     ) as auth_supabase, patch(
-        "app.services.auth.rbac.get_supabase"
+        "app.auth.identity.get_supabase"
     ) as rbac_supabase, patch(
-        "app.services.auth.rbac.is_supabase_enabled", return_value=True
+        "app.auth.identity.is_supabase_enabled", return_value=True
     ):
         auth_mock = MagicMock()
         rbac_mock = MagicMock()
@@ -182,9 +182,9 @@ def test_admin_route_with_admin_role_passes_admin_gate(auth_client, monkeypatch)
     with patch(
         "app.api.auth.middleware.get_supabase"
     ) as auth_supabase, patch(
-        "app.services.auth.rbac.get_supabase"
+        "app.auth.identity.get_supabase"
     ) as rbac_supabase, patch(
-        "app.services.auth.rbac.is_supabase_enabled", return_value=True
+        "app.auth.identity.is_supabase_enabled", return_value=True
     ):
         auth_mock = MagicMock()
         rbac_mock = MagicMock()

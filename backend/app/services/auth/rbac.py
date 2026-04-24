@@ -1,134 +1,28 @@
 """
-RBAC (Role-Based Access Control) helpers.
+Legacy re-export shim for `rbac`.
 
-Current scope:
-- Two roles: "admin" and "user"
-- Admin-only gating for endpoints that expose/change secrets and global config.
+NBB-201 moved the canonical identity resolver to `app.auth.identity`:
+- `RequestIdentity`, `get_request_identity`, `is_auth_required`, `ROLE_*`,
+  `T`, `_get_bearer_token`, `_load_role_from_users_table`.
 
-Authentication note:
-- NoobBook is currently largely single-user (DEFAULT_USER_ID).
-- If an Authorization Bearer token is present and Supabase is configured, we try
-  to resolve the user via Supabase Auth and load the role from public.users.
-- Otherwise we fall back to DEFAULT_USER_ID (admin).
+This module re-exports those names so existing imports (production and
+tests) keep resolving while `NBB-706` removes the shim. Do not add new
+code here.
 """
 
-from dataclasses import dataclass
-import os
-from typing import Any, Callable, Optional, TypeVar
+from app.auth.identity import (  # noqa: F401
+    RequestIdentity,
+    ROLE_ADMIN,
+    ROLE_USER,
+    T,
+    _VALID_ROLES,
+    _get_bearer_token,
+    _load_role_from_users_table,
+    get_request_identity,
+    is_auth_required,
+)
 
-from flask import request
-
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
-from app.projects.store import DEFAULT_USER_ID
-
-
-ROLE_ADMIN = "admin"
-ROLE_USER = "user"
-_VALID_ROLES = {ROLE_ADMIN, ROLE_USER}
-
-T = TypeVar("T", bound=Callable[..., Any])
-
-
-@dataclass(frozen=True)
-class RequestIdentity:
-    user_id: str
-    email: Optional[str]
-    role: str
-    is_authenticated: bool
-
-    @property
-    def is_admin(self) -> bool:
-        return self.role == ROLE_ADMIN
-
-
-def is_auth_required() -> bool:
-    """
-    Check if authentication is required for all API routes.
-
-    Controlled via env var NOOBBOOK_AUTH_REQUIRED.
-    """
-    value = os.getenv("NOOBBOOK_AUTH_REQUIRED", "true").strip().lower()
-    return value in {"1", "true", "yes", "on"}
-
-
-def _get_bearer_token() -> Optional[str]:
-    """
-    Extract the JWT from the request.
-
-    Checks Authorization header first, then falls back to ?token= query parameter.
-    The query param fallback is needed for browser elements like <img>, <video>,
-    <audio>, and <iframe> that can't send custom headers.
-    """
-    auth = request.headers.get("Authorization", "")
-    if auth and auth.lower().startswith("bearer "):
-        return auth.split(" ", 1)[1].strip() or None
-    # Fallback: check query parameter for browser elements (img, video, etc.)
-    return request.args.get("token") or None
-
-
-def _load_role_from_users_table(user_id: str) -> Optional[str]:
-    if not is_supabase_enabled():
-        return None
-    try:
-        supabase = get_supabase()
-        resp = supabase.table("users").select("role").eq("id", user_id).execute()
-        if resp.data and isinstance(resp.data, list):
-            role = (resp.data[0].get("role") or "").strip().lower()
-            return role if role in _VALID_ROLES else None
-    except Exception:
-        return None
-    return None
-
-
-def get_request_identity() -> RequestIdentity:
-    """
-    Resolve the current request's identity + role.
-
-    Priority:
-    1) Supabase Auth JWT (Authorization: Bearer <jwt>) if Supabase configured
-    2) Explicit dev headers (X-NoobBook-User-Id / X-NoobBook-Role)
-    3) Single-user fallback (DEFAULT_USER_ID as admin)
-    """
-    # 1) Supabase Auth JWT
-    token = _get_bearer_token()
-    if token and is_supabase_enabled():
-        try:
-            supabase = get_supabase()
-            user_resp = supabase.auth.get_user(token)
-            user = getattr(user_resp, "user", None) or user_resp
-            user_id = getattr(user, "id", None) or (user.get("id") if isinstance(user, dict) else None)
-            email = getattr(user, "email", None) or (user.get("email") if isinstance(user, dict) else None)
-            if user_id:
-                role = _load_role_from_users_table(user_id) or ROLE_USER
-                return RequestIdentity(
-                    user_id=str(user_id),
-                    email=str(email) if email else None,
-                    role=role,
-                    is_authenticated=True,
-                )
-        except Exception:
-            pass  # Fall through to dev/single-user mode
-
-    # 2) Dev headers (useful until full auth UI is wired)
-    header_user_id = (request.headers.get("X-NoobBook-User-Id") or "").strip()
-    header_role = (request.headers.get("X-NoobBook-Role") or "").strip().lower()
-    if header_user_id:
-        role = header_role if header_role in _VALID_ROLES else (_load_role_from_users_table(header_user_id) or ROLE_USER)
-        return RequestIdentity(
-            user_id=header_user_id,
-            email=None,
-            role=role,
-            is_authenticated=True,
-        )
-
-    # 3) Single-user fallback
-    auth_required = is_auth_required()
-    fallback_role = ROLE_ADMIN if not auth_required else ROLE_USER
-    return RequestIdentity(
-        user_id=DEFAULT_USER_ID,
-        email=None,
-        role=fallback_role,
-        is_authenticated=False,
-    )
-
-
+# Re-export the Supabase helpers the old module exposed at top level. Test
+# code (`patch("app.services.auth.rbac.get_supabase")`) relied on these
+# being module-level names; keep them available until callers migrate.
+from app.services.integrations.supabase import get_supabase, is_supabase_enabled  # noqa: F401

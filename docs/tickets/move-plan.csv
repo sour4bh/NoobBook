@@ -1,1 +1,5 @@
 ticket,language,old_path,new_path,old_symbol,new_symbol,mode,tool
+NBB-209D,python,backend/app/services/data_services/brand_asset_service.py,backend/app/brand/asset/store.py,,,module,refactory:move_module
+NBB-209D,python,backend/app/brand/asset/store.py,backend/app/brand/asset/store.py,BrandAssetService,BrandAssetStore,symbol,refactory:rename_symbol
+NBB-209D,python,backend/app/services/data_services/brand_config_service.py,backend/app/brand/config/store.py,,,module,refactory:move_module
+NBB-209D,python,backend/app/brand/config/store.py,backend/app/brand/config/store.py,BrandConfigService,BrandConfigStore,symbol,refactory:rename_symbol

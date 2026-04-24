@@ -51,3 +51,8 @@ NBB-402,python,backend/app/services/source_services/source_service.py,backend/ap
 NBB-402,python,backend/app/sources/catalog.py,backend/app/sources/catalog.py,SourceService,SourceCatalog,python_symbol_rename,refactory:rename_symbol
 NBB-402,python,backend/app/services/source_services/source_processing/source_processing_service.py,backend/app/sources/pipeline.py,,,python_module_move,refactory:move_module
 NBB-402,python,backend/app/sources/pipeline.py,backend/app/sources/pipeline.py,SourceProcessingService,SourcePipeline,python_symbol_rename,refactory:rename_symbol
+NBB-201,python,backend/app/utils/auth_middleware.py,backend/app/api/auth/middleware.py,,,python_module_move,refactory:move_module
+NBB-201,python,backend/app/services/auth/permissions.py,backend/app/auth/permissions.py,,,python_module_move,refactory:move_module
+NBB-201,python,backend/app/services/auth/rbac.py,backend/app/auth/guards.py,require_admin,require_admin,python_symbol_move,refactory:move_symbol
+NBB-201,python,backend/app/services/auth/rbac.py,backend/app/auth/guards.py,require_auth,require_auth,python_symbol_move,refactory:move_symbol
+NBB-201,python,backend/app/services/auth/rbac.py,backend/app/auth/guards.py,require_permission,require_permission,python_symbol_move,refactory:move_symbol

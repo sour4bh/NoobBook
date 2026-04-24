@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 from config import Config
+from app.config import asset_registry
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,21 @@ class PromptLoader:
         # Ensure prompts directory exists
         self.prompts_dir.mkdir(exist_ok=True, parents=True)
 
+    def _resolve_prompt_file(self, prompt_name: str, filename: str) -> Optional[Path]:
+        """Find a prompt file by consulting the registry then legacy dir.
+
+        Returns the first existing candidate path, or `None` if none exist.
+        `None` preserves the long-standing public contract of callers like
+        `get_prompt_config` and `get_agent_prompt` that treat missing prompts
+        as a soft miss.
+        """
+        try:
+            return asset_registry.resolve_prompt_path(
+                prompt_name, filename, self.prompts_dir
+            )
+        except asset_registry.AssetNotFoundError:
+            return None
+
     def get_default_prompt_config(self) -> Dict[str, Any]:
         """
         Load the full default prompt configuration.
@@ -115,7 +131,10 @@ class PromptLoader:
         Returns:
             Dict with all prompt config fields
         """
-        default_prompt_file = self.prompts_dir / "default_prompt.json"
+        default_prompt_file = (
+            self._resolve_prompt_file("default", "default_prompt.json")
+            or self.prompts_dir / "default_prompt.json"
+        )
 
         with open(default_prompt_file, 'r') as f:
             prompt_data = json.load(f)
@@ -279,7 +298,11 @@ class PromptLoader:
         Returns:
             The agent's system prompt, or None if not found
         """
-        prompt_file = self.prompts_dir / f"{agent_name}_prompt.json"
+        prompt_file = self._resolve_prompt_file(
+            agent_name, f"{agent_name}_prompt.json"
+        )
+        if prompt_file is None:
+            return None
 
         try:
             with open(prompt_file, 'r') as f:
@@ -305,7 +328,11 @@ class PromptLoader:
         Returns:
             Full prompt config dict, or None if not found
         """
-        prompt_file = self.prompts_dir / f"{prompt_name}_prompt.json"
+        prompt_file = self._resolve_prompt_file(
+            prompt_name, f"{prompt_name}_prompt.json"
+        )
+        if prompt_file is None:
+            return None
 
         try:
             with open(prompt_file, 'r') as f:

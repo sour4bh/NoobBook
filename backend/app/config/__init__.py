@@ -19,6 +19,13 @@ Loaders:
 - context_loader: Build source and memory context for chat prompts
 - brand_context_loader: Build brand context for studio prompts
 """
+from app.config import asset_registry
+from app.config.asset_registry import (
+    AssetNotFoundError,
+    register_prompt_path,
+    register_tool_category,
+    register_tool_path,
+)
 from app.config.tool_loader import tool_loader
 from app.config.prompt_loader import prompt_loader
 from app.config.context_loader import context_loader
@@ -48,6 +55,11 @@ from app.config.model_loader import (
 )
 
 __all__ = [
+    "asset_registry",
+    "AssetNotFoundError",
+    "register_prompt_path",
+    "register_tool_category",
+    "register_tool_path",
     "tool_loader",
     "prompt_loader",
     "context_loader",

@@ -13,11 +13,11 @@ from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
 from app.services.auth.rbac import get_request_identity
 from app.services.data_services.user_service import get_user_service
-import app.auth.guards
+from app.auth.guards import require_admin
 
 
 @settings_bp.route("/settings/users", methods=["GET"])
-@app.auth.guards.require_admin
+@require_admin
 def list_users():
     try:
         users = get_user_service().list_users()
@@ -28,7 +28,7 @@ def list_users():
 
 
 @settings_bp.route("/settings/users", methods=["POST"])
-@app.auth.guards.require_admin
+@require_admin
 def create_user():
     """Create a new user with a generated password."""
     try:
@@ -54,7 +54,7 @@ def create_user():
 
 
 @settings_bp.route("/settings/users/<user_id>", methods=["DELETE"])
-@app.auth.guards.require_admin
+@require_admin
 def delete_user(user_id: str):
     """Delete a user."""
     try:
@@ -69,7 +69,7 @@ def delete_user(user_id: str):
 
 
 @settings_bp.route("/settings/users/<user_id>/role", methods=["PUT"])
-@app.auth.guards.require_admin
+@require_admin
 def update_user_role(user_id: str):
     try:
         data = request.get_json() or {}
@@ -90,7 +90,7 @@ def update_user_role(user_id: str):
 
 
 @settings_bp.route("/settings/users/<user_id>/reset-password", methods=["POST"])
-@app.auth.guards.require_admin
+@require_admin
 def reset_user_password(user_id: str):
     """Reset a user's password to a new generated password."""
     try:
@@ -107,7 +107,7 @@ def reset_user_password(user_id: str):
 
 
 @settings_bp.route("/settings/users/<user_id>/permissions", methods=["GET"])
-@app.auth.guards.require_admin
+@require_admin
 def get_user_permissions_endpoint(user_id: str):
     """
     Get a user's module permissions.
@@ -131,7 +131,7 @@ def get_user_permissions_endpoint(user_id: str):
 
 
 @settings_bp.route("/settings/users/<user_id>/permissions", methods=["PUT"])
-@app.auth.guards.require_admin
+@require_admin
 def update_user_permissions_endpoint(user_id: str):
     """
     Update a user's module permissions AND per-connection access.
@@ -186,7 +186,7 @@ def get_my_permissions():
 
 
 @settings_bp.route("/settings/users/<user_id>/cost-limit", methods=["PUT"])
-@app.auth.guards.require_admin
+@require_admin
 def update_cost_limit(user_id: str):
     """
     Set or clear a user's spending limit and reset frequency.

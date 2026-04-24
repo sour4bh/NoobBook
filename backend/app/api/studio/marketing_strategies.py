@@ -22,12 +22,11 @@ from flask import jsonify, request, current_app, send_file
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
-from app.services.auth import require_permission
-import app.auth.guards
+from app.auth.guards import require_permission
 
 
 @studio_bp.route('/projects/<project_id>/studio/marketing-strategy', methods=['POST'])
-@app.auth.guards.require_permission("studio", "marketing_strategies")
+@require_permission("studio", "marketing_strategies")
 def generate_marketing_strategy(project_id: str):
     """
     Start marketing strategy generation (background task).

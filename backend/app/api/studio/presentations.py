@@ -32,12 +32,11 @@ from flask import jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
-from app.services.auth import require_permission
-import app.auth.guards
+from app.auth.guards import require_permission
 
 
 @studio_bp.route('/projects/<project_id>/studio/presentation', methods=['POST'])
-@app.auth.guards.require_permission("studio", "presentations")
+@require_permission("studio", "presentations")
 def generate_presentation(project_id: str):
     """
     Start presentation generation or edit (background task).

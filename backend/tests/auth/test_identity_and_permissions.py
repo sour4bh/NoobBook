@@ -15,9 +15,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from flask import Flask
-import app.api.auth.middleware
-import app.auth.permissions
-import app.auth.guards
 
 
 # ---------------------------------------------------------------------------
@@ -148,12 +145,12 @@ def test_verify_project_access_owner_returns_none(auth_app):
     """Owner access: `verify_project_access` returns None so the route
     proceeds to its handler.
 
-    `auth_middleware.verify_project_access` does a local
+    `middleware.verify_project_access` does a local
     `from app.projects.store import project_service` and calls
     `project_service.get_project(...)` on the singleton defined at the
     bottom of `app/projects/store.py`. We patch that singleton's method
     directly."""
-    from app.utils import auth_middleware
+    from app.api.auth import middleware
     from app.projects.store import project_service
 
     with auth_app.test_request_context("/x"), patch.object(
@@ -163,7 +160,7 @@ def test_verify_project_access_owner_returns_none(auth_app):
     ):
         from flask import g
         g.user_id = "user-owner"
-        result = app.api.auth.middleware.verify_project_access("proj-1")
+        result = middleware.verify_project_access("proj-1")
 
     assert result is None
 
@@ -172,7 +169,7 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
     """Non-owner access: returns `(jsonify-error, 404)`. 404 (not 403) is
     intentional — it leaks less about project existence. Captures current
     contract; policy work (NBB-201) preserves or adjusts this knowingly."""
-    from app.utils import auth_middleware
+    from app.api.auth import middleware
     from app.projects.store import project_service
 
     with auth_app.test_request_context("/x"), patch.object(
@@ -182,7 +179,7 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
     ):
         from flask import g
         g.user_id = "user-intruder"
-        result = app.api.auth.middleware.verify_project_access("proj-1")
+        result = middleware.verify_project_access("proj-1")
 
     assert result is not None
     response, status = result
@@ -197,51 +194,51 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
 
 def test_user_has_permission_enabled_returns_true():
     """Default all-enabled permissions allow every category/item."""
-    from app.services.auth import permissions
+    from app.auth import permissions
 
-    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
+    with patch.object(permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": None}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert app.auth.permissions.user_has_permission("u1", "studio", "presentations") is True
+        assert permissions.user_has_permission("u1", "studio", "presentations") is True
 
 
 def test_user_has_permission_category_disabled_returns_false():
     """Explicit category disable blocks all items in that category."""
-    from app.services.auth import permissions
+    from app.auth import permissions
 
     stored = {
         "studio": {"enabled": False, "items": {"presentations": True}},
     }
-    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
+    with patch.object(permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": stored}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert app.auth.permissions.user_has_permission("u1", "studio", "presentations") is False
+        assert permissions.user_has_permission("u1", "studio", "presentations") is False
 
 
 def test_user_has_permission_item_disabled_returns_false():
     """Item-level disable blocks only that item."""
-    from app.services.auth import permissions
+    from app.auth import permissions
 
     stored = {
         "studio": {"enabled": True, "items": {"presentations": False}},
     }
-    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
+    with patch.object(permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": stored}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert app.auth.permissions.user_has_permission("u1", "studio", "presentations") is False
-        assert app.auth.permissions.user_has_permission("u1", "studio", "blogs") is True
+        assert permissions.user_has_permission("u1", "studio", "presentations") is False
+        assert permissions.user_has_permission("u1", "studio", "blogs") is True
 
 
 def test_user_has_permission_fails_open_on_supabase_error():
@@ -252,26 +249,26 @@ def test_user_has_permission_fails_open_on_supabase_error():
     This is the documented fail-open finding from the backlog. NBB-202A
     will tighten this to fail-closed outside dev/single-user mode; this
     test pins current behavior so the change is explicit."""
-    from app.services.auth import permissions
+    from app.auth import permissions
 
-    with patch.object(app.auth.permissions, "_get_supabase", side_effect=Exception("db down")):
-        assert app.auth.permissions.user_has_permission("u1", "data_sources", "database") is True
+    with patch.object(permissions, "_get_supabase", side_effect=Exception("db down")):
+        assert permissions.user_has_permission("u1", "data_sources", "database") is True
 
 
 def test_user_has_permission_unknown_category_fails_open():
     """Captures current fail-open behavior: an unknown category key
     returns True ('unknown category = allowed'). NBB-202A will likely
     flip this; the test pins current behavior."""
-    from app.services.auth import permissions
+    from app.auth import permissions
 
-    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
+    with patch.object(permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": {}}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert app.auth.permissions.user_has_permission("u1", "not_a_real_category", "x") is True
+        assert permissions.user_has_permission("u1", "not_a_real_category", "x") is True
 
 
 # ---------------------------------------------------------------------------
@@ -281,10 +278,11 @@ def test_user_has_permission_unknown_category_fails_open():
 def test_require_admin_rejects_non_admin(auth_required_env):
     """Decorator returns 403 for authenticated non-admin users."""
     from app.services.auth import rbac
+    from app.auth import guards
 
     app = _make_flask_app()
 
-    @app.auth.guards.require_admin
+    @guards.require_admin
     def handler():
         return "ok"
 
@@ -293,7 +291,7 @@ def test_require_admin_rejects_non_admin(auth_required_env):
     )
 
     with app.test_request_context("/x"), patch.object(
-        rbac, "get_request_identity", return_value=identity
+        guards, "get_request_identity", return_value=identity
     ):
         resp = handler()
 
@@ -306,10 +304,11 @@ def test_require_admin_rejects_unauthenticated(auth_required_env):
     """Decorator returns 401 when auth required and caller is not
     authenticated."""
     from app.services.auth import rbac
+    from app.auth import guards
 
     app = _make_flask_app()
 
-    @app.auth.guards.require_admin
+    @guards.require_admin
     def handler():
         return "ok"
 
@@ -318,7 +317,7 @@ def test_require_admin_rejects_unauthenticated(auth_required_env):
     )
 
     with app.test_request_context("/x"), patch.object(
-        rbac, "get_request_identity", return_value=identity
+        guards, "get_request_identity", return_value=identity
     ):
         resp = handler()
 
@@ -329,10 +328,11 @@ def test_require_admin_rejects_unauthenticated(auth_required_env):
 def test_require_admin_allows_admin(auth_required_env):
     """Decorator passes through for admin identity."""
     from app.services.auth import rbac
+    from app.auth import guards
 
     app = _make_flask_app()
 
-    @app.auth.guards.require_admin
+    @guards.require_admin
     def handler():
         return "ok"
 
@@ -341,7 +341,7 @@ def test_require_admin_allows_admin(auth_required_env):
     )
 
     with app.test_request_context("/x"), patch.object(
-        rbac, "get_request_identity", return_value=identity
+        guards, "get_request_identity", return_value=identity
     ):
         assert handler() == "ok"
 
@@ -350,10 +350,11 @@ def test_require_permission_admin_bypasses_check(auth_required_env):
     """`require_permission` short-circuits for admin identities regardless
     of the user's permission JSONB."""
     from app.services.auth import rbac
+    from app.auth import guards
 
     app = _make_flask_app()
 
-    @app.auth.guards.require_permission("data_sources", "database")
+    @guards.require_permission("data_sources", "database")
     def handler():
         return "ok"
 
@@ -362,11 +363,11 @@ def test_require_permission_admin_bypasses_check(auth_required_env):
     )
 
     with app.test_request_context("/x"), patch.object(
-        rbac, "get_request_identity", return_value=identity
+        guards, "get_request_identity", return_value=identity
     ):
         # Admin bypass means the permissions lookup must never be called.
         with patch(
-            "app.services.auth.permissions.user_has_permission"
+            "app.auth.permissions.user_has_permission"
         ) as mock_check:
             result = handler()
 
@@ -377,10 +378,11 @@ def test_require_permission_admin_bypasses_check(auth_required_env):
 def test_require_permission_allows_user_with_permission(auth_required_env):
     """Non-admin with the permission granted passes through."""
     from app.services.auth import rbac
+    from app.auth import guards
 
     app = _make_flask_app()
 
-    @app.auth.guards.require_permission("studio", "presentations")
+    @guards.require_permission("studio", "presentations")
     def handler():
         return "ok"
 
@@ -389,9 +391,9 @@ def test_require_permission_allows_user_with_permission(auth_required_env):
     )
 
     with app.test_request_context("/x"), patch.object(
-        rbac, "get_request_identity", return_value=identity
+        guards, "get_request_identity", return_value=identity
     ), patch(
-        "app.services.auth.permissions.user_has_permission", return_value=True
+        "app.auth.permissions.user_has_permission", return_value=True
     ):
         assert handler() == "ok"
 
@@ -400,10 +402,11 @@ def test_require_permission_blocks_user_without_permission(auth_required_env):
     """Non-admin missing the permission gets a 403 with the standard
     contact-admin message."""
     from app.services.auth import rbac
+    from app.auth import guards
 
     app = _make_flask_app()
 
-    @app.auth.guards.require_permission("studio", "presentations")
+    @guards.require_permission("studio", "presentations")
     def handler():
         return "ok"
 
@@ -412,9 +415,9 @@ def test_require_permission_blocks_user_without_permission(auth_required_env):
     )
 
     with app.test_request_context("/x"), patch.object(
-        rbac, "get_request_identity", return_value=identity
+        guards, "get_request_identity", return_value=identity
     ), patch(
-        "app.services.auth.permissions.user_has_permission", return_value=False
+        "app.auth.permissions.user_has_permission", return_value=False
     ):
         resp = handler()
 

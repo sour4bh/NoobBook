@@ -19,7 +19,6 @@ route outside `/auth/*` and `/health`. The dev-mode case instead targets
 from unittest.mock import MagicMock, patch
 
 import pytest
-import app.auth.guards
 
 
 PROJECT_ID = "00000000-0000-0000-0000-000000000000"
@@ -40,7 +39,7 @@ def test_protected_route_without_token_returns_401(auth_client):
 def test_protected_route_with_invalid_bearer_returns_401(auth_client):
     """Invalid tokens fail validation and the guard returns 401."""
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
         supabase = MagicMock()
         supabase.auth.get_user.side_effect = Exception("invalid jwt")
@@ -58,7 +57,7 @@ def test_protected_route_with_valid_token_reaches_handler(auth_client):
     """A valid token clears `api_bp.before_request`; request reaches the
     blueprint handler layer (status is anything except 401/404)."""
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
         supabase = MagicMock()
         supabase.auth.get_user.return_value = MagicMock(
@@ -101,7 +100,7 @@ def test_query_param_token_fallback_authenticates(auth_client):
     accepts valid tokens there too. Captures the current fallback; NBB-201
     will reassess the query-token policy."""
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
         supabase = MagicMock()
         supabase.auth.get_user.return_value = MagicMock(
@@ -149,7 +148,7 @@ def test_admin_route_with_non_admin_role_returns_403(auth_client, monkeypatch):
     monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "true")
 
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as auth_supabase, patch(
         "app.services.auth.rbac.get_supabase"
     ) as rbac_supabase, patch(
@@ -181,7 +180,7 @@ def test_admin_route_with_admin_role_passes_admin_gate(auth_client, monkeypatch)
     monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "true")
 
     with patch(
-        "app.utils.auth_middleware.get_supabase"
+        "app.api.auth.middleware.get_supabase"
     ) as auth_supabase, patch(
         "app.services.auth.rbac.get_supabase"
     ) as rbac_supabase, patch(
@@ -210,14 +209,15 @@ def test_admin_route_with_admin_role_passes_admin_gate(auth_client, monkeypatch)
 
 def test_rbac_require_auth_bypasses_in_dev_mode(auth_optional_env):
     """Documents current dev/single-user behavior: when
-    NOOBBOOK_AUTH_REQUIRED=false, `rbac.require_auth` calls the wrapped
+    NOOBBOOK_AUTH_REQUIRED=false, `require_auth` calls the wrapped
     function without running the identity check. NBB-202A will revisit
     this policy — the test captures today's behavior, not the target."""
-    from app.services.auth.rbac import require_auth, is_auth_required
+    from app.auth.guards import require_auth
+    from app.services.auth.rbac import is_auth_required
 
     assert is_auth_required() is False
 
-    @app.auth.guards.require_auth
+    @require_auth
     def handler():
         return "ok"
 

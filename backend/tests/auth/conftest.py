@@ -21,14 +21,6 @@ import os
 from unittest.mock import MagicMock
 
 import pytest
-from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
-
-import app as _app_pkg  # noqa: E402
-import config as _top_config  # backend/config.py  # noqa: E402
-
-from app import create_app  # noqa: E402
-import app.api.auth.middleware
-
 
 # Supabase env vars must be set before any `app` import triggers
 # `AuthService()` / `SupabaseClient.get_client()` at module load.
@@ -48,9 +40,13 @@ os.environ.setdefault("NOOBBOOK_AUTH_REQUIRED", "true")
 # Replace the Supabase singleton before any app import. The startup hook
 # in `task_service._cleanup_stale_tasks` (see `backend/app/background/tasks.py`)
 # otherwise attempts a real network call to Supabase during `create_app`.
+from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
 
 _supabase_client.SupabaseClient._instance = MagicMock()
 _supabase_client.SupabaseClient._initialized = True
+
+import app as _app_pkg  # noqa: E402
+import config as _top_config  # backend/config.py  # noqa: E402
 
 # `backend/config.py` and `backend/app/config/` share a top-level name.
 # Importing the `app.config` submodule (which any of the other tests does
@@ -60,6 +56,9 @@ _supabase_client.SupabaseClient._initialized = True
 # importing `create_app` keeps auth tests independent of import order.
 # Flag-not-fix per SPRINT.md Blocker Log 2026-04-24.
 _app_pkg.config = _top_config.config
+
+from app import create_app  # noqa: E402
+from app.api.auth import middleware as _auth_middleware  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -84,15 +83,13 @@ def auth_client(auth_app):
 def clear_token_cache():
     """Reset the module-level JWT validation cache between tests.
 
-    `auth_middleware._token_cache` is process-wide. Without this fixture
-    a cached positive from one test would leak into the next test's
-    monkeypatched `supabase.auth.get_user`.
+    The token cache is process-wide. Without this fixture a cached positive
+    from one test would leak into the next test's monkeypatched
+    `supabase.auth.get_user`.
     """
-    from app.utils import auth_middleware
-
-    app.api.auth.middleware._token_cache.clear()
+    _auth_middleware._token_cache.clear()
     yield
-    app.api.auth.middleware._token_cache.clear()
+    _auth_middleware._token_cache.clear()
 
 
 @pytest.fixture()

@@ -1,30 +1,11 @@
 """
-Auth services package.
+Legacy auth services package.
+
+NBB-201 consolidated auth ownership under `backend/app/auth/`:
+- `identity.py`, `guards.py`, `permissions.py`, `access.py` live there.
+
+Only `rbac.py` remains in this legacy location, holding the identity
+resolver + its helpers until `NBB-706` removes the forwarding shim. No
+re-exports from this package; import directly from `app.auth.*` or from
+`app.services.auth.rbac` while the shim remains.
 """
-
-from app.services.auth.rbac import (
-    get_request_identity,
-    require_admin,
-    require_auth,
-    require_permission,
-    is_auth_required,
-)
-from app.auth.permissions import (
-    get_user_permissions,
-    update_user_permissions,
-    user_has_permission,
-    DEFAULT_PERMISSIONS,
-)
-
-__all__ = [
-    "get_request_identity",
-    "require_admin",
-    "require_auth",
-    "require_permission",
-    "is_auth_required",
-    "get_user_permissions",
-    "update_user_permissions",
-    "user_has_permission",
-    "DEFAULT_PERMISSIONS",
-]
-

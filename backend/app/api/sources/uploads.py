@@ -38,12 +38,11 @@ from flask import jsonify, request, current_app
 from app.api.sources import sources_bp
 from app.sources.catalog import source_service
 from app.services.auth.rbac import get_request_identity
-from app.services.auth import require_permission
-import app.auth.guards
+from app.auth.guards import require_permission
 
 
 @sources_bp.route('/projects/<project_id>/sources/url', methods=['POST'])
-@app.auth.guards.require_permission("document_sources", "url_youtube")
+@require_permission("document_sources", "url_youtube")
 def add_url_source(project_id: str):
     """
     Add a URL source (website or YouTube link) to a project.
@@ -118,7 +117,7 @@ def add_url_source(project_id: str):
 
 
 @sources_bp.route('/projects/<project_id>/sources/text', methods=['POST'])
-@app.auth.guards.require_permission("document_sources", "text")
+@require_permission("document_sources", "text")
 def add_text_source(project_id: str):
     """
     Add a pasted text source to a project.
@@ -282,7 +281,7 @@ def add_research_source(project_id: str):
 
 
 @sources_bp.route('/projects/<project_id>/sources/database', methods=['POST'])
-@app.auth.guards.require_permission("data_sources", "database")
+@require_permission("data_sources", "database")
 def add_database_source(project_id: str):
     """
     Add a database source (Postgres/MySQL) to a project.
@@ -327,7 +326,7 @@ def add_database_source(project_id: str):
 
 
 @sources_bp.route('/projects/<project_id>/sources/freshdesk', methods=['POST'])
-@app.auth.guards.require_permission("data_sources", "freshdesk")
+@require_permission("data_sources", "freshdesk")
 def add_freshdesk_source_endpoint(project_id: str):
     """
     Add a Freshdesk ticket source to a project.
@@ -463,7 +462,7 @@ def backfill_freshdesk_source(project_id: str, source_id: str):
 
 
 @sources_bp.route('/projects/<project_id>/sources/jira', methods=['POST'])
-@app.auth.guards.require_permission("data_sources", "jira")
+@require_permission("data_sources", "jira")
 def add_jira_source_endpoint(project_id: str):
     """
     Add a Jira source (live API flag) to a project.
@@ -501,7 +500,7 @@ def add_jira_source_endpoint(project_id: str):
 
 
 @sources_bp.route('/projects/<project_id>/sources/mixpanel', methods=['POST'])
-@app.auth.guards.require_permission("data_sources", "mixpanel")
+@require_permission("data_sources", "mixpanel")
 def add_mixpanel_source_endpoint(project_id: str):
     """
     Add a Mixpanel source (live API flag) to a project.

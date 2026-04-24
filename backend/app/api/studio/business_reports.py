@@ -36,12 +36,11 @@ from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.business_report_agent_executor import business_report_agent_executor
 from app.services.integrations.supabase import storage_service
-from app.services.auth import require_permission
-import app.auth.guards
+from app.auth.guards import require_permission
 
 
 @studio_bp.route('/projects/<project_id>/studio/business-report', methods=['POST'])
-@app.auth.guards.require_permission("studio", "business_reports")
+@require_permission("studio", "business_reports")
 def generate_business_report(project_id: str):
     """
     Start business report generation via business report agent.

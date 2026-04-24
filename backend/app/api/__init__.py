@@ -1,9 +1,16 @@
 """
 API Blueprint initialization.
 
-Educational Note: Blueprints help organize Flask applications by
-grouping related routes together. This makes the code more modular
-and easier to maintain.
+Charter (NBB-104): `api/` is the transport boundary. Route modules here parse
+HTTP input, run auth/permission guards, call domain public surfaces, and format
+responses. They do not own product behavior, persistence, or cross-domain
+orchestration. Moving route modules into domain packages is tracked by D-001
+and is out of scope for this migration.
+
+Allowed imports: domain public surfaces (`auth/`, `projects/`, `chat/`,
+`sources/`, `studio/`, `brand/`, `settings/`, `connectors/`, `background/`)
+and lightweight Flask-layer helpers. Route modules must not import another
+domain's internals.
 
 Blueprint Architecture:
 - api_bp: Main API blueprint (registered at /api/v1 in app factory)

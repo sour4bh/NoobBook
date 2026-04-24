@@ -19,7 +19,7 @@ from app.services.integrations.supabase import get_supabase, is_supabase_enabled
 logger = logging.getLogger(__name__)
 
 
-class ChatService:
+class ChatStore:
     """
     Service class for chat entity management using Supabase.
 
@@ -505,4 +505,4 @@ class ChatService:
 
 
 # Singleton instance for easy import
-chat_service = ChatService()
+chat_service = ChatStore()

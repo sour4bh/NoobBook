@@ -79,7 +79,7 @@ def _get_project_service():
 
 def _get_chat_service():
     """Get chat service (lazy import to avoid circular imports)."""
-    from app.services.data_services import chat_service
+    from app.chat.store import chat_service
     return chat_service
 
 

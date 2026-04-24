@@ -15,7 +15,7 @@ Routes:
 """
 from flask import jsonify, request, current_app
 from app.api.chats import chats_bp
-from app.services.data_services import chat_service
+from app.chat.store import chat_service
 
 
 @chats_bp.route('/projects/<project_id>/chats', methods=['GET'])

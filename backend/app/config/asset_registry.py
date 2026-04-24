@@ -153,6 +153,19 @@ def resolve_tool_path(category: str, tool_name: str, legacy_dir: Path) -> Path:
     )
 
 
+def iter_registered_prompt_dirs() -> List[Tuple[str, Path]]:
+    """Return every (prompt_name, directory) pair currently registered.
+
+    Used by `list_all_prompts` to enumerate domain-owned prompt files without
+    re-discovering the directories elsewhere.
+    """
+    pairs: List[Tuple[str, Path]] = []
+    for prompt_name, dirs in _prompt_dirs.items():
+        for directory in dirs:
+            pairs.append((prompt_name, directory))
+    return pairs
+
+
 def _reset_for_tests() -> None:
     """Clear every registration. Intended only for test fixtures."""
     _prompt_dirs.clear()
@@ -167,3 +180,32 @@ def _snapshot() -> Dict[str, Dict]:
         "tool_file_dirs": {k: list(v) for k, v in _tool_file_dirs.items()},
         "tool_category_dirs": {k: list(v) for k, v in _tool_category_dirs.items()},
     }
+
+
+# Prompts that have moved to domain-owned homes (NBB-207B). The map lives here
+# so it can be replayed after `_reset_for_tests()` during tests that need the
+# production configuration restored.
+#
+# Key: prompt_name (the argument passed to `prompt_loader.get_prompt_config`).
+# Value: directory path relative to `backend/app/`.
+_PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
+    "pdf_extraction": "sources/pdf/prompts",
+    "pptx_extraction": "sources/pptx/prompts",
+    "image_extraction": "sources/image/prompts",
+    "web_agent": "sources/link/prompts",
+    "deep_research_agent": "sources/analysis/research/prompts",
+}
+
+
+def register_production_asset_paths() -> None:
+    """Register every domain-owned prompt/tool JSON path landed by NBB-207B/C.
+
+    Called from `app.config` package init so `prompt_loader`/`tool_loader`
+    singletons see the registered paths before any consumer imports them.
+    Idempotent: calling twice appends the same dirs twice, so callers must
+    reset the registry (tests) or rely on the single package-init call
+    (production).
+    """
+    app_dir = Path(__file__).resolve().parents[1]
+    for prompt_name, relative in _PRODUCTION_PROMPT_PATHS.items():
+        register_prompt_path(prompt_name, app_dir / relative)

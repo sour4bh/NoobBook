@@ -348,32 +348,56 @@ class PromptLoader:
         from the prompts directory, making it easy to add new prompts
         without code changes.
 
+        During the NBB-207B migration this also reads every domain-owned
+        prompt directory registered in `asset_registry`, so prompts that have
+        moved next to their owning feature are still exposed by the
+        `/prompts/all` route. Registered paths win over legacy duplicates.
+
         Returns:
             List of prompt config dicts with all fields
         """
-        prompts = []
+        prompts: list[Dict[str, Any]] = []
+        seen_filenames: set[str] = set()
 
-        # Get all prompt JSON files
-        prompt_files = sorted(self.prompts_dir.glob("*_prompt.json"))
-
-        for prompt_file in prompt_files:
-            try:
-                with open(prompt_file, 'r') as f:
-                    prompt_data = json.load(f)
-
-                    # Handle legacy format where "prompt" was used instead of "system_prompt"
-                    if "prompt" in prompt_data and "system_prompt" not in prompt_data:
-                        prompt_data["system_prompt"] = prompt_data.pop("prompt")
-
-                    # Add filename for reference
-                    prompt_data["filename"] = prompt_file.name
-
-                    prompts.append(prompt_data)
-            except (json.JSONDecodeError, IOError) as e:
-                logger.error("Failed to load prompt %s: %s", prompt_file, e)
+        # Registered domain-owned directories first so the registered copy wins
+        # over any stale legacy leftover during a partial migration.
+        registered_dirs = [
+            directory
+            for _prompt_name, directory in asset_registry.iter_registered_prompt_dirs()
+        ]
+        for directory in registered_dirs:
+            if not directory.is_dir():
                 continue
+            for prompt_file in sorted(directory.glob("*_prompt.json")):
+                self._append_prompt_file(prompt_file, prompts, seen_filenames)
+
+        for prompt_file in sorted(self.prompts_dir.glob("*_prompt.json")):
+            self._append_prompt_file(prompt_file, prompts, seen_filenames)
 
         return prompts
+
+    def _append_prompt_file(
+        self,
+        prompt_file: Path,
+        prompts: list[Dict[str, Any]],
+        seen_filenames: set,
+    ) -> None:
+        if prompt_file.name in seen_filenames:
+            return
+        try:
+            with open(prompt_file, "r") as f:
+                prompt_data = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error("Failed to load prompt %s: %s", prompt_file, e)
+            return
+
+        # Handle legacy format where "prompt" was used instead of "system_prompt"
+        if "prompt" in prompt_data and "system_prompt" not in prompt_data:
+            prompt_data["system_prompt"] = prompt_data.pop("prompt")
+
+        prompt_data["filename"] = prompt_file.name
+        prompts.append(prompt_data)
+        seen_filenames.add(prompt_file.name)
 
 
 # Singleton instance for easy import

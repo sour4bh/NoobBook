@@ -9,3 +9,13 @@ NBB-209E,python,backend/app/services/data_services/database_connection_service.p
 NBB-209E,python,backend/app/connectors/database/connection/store.py,backend/app/connectors/database/connection/store.py,DatabaseConnectionService,DatabaseConnectionStore,symbol,refactory:rename_symbol
 NBB-209E,python,backend/app/services/data_services/mcp_connection_service.py,backend/app/connectors/mcp/connection/store.py,,,module,refactory:move_module
 NBB-209E,python,backend/app/connectors/mcp/connection/store.py,backend/app/connectors/mcp/connection/store.py,McpConnectionService,McpConnectionStore,symbol,refactory:rename_symbol
+NBB-207B,json,backend/data/prompts/pdf_extraction_prompt.json,backend/app/sources/pdf/prompts/pdf_extraction_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-207B,json,backend/data/prompts/pdf_extraction_prompt.json,,,,text_reference_check,string_ref_scan.py
+NBB-207B,json,backend/data/prompts/pptx_extraction_prompt.json,backend/app/sources/pptx/prompts/pptx_extraction_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-207B,json,backend/data/prompts/pptx_extraction_prompt.json,,,,text_reference_check,string_ref_scan.py
+NBB-207B,json,backend/data/prompts/image_extraction_prompt.json,backend/app/sources/image/prompts/image_extraction_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-207B,json,backend/data/prompts/image_extraction_prompt.json,,,,text_reference_check,string_ref_scan.py
+NBB-207B,json,backend/data/prompts/web_agent_prompt.json,backend/app/sources/link/prompts/web_agent_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-207B,json,backend/data/prompts/web_agent_prompt.json,,,,text_reference_check,string_ref_scan.py
+NBB-207B,json,backend/data/prompts/deep_research_agent_prompt.json,backend/app/sources/analysis/research/prompts/deep_research_agent_prompt.json,,,json_asset_move,json_asset_move.sh
+NBB-207B,json,backend/data/prompts/deep_research_agent_prompt.json,,,,text_reference_check,string_ref_scan.py

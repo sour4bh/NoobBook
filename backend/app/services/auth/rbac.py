@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, Optional, TypeVar
 from flask import jsonify, request
 
 from app.services.integrations.supabase import get_supabase, is_supabase_enabled
-from app.services.data_services.project_service import DEFAULT_USER_ID
+from app.projects.store import DEFAULT_USER_ID
 
 
 ROLE_ADMIN = "admin"

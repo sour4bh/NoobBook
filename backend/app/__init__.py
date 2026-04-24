@@ -148,7 +148,7 @@ def create_app(config_name='development'):
             remainder = path[len(project_prefix):]
             project_id = remainder.split("/", 1)[0] if remainder else ""
             if project_id:
-                from app.services.data_services import project_service
+                from app.projects.store import project_service
                 if not project_service.has_project_access(project_id, identity.user_id):
                     return {"success": False, "error": "Project not found"}, 404
 

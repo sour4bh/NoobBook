@@ -28,8 +28,8 @@ Routes:
 """
 from flask import request, jsonify
 from app.api.projects import projects_bp
-from app.services.data_services import project_service
 from app.services.auth.rbac import get_request_identity
+from app.projects.store import project_service
 
 
 @projects_bp.route('/projects', methods=['GET'])

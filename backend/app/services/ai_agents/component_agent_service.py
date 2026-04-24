@@ -17,12 +17,13 @@ from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
 from app.utils.source_content_utils import get_source_content
-from app.services.data_services import message_service, project_service
+from app.services.data_services import message_service
 from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.services.integrations.supabase import storage_service
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.component_tool_executor import component_tool_executor
+from app.projects.store import project_service
 
 logger = logging.getLogger(__name__)
 

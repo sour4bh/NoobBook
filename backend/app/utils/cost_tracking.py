@@ -73,7 +73,7 @@ def _calculate_cost(model_key: str, input_tokens: int, output_tokens: int) -> fl
 
 def _get_project_service():
     """Get project service (lazy import to avoid circular imports)."""
-    from app.services.data_services import project_service
+    from app.projects.store import project_service
     return project_service
 
 

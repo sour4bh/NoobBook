@@ -47,7 +47,7 @@ class BrandContextLoader:
         Returns:
             The user_id who owns the project, or None if not found
         """
-        from app.services.data_services import project_service
+        from app.projects.store import project_service
         project = project_service.get_project(project_id)
         if not project:
             return None

@@ -16,8 +16,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 
 from app.services.integrations.claude import claude_service
-from app.services.data_services import project_service
-from app.services.data_services.project_service import DEFAULT_USER_ID
+from app.projects.store import DEFAULT_USER_ID, project_service
 from app.config import tool_loader, prompt_loader
 from app.utils import claude_parsing_utils
 

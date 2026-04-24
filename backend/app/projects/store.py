@@ -24,7 +24,7 @@ def _resolve_user_id(user_id: Optional[str] = None) -> str:
     return user_id or DEFAULT_USER_ID
 
 
-class ProjectService:
+class ProjectStore:
     """
     Service class for managing projects using Supabase.
 
@@ -563,4 +563,4 @@ class ProjectService:
 
 
 # Singleton instance
-project_service = ProjectService()
+project_service = ProjectStore()

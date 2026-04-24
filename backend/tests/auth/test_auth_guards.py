@@ -233,7 +233,7 @@ def test_rbac_fallback_identity_is_admin_in_dev_mode(
     to DEFAULT_USER_ID with the admin role. Captures present behavior
     ahead of NBB-202A tightening."""
     from app.services.auth.rbac import get_request_identity
-    from app.services.data_services.project_service import DEFAULT_USER_ID
+    from app.projects.store import DEFAULT_USER_ID
 
     with auth_app.test_request_context("/api/v1/anything"):
         identity = get_request_identity()

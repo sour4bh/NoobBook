@@ -83,7 +83,7 @@ def test_identity_single_user_fallback_when_auth_required(auth_required_env):
     """No token, no dev headers, auth required: fallback to DEFAULT_USER_ID
     with the 'user' role (not admin)."""
     from app.services.auth import rbac
-    from app.services.data_services.project_service import DEFAULT_USER_ID
+    from app.projects.store import DEFAULT_USER_ID
 
     app = _make_flask_app()
     with patch.object(rbac, "is_supabase_enabled", return_value=False):
@@ -100,7 +100,7 @@ def test_identity_single_user_fallback_in_dev_mode(auth_optional_env):
     """Dev/single-user mode: fallback promotes to admin role. Captures
     current documented behavior; NBB-202A will reconsider."""
     from app.services.auth import rbac
-    from app.services.data_services.project_service import DEFAULT_USER_ID
+    from app.projects.store import DEFAULT_USER_ID
 
     app = _make_flask_app()
     with patch.object(rbac, "is_supabase_enabled", return_value=False):
@@ -146,15 +146,15 @@ def test_verify_project_access_owner_returns_none(auth_app):
     proceeds to its handler.
 
     `auth_middleware.verify_project_access` does a local
-    `from app.services.data_services import project_service` and calls
-    `project_service.get_project(...)` on the package-level singleton
-    defined in `data_services/__init__.py`. We patch that singleton's
-    method directly."""
+    `from app.projects.store import project_service` and calls
+    `project_service.get_project(...)` on the singleton defined at the
+    bottom of `app/projects/store.py`. We patch that singleton's method
+    directly."""
     from app.utils import auth_middleware
-    from app.services import data_services
+    from app.projects.store import project_service
 
     with auth_app.test_request_context("/x"), patch.object(
-        data_services.project_service,
+        project_service,
         "get_project",
         return_value={"id": "proj-1", "user_id": "user-owner"},
     ):
@@ -170,10 +170,10 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
     intentional — it leaks less about project existence. Captures current
     contract; policy work (NBB-201) preserves or adjusts this knowingly."""
     from app.utils import auth_middleware
-    from app.services import data_services
+    from app.projects.store import project_service
 
     with auth_app.test_request_context("/x"), patch.object(
-        data_services.project_service,
+        project_service,
         "get_project",
         return_value=None,
     ):

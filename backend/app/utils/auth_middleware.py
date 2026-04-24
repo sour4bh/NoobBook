@@ -141,7 +141,7 @@ def verify_project_access(project_id: str) -> Optional[tuple]:
         if denied:
             return denied
     """
-    from app.services.data_services import project_service
+    from app.projects.store import project_service
 
     user_id = get_current_user_id()
     project = project_service.get_project(project_id, user_id=user_id)

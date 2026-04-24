@@ -65,13 +65,12 @@ import os
 from flask import Flask, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from config import config
-from app.utils.logger import setup_logging
-import app.projects.store
 
 # Educational Note (NBB-208A): `config` here is `backend/config.py`, not the
 # `backend/app/config/` subpackage. Renaming the top-level module is a
 # separate backend-charter follow-up; do not shim here.
+from config import config
+from app.utils.logger import setup_logging
 
 # Initialize extensions globally but without app context.
 # Use gevent in production (for Gunicorn), threading in development (for Werkzeug).
@@ -149,8 +148,8 @@ def create_app(config_name='development'):
             remainder = path[len(project_prefix):]
             project_id = remainder.split("/", 1)[0] if remainder else ""
             if project_id:
-                from app.services.data_services import project_service
-                if not app.projects.project_service.has_project_access(project_id, identity.user_id):
+                from app.projects.store import project_service
+                if not project_service.has_project_access(project_id, identity.user_id):
                     return {"success": False, "error": "Project not found"}, 404
 
         return None

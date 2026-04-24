@@ -17,7 +17,6 @@ from typing import Dict, Any, Optional
 
 from app.brand.config.store import brand_config_service
 from app.brand.asset.store import brand_asset_service
-import app.projects.store
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +47,8 @@ class BrandContextLoader:
         Returns:
             The user_id who owns the project, or None if not found
         """
-        from app.services.data_services import project_service
-        project = app.projects.store.get_project(project_id)
+        from app.projects.store import project_service
+        project = project_service.get_project(project_id)
         if not project:
             return None
         return project.get("user_id")

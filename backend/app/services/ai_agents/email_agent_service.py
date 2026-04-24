@@ -23,7 +23,7 @@ from app.brand.config.store import brand_config_service
 from app.services.integrations.supabase import storage_service
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.email_tool_executor import email_tool_executor
-from app.projects import store
+from app.projects.store import project_service
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class EmailAgentService:
         try:
             # Use provided user_id, or fall back to project lookup
             if not user_id:
-                project = store.get_project(project_id)
+                project = project_service.get_project(project_id)
                 if not project:
                     return None
                 user_id = project.get("user_id")
@@ -180,7 +180,7 @@ class EmailAgentService:
                 brand_config = brand_config_service.get_config(user_id) or {}
                 brand_colors = brand_config.get("colors")
             else:
-                project = store.get_project(project_id)
+                project = project_service.get_project(project_id)
                 if project and project.get("user_id"):
                     brand_config = brand_config_service.get_config(project["user_id"]) or {}
                     brand_colors = brand_config.get("colors")

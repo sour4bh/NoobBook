@@ -15,14 +15,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from app.services.background_services import task_service
-
-logger = logging.getLogger(__name__)
-from app.services.data_services.mcp_connection_service import (
-    mcp_connection_service,
-    DEFAULT_USER_ID,
-)
+from app.connectors.mcp.connection.store import mcp_connection_service, DEFAULT_USER_ID
 from app.services.integrations.supabase import storage_service
 from app.services.source_services import source_index_service
+
+
+logger = logging.getLogger(__name__)
 
 
 def add_mcp_source(

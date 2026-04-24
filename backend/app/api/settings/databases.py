@@ -17,7 +17,7 @@ from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
 from app.services.auth.rbac import require_admin
-from app.services.data_services.database_connection_service import database_connection_service, DEFAULT_USER_ID
+from app.connectors.database.connection.store import database_connection_service, DEFAULT_USER_ID
 from app.services.auth.rbac import get_request_identity
 
 

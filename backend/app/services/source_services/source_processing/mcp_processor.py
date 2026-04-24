@@ -20,12 +20,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-logger = logging.getLogger(__name__)
-
 from app.services.ai_services.embedding_service import embedding_service
 from app.services.ai_services.summary_service import summary_service
-from app.services.data_services.mcp_connection_service import mcp_connection_service
+from app.connectors.mcp.connection.store import mcp_connection_service
 from app.services.integrations.supabase import storage_service
+
+
+logger = logging.getLogger(__name__)
 
 
 def _load_raw_metadata(raw_file_path: Path) -> Dict[str, Any]:

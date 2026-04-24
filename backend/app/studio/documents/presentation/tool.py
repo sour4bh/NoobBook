@@ -21,12 +21,12 @@ from app.services.studio_services import studio_index_service
 logger = logging.getLogger(__name__)
 
 
-class PresentationToolExecutor:
+class PresentationDispatcher:
     """Executes presentation agent tools."""
 
     TERMINATION_TOOL = "finalize_presentation"
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -313,4 +313,4 @@ class PresentationToolExecutor:
 
 
 # Singleton instance
-presentation_tool_executor = PresentationToolExecutor()
+presentation_tool_executor = PresentationDispatcher()

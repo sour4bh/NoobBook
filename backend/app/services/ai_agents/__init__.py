@@ -19,24 +19,8 @@ Agents:
 - website_agent_service: moved to app/studio/design/website/build.py (NBB-503)
 - blog_agent_service: moved to app/studio/documents/blog/write.py (NBB-504)
 - business_report_agent_service: moved to app/studio/documents/business_report/write.py (NBB-504)
-
-- presentation_agent_service: Generates PowerPoint presentations
-  - Uses agentic loop with MAX_ITERATIONS limit (40)
-  - Tools: plan_presentation, create_base_styles, create_slide, finalize_presentation
-  - Orchestrates planning → styling → slide creation → PPTX export
-  - Export pipeline: HTML slides → Playwright screenshots → python-pptx
-
-- blog_agent_service: Generates comprehensive blog posts
-  - Uses agentic loop with MAX_ITERATIONS limit (20)
-  - Tools: plan_blog_post, generate_blog_image, write_blog_post
-  - Orchestrates planning → image generation → markdown writing
-  - SEO-optimized content targeting specific keywords
-
-- business_report_agent_service: Generates data-driven business reports
-  - Uses agentic loop with MAX_ITERATIONS limit (25)
-  - Tools: plan_business_report, analyze_csv_data, search_source_content, write_business_report
-  - Multi-agent orchestration: calls csv_analyzer_agent for data analysis and charts
-  - Combines quantitative data analysis with qualitative context
+- presentation_agent_service: moved to app/studio/documents/presentation/compose.py (NBB-504)
+- prd_agent_service: moved to app/studio/documents/prd/write.py (NBB-504)
 
 Key patterns:
 - Agent loop with iteration limit
@@ -50,13 +34,13 @@ from app.services.ai_agents.email_agent_service import email_agent_service
 # website_agent_service moved to app.studio.design.website.build (NBB-503);
 # blog_agent_service moved to app.studio.documents.blog.write (NBB-504);
 # business_report_agent_service moved to app.studio.documents.business_report.write (NBB-504);
+# presentation_agent_service moved to app.studio.documents.presentation.compose (NBB-504);
+# prd_agent_service moved to app.studio.documents.prd.write (NBB-504);
 # consumers import the singleton directly from the new home.
-from app.services.ai_agents.presentation_agent_service import presentation_agent_service
 from app.services.ai_agents.wireframe_agent_service import wireframe_agent_service
 
 __all__ = [
     "web_agent_service",
     "email_agent_service",
-    "presentation_agent_service",
     "wireframe_agent_service",
 ]

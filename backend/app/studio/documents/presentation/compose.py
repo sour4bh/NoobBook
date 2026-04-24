@@ -22,13 +22,13 @@ from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.presentation_tool_executor import presentation_tool_executor
+from app.studio.documents.presentation.tool import presentation_tool_executor
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class PresentationAgentService:
+class PresentationComposer:
     """Presentation generation agent - orchestration only."""
 
     AGENT_NAME = "presentation_agent"
@@ -160,7 +160,7 @@ class PresentationAgentService:
                     }
 
                     # Execute tool via executor
-                    result, is_termination = presentation_tool_executor.execute_tool(
+                    result, is_termination = presentation_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 
@@ -234,4 +234,4 @@ class PresentationAgentService:
 
 
 # Singleton instance
-presentation_agent_service = PresentationAgentService()
+presentation_agent_service = PresentationComposer()

@@ -16,7 +16,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-class PresentationAgentExecutor:
+class PresentationRunner:
     """
     Executor for presentation generation via studio signals.
 
@@ -59,7 +59,7 @@ class PresentationAgentExecutor:
         """
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
-        from app.services.ai_agents import presentation_agent_service
+        from app.studio.documents.presentation.compose import presentation_agent_service
         from app.services.source_services import source_service
         from app.services.integrations.supabase import storage_service
         from app.utils.screenshot_utils import capture_slides_as_screenshots
@@ -263,4 +263,27 @@ class PresentationAgentExecutor:
 
 
 # Singleton instance
-presentation_agent_executor = PresentationAgentExecutor()
+presentation_agent_executor = PresentationRunner()
+
+
+def run(
+    project_id: str,
+    source_id: str,
+    direction: str = "",
+    edit_instructions: Optional[str] = None,
+    previous_markdown: Optional[str] = None,
+    previous_title: Optional[str] = None,
+    parent_job_id: Optional[str] = None,
+    parent_source_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Module-level entry point matching the `<item>/run.py::run(...)` naming rule."""
+    return presentation_agent_executor.execute(
+        project_id=project_id,
+        source_id=source_id,
+        direction=direction,
+        edit_instructions=edit_instructions,
+        previous_markdown=previous_markdown,
+        previous_title=previous_title,
+        parent_job_id=parent_job_id,
+        parent_source_name=parent_source_name,
+    )

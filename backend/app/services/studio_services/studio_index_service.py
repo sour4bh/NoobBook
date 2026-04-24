@@ -30,7 +30,7 @@ Architecture:
     ├── component_jobs.py
     ├── flow_diagram_jobs.py
     ├── wireframe_jobs.py
-    ├── presentation_jobs.py
+    ├── presentation_jobs.py     (moved to app/studio/documents/presentation/job.py)
     ├── prd_jobs.py              (moved to app/studio/documents/prd/job.py)
     ├── marketing_strategy_jobs.py
     ├── blog_jobs.py             (moved to app/studio/documents/blog/job.py)
@@ -395,7 +395,7 @@ from app.services.studio_services.jobs.wireframe_jobs import (
     delete_wireframe_job,
 )
 
-from app.services.studio_services.jobs.presentation_jobs import (
+from app.studio.documents.presentation.job import (
     create_presentation_job,
     update_presentation_job,
     get_presentation_job,

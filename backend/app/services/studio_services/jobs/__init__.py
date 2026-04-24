@@ -120,14 +120,8 @@ from .wireframe_jobs import (
     delete_wireframe_job,
 )
 
-# Presentation Jobs
-from .presentation_jobs import (
-    create_presentation_job,
-    update_presentation_job,
-    get_presentation_job,
-    list_presentation_jobs,
-    delete_presentation_job,
-)
+# Presentation Jobs: moved to app/studio/documents/presentation/job.py (NBB-504).
+# Consumers import from studio_index_service or app.studio.documents.presentation.job.
 
 # PRD Jobs: moved to app/studio/documents/prd/job.py (NBB-504). Consumers
 # import from studio_index_service or app.studio.documents.prd.job.

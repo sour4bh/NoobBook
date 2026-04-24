@@ -195,6 +195,10 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
     "web_agent": "sources/link/prompts",
     "deep_research_agent": "sources/analysis/research/prompts",
     "website_agent": "studio/design/website/prompts",
+    "component_agent": "studio/design/component/prompts",
+    "flow_diagram": "studio/design/flow_diagram/prompts",
+    "wireframe": "studio/design/wireframe/prompts",
+    "wireframe_agent": "studio/design/wireframe/prompts",
 }
 
 
@@ -215,6 +219,20 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
     "web_agent": "sources/link/tools",
     "deep_research": "sources/analysis/research/tools",
     "website_agent": "studio/design/website/tools",
+    "component_agent": "studio/design/component/tools",
+    "wireframe_agent": "studio/design/wireframe/tools",
+}
+
+
+# Single tool JSON files (not full categories) that have moved to domain-owned
+# homes (NBB-506). The legacy category stays at `services/tools/<category>/`;
+# only the named tool resolves to the new domain path.
+#
+# Key: (category, tool_name) — the arguments to `tool_loader.load_tool`.
+# Value: directory path relative to `backend/app/` for the tool's JSON file.
+_PRODUCTION_TOOL_FILE_PATHS: Dict[Tuple[str, str], str] = {
+    ("studio_tools", "flow_diagram_tool"): "studio/design/flow_diagram/tools",
+    ("studio_tools", "wireframe_tool"): "studio/design/wireframe/tools",
 }
 
 
@@ -232,3 +250,5 @@ def register_production_asset_paths() -> None:
         register_prompt_path(prompt_name, app_dir / relative)
     for category, relative in _PRODUCTION_TOOL_PATHS.items():
         register_tool_category(category, app_dir / relative)
+    for (category, tool_name), relative in _PRODUCTION_TOOL_FILE_PATHS.items():
+        register_tool_path(category, tool_name, app_dir / relative)

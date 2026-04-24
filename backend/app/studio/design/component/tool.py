@@ -16,12 +16,12 @@ from app.services.studio_services import studio_index_service
 logger = logging.getLogger(__name__)
 
 
-class ComponentToolExecutor:
+class ComponentDispatcher:
     """Executes component agent tools."""
 
     TERMINATION_TOOL = "write_component_code"
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -290,4 +290,4 @@ class ComponentToolExecutor:
 
 
 # Singleton instance
-component_tool_executor = ComponentToolExecutor()
+component_tool_executor = ComponentDispatcher()

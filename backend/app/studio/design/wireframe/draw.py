@@ -20,14 +20,14 @@ from app.config import prompt_loader, tool_loader, brand_context_loader
 from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.wireframe_tool_executor import wireframe_tool_executor
+from app.studio.design.wireframe.tool import wireframe_tool_executor
 from app.chat.message.store import message_service
 from app.sources import index
 
 logger = logging.getLogger(__name__)
 
 
-class WireframeAgentService:
+class WireframeBuilder:
     """Wireframe generation agent - orchestration with agentic loop."""
 
     AGENT_NAME = "wireframe_agent"
@@ -218,7 +218,7 @@ class WireframeAgentService:
                         }
 
                         # Execute tool via executor
-                        result, is_termination = wireframe_tool_executor.execute_tool(
+                        result, is_termination = wireframe_tool_executor.dispatch(
                             tool_name, tool_input, context
                         )
 
@@ -410,4 +410,4 @@ class WireframeAgentService:
 
 
 # Singleton instance
-wireframe_agent_service = WireframeAgentService()
+wireframe_agent_service = WireframeBuilder()

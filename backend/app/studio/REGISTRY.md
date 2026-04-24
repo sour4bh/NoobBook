@@ -200,6 +200,8 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
+Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/component/build.py` (class `ComponentBuilder`); tool `tool.py` (class `ComponentDispatcher`, `dispatch(...)`); agent executor `run.py` (class `ComponentRunner`, module-level `run(...)`); job `job.py`; prompt `prompts/component_agent_prompt.json`; tools `tools/`.
+
 <a id="design-flow_diagram"></a>
 ### `design/flow_diagram/` — Mermaid flow/relationship diagrams
 
@@ -215,6 +217,8 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Tests | none | blueprint-level smoke only |
 | Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
+
+Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/flow_diagram/build.py` (class `FlowDiagramBuilder`); job `job.py`; prompt `prompts/flow_diagram_prompt.json`; tool `tools/flow_diagram_tool.json`. No tool executor or agent executor (single Claude call).
 
 <a id="design-logo"></a>
 ### `design/logo/` — Logo generation (reserved slot)
@@ -233,6 +237,8 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Providers | none | n/a |
 
 `api/studio/logo_utils.py` is a studio-level brand-asset resolver consumed by `ads.py`, `blogs.py`, `infographics.py`, and `social_posts.py`. It is **not** logo generation; see "Studio-level modules (not items)" at the bottom of this file. Brand asset/config storage remains brand-owned (moved in `NBB-209D`).
+
+Migration status: under `NBB-506` the brand-asset resolver moved to `backend/app/studio/design/logo/ops.py` (studio-domain ownership). Logo generation core remains a reserved slot (no item core today). Brand stores at `backend/app/brand/{asset,config}/store.py` are untouched.
 
 <a id="design-website"></a>
 ### `design/website/` — Multi-page HTML/CSS/JS sites
@@ -265,6 +271,8 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Tests | none | blueprint-level smoke only |
 | Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
+
+Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/wireframe/draw.py` (class `WireframeBuilder`); tool `tool.py` (class `WireframeDispatcher`, `dispatch(...)`); job `job.py`; prompts `prompts/wireframe_agent_prompt.json` + `prompts/wireframe_prompt.json`; tools `tools/`. No agent executor (`run.py`) — agent runs through the tool executor loop.
 
 ---
 

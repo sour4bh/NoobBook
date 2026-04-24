@@ -21,14 +21,14 @@ from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.services.integrations.supabase import storage_service
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.component_tool_executor import component_tool_executor
+from app.studio.design.component.tool import component_tool_executor
 from app.projects.store import project_service
 from app.chat.message.store import message_service
 
 logger = logging.getLogger(__name__)
 
 
-class ComponentAgentService:
+class ComponentBuilder:
     """Component generation agent - orchestration only."""
 
     AGENT_NAME = "component_agent"
@@ -283,7 +283,7 @@ class ComponentAgentService:
                     }
 
                     # Execute tool via executor
-                    result, is_termination = component_tool_executor.execute_tool(
+                    result, is_termination = component_tool_executor.dispatch(
                         tool_name, tool_input, context
                     )
 
@@ -351,4 +351,4 @@ class ComponentAgentService:
 
 
 # Singleton instance
-component_agent_service = ComponentAgentService()
+component_agent_service = ComponentBuilder()

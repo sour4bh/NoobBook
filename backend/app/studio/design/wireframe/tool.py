@@ -11,10 +11,10 @@ from typing import Dict, Any, Tuple
 from app.utils.excalidraw_utils import convert_to_excalidraw_elements
 
 
-class WireframeToolExecutor:
+class WireframeDispatcher:
     """Executes wireframe agent tool calls."""
 
-    def execute_tool(
+    def dispatch(
         self, tool_name: str, tool_input: Dict[str, Any], context: Dict[str, Any]
     ) -> Tuple[Dict[str, Any], bool]:
         """
@@ -157,4 +157,4 @@ class WireframeToolExecutor:
 
 
 # Singleton instance
-wireframe_tool_executor = WireframeToolExecutor()
+wireframe_tool_executor = WireframeDispatcher()

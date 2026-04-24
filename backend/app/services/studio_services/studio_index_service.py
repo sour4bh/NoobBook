@@ -27,9 +27,9 @@ Architecture:
     ├── infographic_jobs.py
     ├── email_jobs.py
     ├── website_jobs.py           (moved to app/studio/design/website/job.py)
-    ├── component_jobs.py
-    ├── flow_diagram_jobs.py
-    ├── wireframe_jobs.py
+    ├── component_jobs.py         (moved to app/studio/design/component/job.py)
+    ├── flow_diagram_jobs.py      (moved to app/studio/design/flow_diagram/job.py)
+    ├── wireframe_jobs.py         (moved to app/studio/design/wireframe/job.py)
     ├── presentation_jobs.py
     ├── prd_jobs.py
     ├── marketing_strategy_jobs.py
@@ -290,6 +290,9 @@ def delete_job(
 # =============================================================================
 # All job-specific functions are now in separate modules under jobs/
 # These re-exports ensure existing imports continue to work.
+# Imports MUST stay at the bottom of this file: each per-item job module imports
+# `create_job`/`update_job`/etc from this module, so `studio_index_service` must
+# define those generic CRUD helpers before the per-item modules load.
 
 from app.services.studio_services.jobs.audio_jobs import (
     create_audio_job,
@@ -371,7 +374,7 @@ from app.studio.design.website.job import (
     delete_website_job,
 )
 
-from app.services.studio_services.jobs.component_jobs import (
+from app.studio.design.component.job import (
     create_component_job,
     update_component_job,
     get_component_job,
@@ -379,7 +382,7 @@ from app.services.studio_services.jobs.component_jobs import (
     delete_component_job,
 )
 
-from app.services.studio_services.jobs.flow_diagram_jobs import (
+from app.studio.design.flow_diagram.job import (
     create_flow_diagram_job,
     update_flow_diagram_job,
     get_flow_diagram_job,
@@ -387,7 +390,7 @@ from app.services.studio_services.jobs.flow_diagram_jobs import (
     delete_flow_diagram_job,
 )
 
-from app.services.studio_services.jobs.wireframe_jobs import (
+from app.studio.design.wireframe.job import (
     create_wireframe_job,
     update_wireframe_job,
     get_wireframe_job,

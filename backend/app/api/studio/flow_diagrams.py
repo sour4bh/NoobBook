@@ -26,7 +26,7 @@ import uuid
 from flask import jsonify, request, current_app
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
-from app.services.studio_services.flow_diagram_service import flow_diagram_service
+from app.studio.design.flow_diagram.build import flow_diagram_service
 from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
 from app.auth.guards import require_permission

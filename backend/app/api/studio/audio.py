@@ -36,10 +36,11 @@ from app.services.integrations.supabase import storage_service  # For downloadin
 from app.background.tasks import task_service
 from app.services.auth import require_permission
 from app.sources import index
+import app.auth.guards
 
 
 @studio_bp.route('/projects/<project_id>/studio/audio-overview', methods=['POST'])
-@require_permission("studio", "audio_overview")
+@app.auth.guards.require_permission("studio", "audio_overview")
 def generate_audio_overview(project_id: str):
     """
     Start audio overview generation or edit as a background task.

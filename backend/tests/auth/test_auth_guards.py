@@ -19,6 +19,7 @@ route outside `/auth/*` and `/health`. The dev-mode case instead targets
 from unittest.mock import MagicMock, patch
 
 import pytest
+import app.auth.guards
 
 
 PROJECT_ID = "00000000-0000-0000-0000-000000000000"
@@ -216,7 +217,7 @@ def test_rbac_require_auth_bypasses_in_dev_mode(auth_optional_env):
 
     assert is_auth_required() is False
 
-    @require_auth
+    @app.auth.guards.require_auth
     def handler():
         return "ok"
 

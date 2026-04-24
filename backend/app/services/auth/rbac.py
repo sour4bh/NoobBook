@@ -14,10 +14,9 @@ Authentication note:
 
 from dataclasses import dataclass
 import os
-from functools import wraps
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
-from flask import jsonify, request
+from flask import request
 
 from app.services.integrations.supabase import get_supabase, is_supabase_enabled
 from app.projects.store import DEFAULT_USER_ID
@@ -133,105 +132,3 @@ def get_request_identity() -> RequestIdentity:
     )
 
 
-def require_admin(fn: T) -> T:
-    """Decorator to enforce admin role."""
-
-    @wraps(fn)
-    def wrapper(*args: Any, **kwargs: Any):
-        identity = get_request_identity()
-        if is_auth_required() and not identity.is_authenticated:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": "Authentication required",
-                        "required_role": ROLE_ADMIN,
-                    }
-                ),
-                401,
-            )
-        if not identity.is_admin:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": "Admin access required",
-                        "required_role": ROLE_ADMIN,
-                        "role": identity.role,
-                    }
-                ),
-                403,
-            )
-        return fn(*args, **kwargs)
-
-    return wrapper  # type: ignore[return-value]
-
-
-def require_auth(fn: T) -> T:
-    """Decorator to enforce authenticated user (any role)."""
-
-    @wraps(fn)
-    def wrapper(*args: Any, **kwargs: Any):
-        if not is_auth_required():
-            return fn(*args, **kwargs)
-
-        identity = get_request_identity()
-        if not identity.is_authenticated:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": "Authentication required",
-                    }
-                ),
-                401,
-            )
-        return fn(*args, **kwargs)
-
-    return wrapper  # type: ignore[return-value]
-
-
-def require_permission(category: str, item: str | None = None):
-    """
-    Decorator to enforce per-user module permissions.
-
-    Educational Note: Works alongside @require_auth / @require_admin.
-    Admins always pass (they have full access). For non-admin users,
-    checks the permissions JSONB on the users table.
-
-    Args:
-        category: Permission category (e.g., "data_sources", "studio")
-        item: Optional sub-item (e.g., "database", "flow_diagrams")
-
-    Usage:
-        @require_permission("data_sources", "database")
-        def add_database_source(project_id):
-            ...
-    """
-    def decorator(fn: T) -> T:
-        @wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any):
-            identity = get_request_identity()
-
-            # Admins always have full access
-            if identity.is_admin:
-                return fn(*args, **kwargs)
-
-            # Check permission for non-admin users
-            from app.services.auth.permissions import user_has_permission
-
-            if not user_has_permission(identity.user_id, category, item):
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": "This feature is not available for your account. Contact your admin.",
-                        }
-                    ),
-                    403,
-                )
-            return fn(*args, **kwargs)
-
-        return wrapper  # type: ignore[return-value]
-
-    return decorator

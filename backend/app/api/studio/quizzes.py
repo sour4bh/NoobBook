@@ -32,10 +32,11 @@ from app.services.studio_services.quiz_service import quiz_service
 from app.background.tasks import task_service
 from app.services.auth import require_permission
 from app.sources import index
+import app.auth.guards
 
 
 @studio_bp.route('/projects/<project_id>/studio/quiz', methods=['POST'])
-@require_permission("studio", "quizzes")
+@app.auth.guards.require_permission("studio", "quizzes")
 def generate_quiz(project_id: str):
     """
     Start quiz generation or edit as a background task.

@@ -9,7 +9,7 @@ from app.services.auth.rbac import (
     require_permission,
     is_auth_required,
 )
-from app.services.auth.permissions import (
+from app.auth.permissions import (
     get_user_permissions,
     update_user_permissions,
     user_has_permission,

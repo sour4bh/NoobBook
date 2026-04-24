@@ -23,10 +23,11 @@ from app.services.integrations.supabase import storage_service
 from app.background.tasks import task_service
 from app.services.auth import require_permission
 from app.sources import index
+import app.auth.guards
 
 
 @studio_bp.route("/projects/<project_id>/studio/wireframe", methods=["POST"])
-@require_permission("studio", "wireframes")
+@app.auth.guards.require_permission("studio", "wireframes")
 def generate_wireframe(project_id: str):
     """
     Start wireframe generation or edit as a background task.

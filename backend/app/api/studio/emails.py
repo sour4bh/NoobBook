@@ -37,10 +37,11 @@ from app.services.studio_services import studio_index_service
 from app.services.tool_executors.email_agent_executor import email_agent_executor
 from app.services.integrations.supabase import storage_service
 from app.services.auth import require_permission
+import app.auth.guards
 
 
 @studio_bp.route('/projects/<project_id>/studio/email-template', methods=['POST'])
-@require_permission("studio", "emails")
+@app.auth.guards.require_permission("studio", "emails")
 def generate_email_template(project_id: str):
     """
     Start email template generation or edit via email agent.

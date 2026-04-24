@@ -34,6 +34,7 @@ from app.services.integrations.google import google_drive_service
 from app.services.auth.rbac import get_request_identity
 from app.services.auth import require_permission
 from app.sources.catalog import source_service
+import app.auth.guards
 
 
 def _get_current_user_id() -> Optional[str]:
@@ -100,7 +101,7 @@ def google_list_files():
 
 
 @google_bp.route('/projects/<project_id>/sources/google-import', methods=['POST'])
-@require_permission("document_sources", "google_drive")
+@app.auth.guards.require_permission("document_sources", "google_drive")
 def google_import_file(project_id):
     """
     Import a file from Google Drive to project sources.

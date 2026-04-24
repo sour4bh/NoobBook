@@ -16,9 +16,9 @@ Routes:
 from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
-from app.services.auth.rbac import require_admin
-from app.connectors.database.connection.store import database_connection_service, DEFAULT_USER_ID
 from app.services.auth.rbac import get_request_identity
+from app.connectors.database.connection.store import database_connection_service, DEFAULT_USER_ID
+import app.auth.guards
 
 
 @settings_bp.route("/settings/databases", methods=["GET"])
@@ -39,7 +39,7 @@ def list_databases():
 
 
 @settings_bp.route("/settings/databases", methods=["POST"])
-@require_admin
+@app.auth.guards.require_admin
 def create_database():
     """Create a new database connection."""
     try:
@@ -80,7 +80,7 @@ def create_database():
 
 
 @settings_bp.route("/settings/databases/<connection_id>", methods=["DELETE"])
-@require_admin
+@app.auth.guards.require_admin
 def delete_database(connection_id: str):
     """Delete a database connection (owner only in single-user mode)."""
     try:
@@ -95,7 +95,7 @@ def delete_database(connection_id: str):
 
 
 @settings_bp.route("/settings/databases/<connection_id>/visibility", methods=["PATCH"])
-@require_admin
+@app.auth.guards.require_admin
 def update_database_visibility(connection_id: str):
     """Toggle whether a database connection is visible to all users."""
     try:
@@ -117,7 +117,7 @@ def update_database_visibility(connection_id: str):
 
 
 @settings_bp.route("/settings/databases/validate", methods=["POST"])
-@require_admin
+@app.auth.guards.require_admin
 def validate_database():
     """Validate a database connection without saving it."""
     try:

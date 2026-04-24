@@ -37,10 +37,11 @@ from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.services.auth import require_permission
+import app.auth.guards
 
 
 @studio_bp.route('/projects/<project_id>/studio/website', methods=['POST'])
-@require_permission("studio", "websites")
+@app.auth.guards.require_permission("studio", "websites")
 def generate_website(project_id: str):
     """
     Start website generation or edit (background task).

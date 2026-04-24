@@ -33,10 +33,11 @@ from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.services.auth import require_permission
+import app.auth.guards
 
 
 @studio_bp.route('/projects/<project_id>/studio/presentation', methods=['POST'])
-@require_permission("studio", "presentations")
+@app.auth.guards.require_permission("studio", "presentations")
 def generate_presentation(project_id: str):
     """
     Start presentation generation or edit (background task).

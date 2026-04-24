@@ -33,10 +33,11 @@ from app.services.studio_services.mind_map_service import mind_map_service
 from app.background.tasks import task_service
 from app.services.auth import require_permission
 from app.sources import index
+import app.auth.guards
 
 
 @studio_bp.route('/projects/<project_id>/studio/mind-map', methods=['POST'])
-@require_permission("studio", "mind_maps")
+@app.auth.guards.require_permission("studio", "mind_maps")
 def generate_mind_map(project_id: str):
     """
     Start mind map generation or edit as a background task.

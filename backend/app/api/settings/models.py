@@ -31,13 +31,13 @@ from app.config import (
     get_all_default_models,
 )
 from app.services.app_settings import EnvService
-from app.services.auth.rbac import require_admin
+import app.auth.guards
 
 env_service = EnvService()
 
 
 @settings_bp.route('/settings/models', methods=['GET'])
-@require_admin
+@app.auth.guards.require_admin
 def get_model_settings():
     """
     Return current per-category model overrides plus the lists needed to
@@ -81,7 +81,7 @@ def get_model_settings():
 
 
 @settings_bp.route('/settings/models', methods=['POST'])
-@require_admin
+@app.auth.guards.require_admin
 def update_model_settings():
     """
     Update per-category model overrides.

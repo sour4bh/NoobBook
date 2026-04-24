@@ -41,26 +41,7 @@ Routes:
 - GET  /projects/<id>/studio/<type>/<file>    - Serve generated files
 """
 from flask import Blueprint, request
-
-# Create the studio blueprint
-studio_bp = Blueprint('studio', __name__)
-
-
-# Verify project ownership for all studio routes that have a project_id
-from app.utils.auth_middleware import verify_project_access  # noqa: E402
-
-@studio_bp.before_request
-def check_project_access():
-    if request.method == 'OPTIONS':
-        return None
-    project_id = request.view_args.get('project_id') if request.view_args else None
-    if project_id:
-        denied = verify_project_access(project_id)
-        if denied:
-            return denied
-
-
-# Import route modules to register them with the blueprint
+from app.api.auth.middleware import verify_project_access  # noqa: E402
 from app.api.studio import audio  # noqa: F401
 from app.api.studio import ads  # noqa: F401
 from app.api.studio import flash_cards  # noqa: F401
@@ -79,6 +60,25 @@ from app.api.studio import prds  # noqa: F401
 from app.api.studio import marketing_strategies  # noqa: F401
 from app.api.studio import blogs  # noqa: F401
 from app.api.studio import business_reports  # noqa: F401
+
+# Create the studio blueprint
+studio_bp = Blueprint('studio', __name__)
+
+
+# Verify project ownership for all studio routes that have a project_id
+
+@studio_bp.before_request
+def check_project_access():
+    if request.method == 'OPTIONS':
+        return None
+    project_id = request.view_args.get('project_id') if request.view_args else None
+    if project_id:
+        denied = verify_project_access(project_id)
+        if denied:
+            return denied
+
+
+# Import route modules to register them with the blueprint
 
 # Educational Note: The noqa comments tell flake8 to ignore the
 # "imported but unused" warning. We import to register routes,

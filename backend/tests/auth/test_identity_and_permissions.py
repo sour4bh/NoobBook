@@ -15,6 +15,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from flask import Flask
+import app.api.auth.middleware
+import app.auth.permissions
+import app.auth.guards
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +163,7 @@ def test_verify_project_access_owner_returns_none(auth_app):
     ):
         from flask import g
         g.user_id = "user-owner"
-        result = auth_middleware.verify_project_access("proj-1")
+        result = app.api.auth.middleware.verify_project_access("proj-1")
 
     assert result is None
 
@@ -179,7 +182,7 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
     ):
         from flask import g
         g.user_id = "user-intruder"
-        result = auth_middleware.verify_project_access("proj-1")
+        result = app.api.auth.middleware.verify_project_access("proj-1")
 
     assert result is not None
     response, status = result
@@ -196,14 +199,14 @@ def test_user_has_permission_enabled_returns_true():
     """Default all-enabled permissions allow every category/item."""
     from app.services.auth import permissions
 
-    with patch.object(permissions, "_get_supabase") as mock_get:
+    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": None}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert permissions.user_has_permission("u1", "studio", "presentations") is True
+        assert app.auth.permissions.user_has_permission("u1", "studio", "presentations") is True
 
 
 def test_user_has_permission_category_disabled_returns_false():
@@ -213,14 +216,14 @@ def test_user_has_permission_category_disabled_returns_false():
     stored = {
         "studio": {"enabled": False, "items": {"presentations": True}},
     }
-    with patch.object(permissions, "_get_supabase") as mock_get:
+    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": stored}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert permissions.user_has_permission("u1", "studio", "presentations") is False
+        assert app.auth.permissions.user_has_permission("u1", "studio", "presentations") is False
 
 
 def test_user_has_permission_item_disabled_returns_false():
@@ -230,15 +233,15 @@ def test_user_has_permission_item_disabled_returns_false():
     stored = {
         "studio": {"enabled": True, "items": {"presentations": False}},
     }
-    with patch.object(permissions, "_get_supabase") as mock_get:
+    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": stored}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert permissions.user_has_permission("u1", "studio", "presentations") is False
-        assert permissions.user_has_permission("u1", "studio", "blogs") is True
+        assert app.auth.permissions.user_has_permission("u1", "studio", "presentations") is False
+        assert app.auth.permissions.user_has_permission("u1", "studio", "blogs") is True
 
 
 def test_user_has_permission_fails_open_on_supabase_error():
@@ -251,8 +254,8 @@ def test_user_has_permission_fails_open_on_supabase_error():
     test pins current behavior so the change is explicit."""
     from app.services.auth import permissions
 
-    with patch.object(permissions, "_get_supabase", side_effect=Exception("db down")):
-        assert permissions.user_has_permission("u1", "data_sources", "database") is True
+    with patch.object(app.auth.permissions, "_get_supabase", side_effect=Exception("db down")):
+        assert app.auth.permissions.user_has_permission("u1", "data_sources", "database") is True
 
 
 def test_user_has_permission_unknown_category_fails_open():
@@ -261,14 +264,14 @@ def test_user_has_permission_unknown_category_fails_open():
     flip this; the test pins current behavior."""
     from app.services.auth import permissions
 
-    with patch.object(permissions, "_get_supabase") as mock_get:
+    with patch.object(app.auth.permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
         resp.data = [{"permissions": {}}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert permissions.user_has_permission("u1", "not_a_real_category", "x") is True
+        assert app.auth.permissions.user_has_permission("u1", "not_a_real_category", "x") is True
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +284,7 @@ def test_require_admin_rejects_non_admin(auth_required_env):
 
     app = _make_flask_app()
 
-    @rbac.require_admin
+    @app.auth.guards.require_admin
     def handler():
         return "ok"
 
@@ -306,7 +309,7 @@ def test_require_admin_rejects_unauthenticated(auth_required_env):
 
     app = _make_flask_app()
 
-    @rbac.require_admin
+    @app.auth.guards.require_admin
     def handler():
         return "ok"
 
@@ -329,7 +332,7 @@ def test_require_admin_allows_admin(auth_required_env):
 
     app = _make_flask_app()
 
-    @rbac.require_admin
+    @app.auth.guards.require_admin
     def handler():
         return "ok"
 
@@ -350,7 +353,7 @@ def test_require_permission_admin_bypasses_check(auth_required_env):
 
     app = _make_flask_app()
 
-    @rbac.require_permission("data_sources", "database")
+    @app.auth.guards.require_permission("data_sources", "database")
     def handler():
         return "ok"
 
@@ -377,7 +380,7 @@ def test_require_permission_allows_user_with_permission(auth_required_env):
 
     app = _make_flask_app()
 
-    @rbac.require_permission("studio", "presentations")
+    @app.auth.guards.require_permission("studio", "presentations")
     def handler():
         return "ok"
 
@@ -400,7 +403,7 @@ def test_require_permission_blocks_user_without_permission(auth_required_env):
 
     app = _make_flask_app()
 
-    @rbac.require_permission("studio", "presentations")
+    @app.auth.guards.require_permission("studio", "presentations")
     def handler():
         return "ok"
 

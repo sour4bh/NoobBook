@@ -13,13 +13,13 @@ The message flow:
 5. Both user message and assistant response are stored and returned
 """
 from flask import Blueprint, request
-
+from app.api.auth.middleware import verify_project_access  # noqa: E402
+from app.api.messages import routes  # noqa: F401
 # Create blueprint for message operations
 messages_bp = Blueprint('messages', __name__)
 
 
 # Verify project ownership for all message routes
-from app.utils.auth_middleware import verify_project_access  # noqa: E402
 
 @messages_bp.before_request
 def check_project_access():
@@ -33,4 +33,3 @@ def check_project_access():
 
 
 # Import routes to register them with the blueprint
-from app.api.messages import routes  # noqa: F401

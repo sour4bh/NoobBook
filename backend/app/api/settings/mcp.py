@@ -22,8 +22,9 @@ Routes:
 from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
-from app.services.auth.rbac import require_admin, get_request_identity
+from app.services.auth.rbac import get_request_identity
 from app.connectors.mcp.connection.store import mcp_connection_service, DEFAULT_USER_ID
+import app.auth.guards
 
 
 @settings_bp.route("/settings/mcp", methods=["GET"])
@@ -42,7 +43,7 @@ def list_mcp_connections():
 
 
 @settings_bp.route("/settings/mcp", methods=["POST"])
-@require_admin
+@app.auth.guards.require_admin
 def create_mcp_connection():
     """Create a new MCP connection (SSE or stdio)."""
     try:
@@ -112,7 +113,7 @@ def create_mcp_connection():
 
 
 @settings_bp.route("/settings/mcp/<connection_id>", methods=["DELETE"])
-@require_admin
+@app.auth.guards.require_admin
 def delete_mcp_connection(connection_id: str):
     """Delete an MCP connection (owner only)."""
     try:
@@ -127,7 +128,7 @@ def delete_mcp_connection(connection_id: str):
 
 
 @settings_bp.route("/settings/mcp/<connection_id>/visibility", methods=["PATCH"])
-@require_admin
+@app.auth.guards.require_admin
 def update_mcp_visibility(connection_id: str):
     """Toggle whether an MCP connection is visible to all users."""
     try:
@@ -149,7 +150,7 @@ def update_mcp_visibility(connection_id: str):
 
 
 @settings_bp.route("/settings/mcp/<connection_id>/tools-enabled", methods=["PATCH"])
-@require_admin
+@app.auth.guards.require_admin
 def update_mcp_tools_enabled(connection_id: str):
     """Toggle whether this connection's tools are available in chat."""
     try:
@@ -169,7 +170,7 @@ def update_mcp_tools_enabled(connection_id: str):
 
 
 @settings_bp.route("/settings/mcp/validate", methods=["POST"])
-@require_admin
+@app.auth.guards.require_admin
 def validate_mcp_connection():
     """Validate an MCP connection without saving it."""
     try:
@@ -247,7 +248,7 @@ def list_mcp_tools(connection_id: str):
 
 
 @settings_bp.route("/settings/mcp/<connection_id>/refresh-tools", methods=["POST"])
-@require_admin
+@app.auth.guards.require_admin
 def refresh_mcp_tools(connection_id: str):
     """Force refresh cached tool definitions from an MCP server."""
     try:

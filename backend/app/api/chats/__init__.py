@@ -6,13 +6,13 @@ Chats are containers for conversations - they hold messages but don't
 process AI responses themselves (that's the messages blueprint's job).
 """
 from flask import Blueprint, request
-
+from app.api.auth.middleware import verify_project_access  # noqa: E402
+from app.api.chats import routes  # noqa: F401
 # Create blueprint with url_prefix for all chat routes
 chats_bp = Blueprint('chats', __name__)
 
 
 # Verify project ownership for all chat routes
-from app.utils.auth_middleware import verify_project_access  # noqa: E402
 
 @chats_bp.before_request
 def check_project_access():
@@ -26,4 +26,3 @@ def check_project_access():
 
 
 # Import routes to register them with the blueprint
-from app.api.chats import routes  # noqa: F401

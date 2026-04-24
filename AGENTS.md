@@ -256,6 +256,9 @@ All user data is stored in Supabase with Row-Level Security (RLS) for multi-user
 | `brand-assets` | Brand logos, icons, fonts |
 
 #### Local Files (Configuration & Debug Only)
+
+Paths below describe current on-disk locations during the structure migration. `backend/data/prompts/` and `backend/app/services/tools/` are frozen destinations in `STRUCTURE.md`; do not add new prompt or tool JSON here. `NBB-207A` will land loader shims before prompt/tool JSON ownership moves.
+
 ```
 data/
 ├── prompts/                      # System prompt configurations (not user data)
@@ -382,6 +385,8 @@ All extracted content uses page markers: `=== {TYPE} PAGE 1 of N ===`
 Types: PDF, TEXT, DOCX, PPTX, AUDIO, IMAGE, LINK, YOUTUBE
 
 ### Source Types & AI Patterns
+
+Paths in the table below describe current module locations during the structure migration. These modules are migrating per `STRUCTURE.md`; the bucket names (`ai_services/`, `ai_agents/`, `tool_executors/`, `utils/`) are legacy/migration sources, not preferred homes for new work.
 
 | Type | Service | AI Method | Pages |
 |------|---------|-----------|-------|
@@ -553,7 +558,7 @@ Centralized rate limiting in `app/config/tier_loader.py`. Set via `ANTHROPIC_TIE
 
 ## AI Service Standard Pattern
 
-All AI services (`ai_services/`), AI agents (`ai_agents/`), and tool executors (`tool_executors/`) must follow this standardized pattern for consistency and maintainability.
+This section describes the Codex-API integration pattern NoobBook uses: configuration loading, path management, the API call, and response parsing. Modules that currently live under `ai_services/`, `ai_agents/`, and `tool_executors/` follow it. Those bucket names describe where these modules live today during the structure migration — they are legacy/migration sources per `STRUCTURE.md`, not preferred homes for new work. When adding a new Codex-API integration, keep the steps below and pick a domain-owned destination per `STRUCTURE.md` and the `NBB-104` charter.
 
 ### Required Steps (Mandatory)
 

@@ -186,6 +186,25 @@ For the full self-hosted Supabase guide, see [`backend/supabase/SETUP.md`](backe
 - Keep PRs focused on a single feature or fix
 - See `CLAUDE.md` for code style, design system, and architecture details
 
+## Project Structure
+
+Read [`STRUCTURE.md`](STRUCTURE.md) before adding new files. It is the current repo-root structure guide and carries the placement checklist reviewers apply to every new file.
+
+The project is migrating from a mechanism-first backend layout to a domain-first layout. During the migration the following paths are **legacy/migration sources**, not preferred homes for new work, and must not receive new files:
+
+- `backend/app/services/` (new files should land under a domain subtree, not directly here)
+- `backend/app/utils/`
+- `backend/app/services/ai_agents/`
+- `backend/app/services/ai_services/`
+- `backend/app/services/tool_executors/`
+- `backend/app/services/tools/`
+- `backend/app/services/studio_services/jobs/`
+- `backend/app/services/studio_services/studio_processing/`
+- `backend/data/prompts/`
+- `frontend/src/components/hooks/`
+
+Older guidance in `AGENTS.md`, `CLAUDE.md`, and `REFACTORING.md` that describes those bucket names as current or preferred architecture is superseded by `STRUCTURE.md` until the migration completes.
+
 Agents working on structural migration tickets (`docs/tickets/`): see [`docs/tickets/REFACTORY_SETUP.md`](docs/tickets/REFACTORY_SETUP.md) for refactory plugin setup and the move-plan workflow.
 
 ## Questions?

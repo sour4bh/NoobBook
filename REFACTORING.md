@@ -1,38 +1,46 @@
-# Refactoring Guide
+# Refactoring Guide (Historical)
 
-## Backend Service Architecture
+> **Status: legacy / migration source.** This file was written against the previous mechanism-first backend layout. During the current structure migration, `ai_agents/`, `ai_services/`, `tool_executors/`, `services/tools/`, `utils/`, and `data/prompts/` are **legacy/migration sources, not preferred homes for new work**. New code must not default there. See [`STRUCTURE.md`](STRUCTURE.md) for the active placement rules and the reviewer placement checklist, and `docs/tickets/epics/NBB-001.md` for the migration plan.
+>
+> The sections below are retained as historical record of how that earlier taxonomy was organized and which services were refactored under it. Do not treat the prescriptive language below ("should contain", "move to", "refactor into") as current guidance — it describes the old shape.
+
+## Historical Backend Service Taxonomy
+
+Under the previous layout, backend Claude-API integrations were organized into three buckets:
 
 ```
-ai_agents/          → Orchestration only (the "brain")
+ai_agents/          → Orchestration (the "brain")
 ai_services/        → Single-purpose AI functions (the "skills")
 tool_executors/     → Tool execution logic (the "hands")
 ```
 
+This taxonomy is superseded. New work should live under domain-owned directories per `STRUCTURE.md`. Existing modules continue to live in these buckets until the relevant migration tickets drain them (`NBB-003` for chat, `NBB-004` for sources, `NBB-005` for studio, `NBB-705A` through `NBB-705E` for utility drains).
+
 ---
 
-## The Pattern
+## Historical Pattern (superseded by `STRUCTURE.md`)
 
-### ai_agents/ - Orchestration
+### ai_agents/ - Orchestration (historical)
 
-**Purpose:** Run the agentic loop. Manage messages. Decide what to do next.
+**Purpose under the old layout:** run the agentic loop, manage messages, decide what to do next.
 
-**Should contain:**
+Contained:
 - Message loop (user → Claude → tool → Claude → ...)
 - Stop conditions (termination tool, max iterations)
 - Message serialization
 - Execution logging
 
-**Should NOT contain:**
+Did not contain:
 - Tool execution logic
 - File I/O operations
 - External API calls
 - Business logic
 
 ```python
-# GOOD: Agent delegates to executor
+# GOOD under the old layout: agent delegates to executor
 result = some_executor.execute_tool(tool_name, tool_input, project_id)
 
-# BAD: Agent does the work itself
+# BAD under the old layout: agent does the work itself
 if tool_name == "create_file":
     with open(file_path, 'w') as f:
         f.write(content)
@@ -40,29 +48,29 @@ if tool_name == "create_file":
 
 ---
 
-### ai_services/ - Single-Purpose AI Functions
+### ai_services/ - Single-Purpose AI Functions (historical)
 
-**Purpose:** One AI call. One job. Returns result.
+**Purpose under the old layout:** one AI call, one job, returns a result.
 
-**Should contain:**
+Contained:
 - Single Claude API call
 - Prompt construction
 - Response parsing
-- Return structured result
+- Structured return
 
-**Should NOT contain:**
+Did not contain:
 - Loops or iterations
 - Multiple API calls
 - Tool handling
 - State management
 
 ```python
-# GOOD: Single purpose
+# GOOD under the old layout: single purpose
 def extract_pdf_page(page_bytes, page_num) -> Dict:
     response = claude_service.send_message(...)
     return parse_extraction(response)
 
-# BAD: Does too much
+# BAD under the old layout: does too much
 def process_entire_pdf(pdf_path) -> Dict:
     for page in pages:
         # multiple calls, loops, state...
@@ -70,24 +78,24 @@ def process_entire_pdf(pdf_path) -> Dict:
 
 ---
 
-### tool_executors/ - Tool Execution
+### tool_executors/ - Tool Execution (historical)
 
-**Purpose:** Execute a tool. Handle the messy details. Return clean result.
+**Purpose under the old layout:** execute a tool, handle the messy details, return a clean result.
 
-**Should contain:**
+Contained:
 - Tool-specific logic
 - File operations
 - External API calls
 - Error handling
 - Result formatting
 
-**Should NOT contain:**
+Did not contain:
 - Claude API calls
 - Message management
 - Loop logic
 
 ```python
-# GOOD: Executor handles details
+# GOOD under the old layout: executor handles details
 class WebsiteToolExecutor:
     def execute(self, tool_name, tool_input, context):
         if tool_name == "create_file":
@@ -100,29 +108,33 @@ class WebsiteToolExecutor:
 
 ---
 
-## Refactoring Checklist
+## Historical Refactoring Checklist (superseded)
 
-When refactoring an agent:
+The old within-bucket refactoring convention was:
 
-1. **Identify tool handlers** - Any `if tool_name == "xyz":` block with >5 lines
-2. **Extract to executor** - Move logic to `tool_executors/{agent}_executor.py`
-3. **Agent calls executor** - `result = executor.execute_tool(name, input, context)`
-4. **Executor returns dict** - Clean result the agent can use
+1. Identify tool handlers (any `if tool_name == "xyz":` block with >5 lines).
+2. Extract the logic into an executor under `tool_executors/{agent}_executor.py`.
+3. Let the agent call the executor: `result = executor.execute_tool(name, input, context)`.
+4. Executor returns a dict the agent can use.
+
+This local cleanup is superseded by the domain-first migration. Do not author new agents/services/executors into those bucket paths; follow `STRUCTURE.md` and the owning migration ticket instead.
 
 ---
 
-## The Goal
+## Historical Goal (recorded)
 
-**Before:** 760-line agent with everything mixed in
+**Before the old cleanup:** 760-line agent with everything mixed in.
 
-**After:**
+**After the old cleanup:**
 - 150-line agent (orchestration only)
 - 200-line executor (tool logic)
-- Clear separation, easy to test, easy to extend
+- Clear separation within the old bucket taxonomy.
+
+This shape is preserved by existing modules but is not the target architecture going forward. The target architecture is defined in `STRUCTURE.md` and `NBB-104`.
 
 ---
 
-## Refactored Agents
+## Refactored Agents (historical record)
 
 | Agent | Before | After | Executor | Status |
 |-------|--------|-------|----------|--------|
@@ -137,7 +149,7 @@ When refactoring an agent:
 
 ---
 
-## Refactored Services (Single AI Call)
+## Refactored Services — Single AI Call (historical record)
 
 | Service | Before | After | Moved To | Utils Extracted | Status |
 |---------|--------|-------|----------|-----------------|--------|
@@ -145,7 +157,7 @@ When refactoring an agent:
 
 ---
 
-## Shared Utilities
+## Shared Utilities (historical record)
 
 | Utility | Location | Purpose | Used By |
 |---------|----------|---------|---------|
@@ -153,11 +165,13 @@ When refactoring an agent:
 | `get_source_name()` | `app/utils/source_content_utils.py` | Get source name by ID | (available) |
 | `convert_to_excalidraw_elements()` | `app/utils/excalidraw_utils.py` | Convert simplified elements to Excalidraw format | wireframe_service |
 
+Locations in the table reflect current on-disk paths during the migration. `app/utils/` is a frozen destination per `STRUCTURE.md`; these helpers will be drained to owning domains by `NBB-705A` through `NBB-705E`.
+
 ---
 
-## Prompt Config Pattern
+## Prompt Config Pattern (current project fact)
 
-User messages and mappings should be in prompt JSON configs, not hardcoded in agents.
+Prompt user messages and mappings live in prompt JSON configs rather than being hardcoded in agents. This is a useful pattern and remains accurate. Note that `data/prompts/` is frozen pending `NBB-207A` loader shims — do not add or move prompt JSON until those shims land, after which ownership follows `NBB-207B`.
 
 ```json
 // data/prompts/{agent}_prompt.json
@@ -174,7 +188,7 @@ User messages and mappings should be in prompt JSON configs, not hardcoded in ag
 }
 ```
 
-Agent uses:
+Agent usage (current mechanism):
 ```python
 config = prompt_loader.get_prompt_config("agent_name")
 user_message = config.get("user_message", "").format(
@@ -185,27 +199,14 @@ user_message = config.get("user_message", "").format(
 
 ---
 
-## Refactoring Steps
+## Historical Refactoring Steps (superseded)
 
-When refactoring a service:
+The old per-service refactor recipe was:
 
-1. **Identify service type**
-   - Agentic loop (multiple Claude calls) → `ai_agents/`
-   - Single AI call → `ai_services/`
-   - Non-AI processing → keep in current location
+1. Identify service type (agentic loop → `ai_agents/`, single AI call → `ai_services/`, non-AI → keep in place).
+2. Replace duplicated utilities with shared helpers in `app/utils/`.
+3. Externalize user messages and type mappings to prompt JSON.
+4. Extract tool handlers into `tool_executors/{name}_executor.py` (agents only).
+5. Update this file's tables.
 
-2. **Check for duplicated utilities**
-   - `_get_source_content` → use `source_content_utils.get_source_content()`
-   - Data transformation logic → extract to `utils/`
-
-3. **Externalize to prompt config**
-   - User message templates → `user_message` in JSON
-   - Type mappings → `some_types` dict in JSON
-
-4. **Extract tool handlers** (for agents only)
-   - Move to `tool_executors/{name}_executor.py`
-   - Keep agent as orchestration only
-
-5. **Update REFACTORING.md**
-   - Add to Refactored Agents/Services table
-   - Add any new shared utilities
+This recipe is superseded. New refactors should follow the structure-migration tickets (`NBB-3xx`, `NBB-4xx`, `NBB-5xx`, `NBB-7xxx`) and the placement checklist in `STRUCTURE.md`. Do not create new files in `ai_agents/`, `ai_services/`, `tool_executors/`, or `utils/`.

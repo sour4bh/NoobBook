@@ -41,6 +41,19 @@ class ClaudeService:
         self._client: Optional[anthropic.Anthropic] = None
         self._opik_enabled: bool = False
 
+    def reload_config(self) -> None:
+        """
+        Reset cached client and Opik state.
+
+        Educational Note (NBB-208A): Parallels `reload_config()` on the
+        Notion/Jira/Freshdesk/Mixpanel integrations. The settings API calls
+        this after writing Anthropic or Opik credentials to `.env` so the
+        next Claude call re-initializes the client with (or without) Opik
+        wrapping — no process restart required.
+        """
+        self._client = None
+        self._opik_enabled = False
+
     def _get_client(self) -> anthropic.Anthropic:
         """
         Get or create the Anthropic client.

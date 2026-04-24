@@ -4,6 +4,53 @@ Flask application factory for NoobBook.
 Educational Note: The application factory pattern allows us to create
 multiple app instances with different configurations (dev, test, prod).
 This is a Flask best practice for larger applications.
+
+Bootstrap inventory (NBB-208A).
+Every line below is a migration touch point; downstream tickets that move
+auth, RBAC, project access, Supabase, or integrations must update this file.
+
+1. Config loading
+   - `from config import config` pulls the `Config` dict from
+     `backend/config.py` (top-level module).
+   - Note: `backend/config.py` (plain module exposing a config dict) collides
+     with the `backend/app/config/` subpackage. This is a preexisting
+     structural issue, flagged (not fixed) per the Decision Log entry dated
+     2026-04-24. Renaming `backend/config.py` belongs to a backend-charter
+     follow-up ticket; `NBB-208A` must not introduce a rename or shim.
+2. Logging setup via `app.utils.logger.setup_logging`.
+3. `config[config_name].init_app(app)` runs env-dependent init (directory
+   creation, etc.) through the Config class.
+4. `ensure_base_directories()` from `app.utils.path_utils` creates runtime
+   filesystem paths before routes fire.
+5. Flask extensions:
+   - `CORS(app, origins=...)` — allowed origins driven by `CORS_ALLOWED_ORIGINS`.
+   - `socketio.init_app(app, async_mode=...)` — async mode is gevent in
+     production and threading in development (gated by `FLASK_ENV`).
+6. Blueprint registration
+   - `from app.api import api_bp` at `app.config['API_PREFIX']`.
+   - `backend/app/api/` remains the transport boundary (per `NBB-104`).
+7. Supabase admin bootstrap
+   - `auth_service.bootstrap_admin_from_env()` runs only when
+     `is_supabase_enabled()` returns True.
+8. Auth enforcement `before_request` hook
+   - CORS preflight short-circuits before auth.
+   - `is_auth_required()` gates enforcement; `/auth/*` and `/health` are
+     exempt.
+   - Project-scoped routes (`/projects/{id}/...`) run
+     `project_service.has_project_access(...)` — `NBB-107` owns the auth
+     test seam; `NBB-204` owns the RLS/data-access rules that back this
+     check.
+9. `register_error_handlers(app)` registers 400/404/500 JSON handlers.
+
+Env/service reload semantics.
+`backend/app/services/app_settings/env_service.EnvService.reload_env()` calls
+`load_dotenv(override=True)` after each `.env` write. Integration services
+that cache config (Notion, Jira, Freshdesk, Mixpanel) expose a
+`reload_config()` method; `ClaudeService.reload_config()` resets its cached
+client so Opik wrapping is re-evaluated on the next call. The settings API is
+the caller responsible for invoking these hooks — integration services do
+not self-reload. See `backend/app/api/settings/api_keys.py` for the authoritative
+validator ↔ reload-hook map.
 """
 import os
 
@@ -11,6 +58,9 @@ from flask import Flask, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
+# Educational Note (NBB-208A): `config` here is `backend/config.py`, not the
+# `backend/app/config/` subpackage. Renaming the top-level module is a
+# separate backend-charter follow-up; do not shim here.
 from config import config
 from app.utils.logger import setup_logging
 

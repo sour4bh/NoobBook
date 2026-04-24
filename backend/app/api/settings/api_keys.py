@@ -39,6 +39,74 @@ Routes:
 - POST   /settings/api-keys           - Update keys
 - DELETE /settings/api-keys/<key_id>  - Delete a key
 - POST   /settings/api-keys/validate  - Validate a key
+
+Env-reload → service-reload sequence (NBB-208A).
+`update_api_keys` runs the following sequence so running services pick up new
+credentials without a process restart:
+
+1. For each incoming key that is not masked, call `env_service.set_key(...)`.
+   `EnvService.set_key` writes the `.env` file via python-dotenv and also
+   assigns `os.environ[key]` in-process.
+2. Call `env_service.save()` (a no-op kept for API symmetry — python-dotenv
+   persists on `set_key`/`unset_key`).
+3. Call `env_service.reload_env()` — runs `load_dotenv(override=True)` so any
+   indirectly cached readers see the new value.
+4. Call the per-service `reload_config()` hook for each key whose owning
+   integration caches config. The settings API is the single caller
+   responsible for these hooks; integration services do not self-reload.
+
+Validator ↔ reload-hook ownership map (inventory, NBB-208A).
+This table names today's location and the destination root after the
+providers/connectors split finalizes under `NBB-206`. No code moves in this
+ticket; the map is the input so `NBB-205` (contracts), `NBB-206`
+(providers/connectors charters), and `NBB-705C` (provider utility drain) can
+act on it.
+
+| key_id(s)                               | validator today                                                        | reload hook today                            | future owner (post-NBB-206) |
+|-----------------------------------------|------------------------------------------------------------------------|-----------------------------------------------|------------------------------|
+| `ANTHROPIC_API_KEY`                     | `app_settings/validation/anthropic_validator.py`                       | indirect via `claude_service.reload_config()` | `providers/` (raw client)   |
+| `OPENAI_API_KEY`                        | `app_settings/validation/openai_validator.py`                          | none (embedding client is stateless)         | `providers/`                |
+| `ELEVENLABS_API_KEY`                    | `app_settings/validation/elevenlabs_validator.py`                      | none                                          | `providers/`                |
+| `GEMINI_2_5_API_KEY`                    | `app_settings/validation/gemini_validator.py`                          | none                                          | `providers/`                |
+| `NANO_BANANA_API_KEY`                   | `app_settings/validation/nano_banana_validator.py`                     | none                                          | `providers/`                |
+| `VEO_API_KEY`                           | `app_settings/validation/veo_validator.py`                             | none                                          | `providers/`                |
+| `PINECONE_API_KEY` + index/region       | `app_settings/validation/pinecone_validator.py` (auto-saves index+region) | none                                        | `providers/`                |
+| `TAVILY_API_KEY`                        | `app_settings/validation/tavily_validator.py`                          | none                                          | `providers/`                |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | accepted-if-present                                                | none (OAuth flow reads env per request)      | `connectors/` (Google Drive)|
+| `WEBSHARE_API_KEY`                      | accepted-if-present                                                    | none                                          | `providers/`                |
+| `NOTION_API_KEY`                        | `app_settings/validation/notion_validator.py`                          | `notion_service.reload_config()`              | `connectors/`               |
+| `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `app_settings/validation/jira_validator.py` (needs email + cloud_id from env) | `jira_service.reload_config()`        | `connectors/`               |
+| `FRESHDESK_API_KEY` + `FRESHDESK_DOMAIN` | `app_settings/validation/freshdesk_validator.py`                      | `freshdesk_service.reload_config()`           | `connectors/`               |
+| `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `app_settings/validation/mixpanel_validator.py`                  | `mixpanel_service.reload_config()`            | `connectors/`               |
+| `OPIK_*`                                | `app_settings/validation/opik_validator.py` (OPIK_API_KEY only; the rest are accepted-if-present) | `claude_service.reload_config()` (re-wraps client) | `providers/` (observability attached to Claude client) |
+
+Validator-ownership rule (NBB-208A).
+- `settings/` owns the validate endpoint, the `.env` CRUD orchestration, and
+  the ValidationService facade that routes key_ids to individual validators.
+- `providers/` will own the raw SDK health-check calls (individual
+  `*_validator.py` bodies under `app_settings/validation/`) once the provider
+  charters land in `NBB-206`.
+- `connectors/` will own product-capability validation for configured
+  product integrations (Notion, Jira, Freshdesk, Mixpanel, Google Drive).
+  These today live next to the raw validators; they move with the
+  connector when `NBB-206` finalizes the boundary.
+- Supporting-field acceptance ("Value accepted" for fields like
+  `JIRA_CLOUD_ID`, `MIXPANEL_REGION`) stays inside `settings/` — no SDK call
+  is involved.
+
+App-factory touch points for this surface (see `backend/app/__init__.py`).
+- `@require_admin` on every endpoint in this module depends on
+  `app.services.auth.rbac` bootstrapped in the factory; `NBB-107` owns the
+  auth test seam.
+- `env_service.reload_env()` relies on `.env` living under
+  `self.backend_dir = Path(__file__).parent.parent.parent.parent`
+  (`backend/.env`), which is stable under the current layout; any migration
+  that moves `app_settings/` must preserve this resolution.
+
+Stateless-deployment note.
+Runtime `.env` writes assume a persistent container filesystem. On ECS
+Fargate or Lambda, use environment injection instead — see `EnvService`
+docstring.
 """
 from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
@@ -360,9 +428,10 @@ def update_api_keys():
                     from app.services.integrations.knowledge_bases.mixpanel.mixpanel_service import mixpanel_service
                     mixpanel_service.reload_config()
                 elif key_id in ('OPIK_API_KEY', 'OPIK_WORKSPACE', 'OPIK_PROJECT_NAME', 'OPIK_URL_OVERRIDE'):
-                    # Reset Claude client so it re-initializes with/without Opik wrapping
+                    # Reset Claude client so it re-initializes with/without Opik wrapping.
+                    # NBB-208A: uses the public reload_config() hook to match Notion/Jira/etc.
                     from app.services.integrations.claude.claude_service import claude_service
-                    claude_service._client = None
+                    claude_service.reload_config()
 
         current_app.logger.info(f"Updated {updated_count} API keys")
 

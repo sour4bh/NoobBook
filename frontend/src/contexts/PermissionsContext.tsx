@@ -5,6 +5,13 @@
  * a `hasPermission(category, item?)` helper that components can call to gate UI
  * features. Defaults to "allow" while loading or on error so the app stays
  * usable even if the permissions endpoint is unavailable.
+ *
+ * Security note (NBB-202A): this fail-open behavior is UI-only convenience.
+ * The backend does NOT trust permissions asserted by the client; every
+ * sensitive action is re-checked server-side by `require_permission` /
+ * `user_has_permission` in `backend/app/auth/`, which is fail-closed in
+ * auth-required mode. A user cannot unlock a feature by tampering with this
+ * context — the backend will still return 403.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';

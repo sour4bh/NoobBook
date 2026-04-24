@@ -7,7 +7,13 @@ Built on the canonical identity resolver in `app.auth.identity`:
 - `require_permission(category, item)`: per-user module-permission gate.
 
 Admins always pass the permission check; non-admins go through
-`app.auth.permissions.user_has_permission`.
+`app.auth.permissions.user_has_permission`, which is fail-closed in
+auth-required mode — unknown categories, unknown items, and DB
+failures all return ``False`` here and the decorator turns that into
+a 403 response. The same helper falls back to allow in dev /
+single-user mode (``NOOBBOOK_AUTH_REQUIRED=false``) so local
+development stays frictionless. See `app.auth.permissions` for the
+canonical taxonomy and decision rules.
 """
 
 from functools import wraps

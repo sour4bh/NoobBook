@@ -1,14 +1,15 @@
 """
 Unit tests for identity resolution, project access, and permission gating
-(NBB-107).
+(NBB-107, tightened by NBB-202A).
 
 Scope:
 - `rbac.get_request_identity` - JWT, dev-headers, and single-user fallbacks.
 - `auth_middleware.verify_project_access` - owner vs non-owner responses.
-- `permissions.user_has_permission` - positive/negative checks and the
-  fail-open branches today's code takes on exceptions and unknown
-  categories. NBB-202A is the ticket that tightens those; this suite
-  pins current behavior so the tightening cannot ship silently.
+- `permissions.user_has_permission` - positive/negative checks, unknown
+  categories, unknown items, and DB-failure branches. The fail-closed
+  behavior landed in NBB-202A; the original NBB-107 fail-open tests have
+  been converted in place to cover both auth-required (deny) and dev /
+  single-user (allow) modes so the explicit flip is pinned.
 - `rbac.require_admin` / `rbac.require_permission` decorator semantics.
 """
 from unittest.mock import MagicMock, patch
@@ -241,34 +242,184 @@ def test_user_has_permission_item_disabled_returns_false():
         assert permissions.user_has_permission("u1", "studio", "blogs") is True
 
 
-def test_user_has_permission_fails_open_on_supabase_error():
-    """Captures current fail-open behavior: when the Supabase lookup
-    raises, `get_user_permissions` returns the all-enabled defaults and
-    `user_has_permission` therefore returns True.
-
-    This is the documented fail-open finding from the backlog. NBB-202A
-    will tighten this to fail-closed outside dev/single-user mode; this
-    test pins current behavior so the change is explicit."""
+def test_user_has_permission_fails_closed_on_supabase_error_when_auth_required(
+    auth_required_env,
+):
+    """NBB-202A: when auth is required and the Supabase lookup raises,
+    deny instead of returning the all-enabled defaults."""
     from app.auth import permissions
 
     with patch.object(permissions, "_get_supabase", side_effect=Exception("db down")):
-        assert permissions.user_has_permission("u1", "data_sources", "database") is True
+        assert (
+            permissions.user_has_permission("u1", "data_sources", "database")
+            is False
+        )
 
 
-def test_user_has_permission_unknown_category_fails_open():
-    """Captures current fail-open behavior: an unknown category key
-    returns True ('unknown category = allowed'). NBB-202A will likely
-    flip this; the test pins current behavior."""
+def test_user_has_permission_allows_on_supabase_error_in_dev_mode(
+    auth_optional_env,
+):
+    """Dev / single-user mode keeps the historical "default to allow"
+    behavior when Supabase is unreachable so local development stays
+    frictionless. Pinned explicitly here so the allow path is a
+    documented mode-switch rather than a silent fallback."""
+    from app.auth import permissions
+
+    with patch.object(permissions, "_get_supabase", side_effect=Exception("db down")):
+        assert (
+            permissions.user_has_permission("u1", "data_sources", "database")
+            is True
+        )
+
+
+def test_user_has_permission_unknown_category_fails_closed_when_auth_required(
+    auth_required_env,
+):
+    """NBB-202A: unknown category keys are denied in auth-required mode.
+    Supabase is not even queried — the taxonomy check short-circuits."""
+    from app.auth import permissions
+
+    with patch.object(permissions, "_get_supabase") as mock_get:
+        assert (
+            permissions.user_has_permission("u1", "not_a_real_category", "x")
+            is False
+        )
+        # Unknown category must reject before any DB round-trip.
+        assert mock_get.called is False
+
+
+def test_user_has_permission_unknown_category_allows_in_dev_mode(
+    auth_optional_env,
+):
+    """Dev / single-user mode preserves the "unknown = allowed" default
+    so local experimentation is unaffected."""
+    from app.auth import permissions
+
+    with patch.object(permissions, "_get_supabase") as mock_get:
+        assert (
+            permissions.user_has_permission("u1", "not_a_real_category", "x")
+            is True
+        )
+        assert mock_get.called is False
+
+
+def test_user_has_permission_unknown_item_fails_closed_when_auth_required(
+    auth_required_env,
+):
+    """NBB-202A: an item that is not in ``PERMISSION_TAXONOMY`` is denied
+    in auth-required mode even when its category is known."""
+    from app.auth import permissions
+
+    with patch.object(permissions, "_get_supabase") as mock_get:
+        assert (
+            permissions.user_has_permission("u1", "studio", "made_up_item")
+            is False
+        )
+        # Unknown item also short-circuits before any DB round-trip.
+        assert mock_get.called is False
+
+
+def test_user_has_permission_null_permissions_applies_defaults_for_known_items(
+    auth_required_env,
+):
+    """NBB-202A: when the DB returns a row with ``permissions = NULL``
+    (the "use defaults" sentinel), a known item resolves via
+    ``DEFAULT_PERMISSIONS`` (all enabled)."""
     from app.auth import permissions
 
     with patch.object(permissions, "_get_supabase") as mock_get:
         client = MagicMock()
         resp = MagicMock()
-        resp.data = [{"permissions": {}}]
+        resp.data = [{"permissions": None}]
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
         mock_get.return_value = client
 
-        assert permissions.user_has_permission("u1", "not_a_real_category", "x") is True
+        assert (
+            permissions.user_has_permission("u1", "studio", "presentations")
+            is True
+        )
+
+
+def test_user_has_permission_null_permissions_still_denies_unknown_items(
+    auth_required_env,
+):
+    """NBB-202A: NULL permissions let the known defaults apply, but
+    unknown items still deny in auth-required mode — the taxonomy
+    check happens before the DB read."""
+    from app.auth import permissions
+
+    with patch.object(permissions, "_get_supabase") as mock_get:
+        client = MagicMock()
+        resp = MagicMock()
+        resp.data = [{"permissions": None}]
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
+        mock_get.return_value = client
+
+        assert (
+            permissions.user_has_permission("u1", "studio", "made_up_item")
+            is False
+        )
+
+
+def test_user_has_permission_category_only_check_uses_enabled_flag(
+    auth_required_env,
+):
+    """NBB-202A: ``main_chat_service`` calls ``user_has_permission(uid,
+    "studio")`` with no item. That category-only shape must keep
+    working — return True when the category master toggle is on."""
+    from app.auth import permissions
+
+    with patch.object(permissions, "_get_supabase") as mock_get:
+        client = MagicMock()
+        resp = MagicMock()
+        resp.data = [{"permissions": None}]
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
+        mock_get.return_value = client
+
+        assert permissions.user_has_permission("u1", "studio") is True
+
+
+def test_user_has_permission_category_only_check_respects_master_disable(
+    auth_required_env,
+):
+    """NBB-202A: category-only check must deny when the master
+    ``enabled`` flag is False."""
+    from app.auth import permissions
+
+    stored = {"studio": {"enabled": False, "items": {}}}
+    with patch.object(permissions, "_get_supabase") as mock_get:
+        client = MagicMock()
+        resp = MagicMock()
+        resp.data = [{"permissions": stored}]
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value = resp
+        mock_get.return_value = client
+
+        assert permissions.user_has_permission("u1", "studio") is False
+
+
+def test_user_has_permission_logs_warning_on_db_failure_in_auth_required_mode(
+    auth_required_env, caplog,
+):
+    """NBB-202A: DB failure in auth-required mode must log a warning so
+    operators can see the deny-on-error path firing."""
+    import logging
+
+    from app.auth import permissions
+
+    caplog.set_level(logging.WARNING, logger=permissions.__name__)
+
+    with patch.object(
+        permissions, "_get_supabase", side_effect=Exception("db down")
+    ):
+        result = permissions.user_has_permission(
+            "u1", "data_sources", "database"
+        )
+
+    assert result is False
+    assert any(
+        "Permission lookup failed" in record.getMessage()
+        for record in caplog.records
+    )
 
 
 # ---------------------------------------------------------------------------

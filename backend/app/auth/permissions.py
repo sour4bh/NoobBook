@@ -1,105 +1,177 @@
 """
 Per-user module permissions.
 
-Educational Note: This module handles granular feature access control.
-Each user has a `permissions` JSONB column on the users table. NULL means
-"all enabled" (the default). When an admin customizes a user's access,
-the full structure is stored.
+Permission taxonomy (five categories, each with an ``enabled`` master
+toggle and an ``items`` dict of sub-item booleans):
 
-Five categories, each with a master toggle (`enabled`) and individual
-sub-item toggles (`items`):
+- ``document_sources`` — PDF, DOCX, PPTX, Image, Audio, URL/YouTube,
+  Text, Google Drive.
+- ``data_sources`` — Database, CSV, Freshdesk, Jira, Mixpanel (the
+  sensitive data-access side; overlaps on purpose with ``integrations``
+  for Jira/Mixpanel because some flows only need the credentials and
+  others ingest actual source rows).
+- ``studio`` — every content-generation item in the studio taxonomy.
+- ``integrations`` — Jira, Mixpanel, Notion, MCP, ElevenLabs (credential
+  wiring and connector features).
+- ``chat_features`` — Memory, Voice Input, Chat Export.
 
-1. document_sources — PDF, DOCX, PPTX, Image, Audio, URL/YouTube, Text, Google Drive
-2. data_sources     — Database, CSV, Freshdesk (the sensitive data access)
-3. studio           — All 18 content generation types
-4. integrations     — Jira, Notion, MCP, ElevenLabs
-5. chat_features    — Memory, Voice Input, Chat Export
+Storage and policy:
+
+- ``users.permissions`` is a JSONB column; ``NULL`` means "apply
+  ``DEFAULT_PERMISSIONS``" so a fresh user does not need 50+ rows
+  written on insert.
+- ``DEFAULT_PERMISSIONS`` is all-enabled and is also returned verbatim
+  to the frontend for admins (`/settings/users/me/permissions`) and for
+  API-response shape generation.
+- Permission checks are **fail-closed** in auth-required mode
+  (``NOOBBOOK_AUTH_REQUIRED`` unset or truthy). Unknown categories,
+  unknown items, and Supabase failures all deny. The only allow-on-miss
+  branch is ``NOOBBOOK_AUTH_REQUIRED=false`` (dev/single-user) — that
+  mode keeps the historical "default to allow" behavior but does so
+  through named helpers (``_fallback_allow``) so the code path is
+  explicit rather than silent.
+- The frontend ``PermissionsContext`` defaults to allow during load /
+  on error; that is UI-only convenience. The backend never trusts a
+  frontend-asserted permission.
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Mapping, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def _get_default_permissions() -> Dict[str, Any]:
-    """
-    Return the all-enabled permission structure.
+# ---------------------------------------------------------------------------
+# Typed taxonomy
+# ---------------------------------------------------------------------------
 
-    Educational Note: This is the baseline — every feature on. Admins
-    selectively disable features per user. The structure is stored as
-    JSONB on users.permissions when customized.
+# The canonical set of categories and the items each one owns. Declared
+# as a plain module-level mapping so consumers can treat it as the
+# source of truth for "what does this category mean?" without pulling
+# in enum machinery. ``DEFAULT_PERMISSIONS`` is derived from this so the
+# two stay in lockstep.
+PERMISSION_TAXONOMY: Mapping[str, frozenset] = {
+    "document_sources": frozenset({
+        "pdf",
+        "docx",
+        "pptx",
+        "image",
+        "audio",
+        "url_youtube",
+        "text",
+        "google_drive",
+    }),
+    "data_sources": frozenset({
+        "database",
+        "csv",
+        "freshdesk",
+        "jira",
+        "mixpanel",
+    }),
+    "studio": frozenset({
+        "audio_overview",
+        "ad_creative",
+        "flash_cards",
+        "flow_diagrams",
+        "infographics",
+        "mind_maps",
+        "quizzes",
+        "social_posts",
+        "emails",
+        "websites",
+        "components",
+        "videos",
+        "wireframes",
+        "presentations",
+        "prds",
+        "marketing_strategies",
+        "blogs",
+        "business_reports",
+    }),
+    "integrations": frozenset({
+        "jira",
+        "mixpanel",
+        "notion",
+        "mcp",
+        "elevenlabs",
+    }),
+    "chat_features": frozenset({
+        "memory",
+        "voice_input",
+        "chat_export",
+    }),
+}
+
+KNOWN_CATEGORIES: frozenset = frozenset(PERMISSION_TAXONOMY.keys())
+
+
+def is_known_category(category: str) -> bool:
+    """Return True if ``category`` is part of the declared taxonomy."""
+    return category in KNOWN_CATEGORIES
+
+
+def is_known_item(category: str, item: str) -> bool:
+    """Return True if ``item`` is declared under ``category``.
+
+    Returns False when the category itself is unknown; callers that
+    care about that distinction should check ``is_known_category``
+    first.
+    """
+    items = PERMISSION_TAXONOMY.get(category)
+    if items is None:
+        return False
+    return item in items
+
+
+def _get_default_permissions() -> Dict[str, Any]:
+    """Return the all-enabled permission structure.
+
+    Built from ``PERMISSION_TAXONOMY`` so adding a new item in one
+    place automatically enables it by default for fresh users.
     """
     return {
-        "document_sources": {
+        category: {
             "enabled": True,
-            "items": {
-                "pdf": True,
-                "docx": True,
-                "pptx": True,
-                "image": True,
-                "audio": True,
-                "url_youtube": True,
-                "text": True,
-                "google_drive": True,
-            },
-        },
-        "data_sources": {
-            "enabled": True,
-            "items": {
-                "database": True,
-                "csv": True,
-                "freshdesk": True,
-                "jira": True,
-                "mixpanel": True,
-            },
-        },
-        "studio": {
-            "enabled": True,
-            "items": {
-                "audio_overview": True,
-                "ad_creative": True,
-                "flash_cards": True,
-                "flow_diagrams": True,
-                "infographics": True,
-                "mind_maps": True,
-                "quizzes": True,
-                "social_posts": True,
-                "emails": True,
-                "websites": True,
-                "components": True,
-                "videos": True,
-                "wireframes": True,
-                "presentations": True,
-                "prds": True,
-                "marketing_strategies": True,
-                "blogs": True,
-                "business_reports": True,
-            },
-        },
-        "integrations": {
-            "enabled": True,
-            "items": {
-                "jira": True,
-                "mixpanel": True,
-                "notion": True,
-                "mcp": True,
-                "elevenlabs": True,
-            },
-        },
-        "chat_features": {
-            "enabled": True,
-            "items": {
-                "memory": True,
-                "voice_input": True,
-                "chat_export": True,
-            },
-        },
+            "items": {item: True for item in items},
+        }
+        for category, items in PERMISSION_TAXONOMY.items()
     }
 
 
-# Exported constant for API responses and frontend type generation
+# Exported constant for API responses and frontend type generation.
+# Consumers treat this as read-only; rebuild via
+# ``_get_default_permissions()`` if a fresh copy is needed.
 DEFAULT_PERMISSIONS = _get_default_permissions()
+
+
+# ---------------------------------------------------------------------------
+# Mode helpers
+# ---------------------------------------------------------------------------
+
+
+def _fallback_allow() -> bool:
+    """Return the answer ``user_has_permission`` should give when it
+    cannot prove a decision from data.
+
+    In auth-required mode the answer is **deny** (False): unknown
+    categories, unknown items, and DB failures must not quietly open
+    production access. In dev / single-user mode
+    (``NOOBBOOK_AUTH_REQUIRED=false``) the answer is **allow** (True)
+    to keep local development frictionless; this is the only path that
+    preserves the historical "default to allow" behavior.
+
+    Imports ``is_auth_required`` lazily so this module can load before
+    the Supabase client is configured (``app.auth.identity`` pulls in
+    the Supabase provider at module load).
+    """
+    from app.auth.identity import is_auth_required
+
+    return not is_auth_required()
+
+
+# ---------------------------------------------------------------------------
+# Supabase I/O
+# ---------------------------------------------------------------------------
 
 
 def _get_supabase():
@@ -109,12 +181,18 @@ def _get_supabase():
 
 
 def get_user_permissions(user_id: str) -> Dict[str, Any]:
-    """
-    Load permissions for a user. Returns the stored JSONB if customized,
-    or the all-enabled default if NULL.
+    """Load permissions for a user.
 
-    Educational Note: NULL in the database means "use defaults" — this
-    avoids writing 50+ boolean fields for every new user.
+    Returns the stored JSONB merged with ``DEFAULT_PERMISSIONS`` when
+    the row exists, or ``DEFAULT_PERMISSIONS`` when the row is missing
+    or ``permissions`` is NULL. A Supabase exception falls back to
+    ``DEFAULT_PERMISSIONS`` with a logged warning — callers that need
+    fail-closed semantics go through ``user_has_permission``, which
+    treats DB failure as deny in auth-required mode.
+
+    This function is also used by the admin permissions UI to
+    pre-populate toggles, so it must return a well-shaped dict rather
+    than raise.
     """
     try:
         client = _get_supabase()
@@ -131,19 +209,21 @@ def get_user_permissions(user_id: str) -> Dict[str, Any]:
         if stored is None:
             return _get_default_permissions()
 
-        # Merge with defaults to pick up any new categories/items added
-        # after the user's permissions were last saved.
-        defaults = _get_default_permissions()
-        return _merge_with_defaults(stored, defaults)
+        # Merge with defaults so items added to the taxonomy after the
+        # user's row was last written are automatically enabled.
+        return _merge_with_defaults(stored, _get_default_permissions())
     except Exception as e:
         logger.error("Failed to load permissions for user %s: %s", user_id, e)
         return _get_default_permissions()
 
 
 def _merge_with_defaults(stored: Dict, defaults: Dict) -> Dict:
-    """
-    Merge stored permissions with defaults so new categories/items
-    added in code are automatically enabled for existing users.
+    """Merge stored permissions with defaults.
+
+    Any category or item declared in ``PERMISSION_TAXONOMY`` that is
+    not in ``stored`` uses the default value. Unknown keys in
+    ``stored`` are dropped — the taxonomy is the source of truth for
+    what the API exposes.
     """
     merged = {}
     for category, default_cat in defaults.items():
@@ -165,15 +245,11 @@ def _merge_with_defaults(stored: Dict, defaults: Dict) -> Dict:
 
 
 def update_user_permissions(user_id: str, permissions: Dict[str, Any]) -> bool:
-    """
-    Save customized permissions to the users table.
+    """Save customized permissions to the users table.
 
-    Args:
-        user_id: The user UUID
-        permissions: Full permissions structure
-
-    Returns:
-        True if saved successfully
+    Returns True on a successful write, False on error. Callers that
+    need to enforce the admin-only contract do it at the route layer
+    via ``require_admin``.
     """
     try:
         client = _get_supabase()
@@ -189,38 +265,108 @@ def update_user_permissions(user_id: str, permissions: Dict[str, Any]) -> bool:
         return False
 
 
-def user_has_permission(user_id: str, category: str, item: Optional[str] = None) -> bool:
+# ---------------------------------------------------------------------------
+# Permission check
+# ---------------------------------------------------------------------------
+
+
+def user_has_permission(
+    user_id: str, category: str, item: Optional[str] = None
+) -> bool:
+    """Return True if the user is allowed to use ``category`` / ``item``.
+
+    Decision rules (in order):
+
+    1. Unknown ``category`` -> ``_fallback_allow()``. Deny in
+       auth-required mode; allow in dev/single-user.
+    2. ``item`` supplied but unknown in that category ->
+       ``_fallback_allow()``. Same reasoning.
+    3. Load the user's permissions. If the DB read raises, deny in
+       auth-required mode (``_fallback_allow()``) and log a warning;
+       in dev/single-user mode fall back to ``DEFAULT_PERMISSIONS``
+       so local development stays frictionless.
+    4. If the category's ``enabled`` flag is False, deny.
+    5. If no item was requested, allow (the category-level toggle
+       passed).
+    6. Return the item's stored boolean; default to the taxonomy
+       default (True) if the item is missing from the stored row.
+
+    ``require_permission`` in ``app.auth.guards`` turns ``False`` into
+    a 403 response with the standard contact-admin message; callers
+    that gate feature visibility inline (for example
+    ``main_chat_service``) consume the bool directly.
     """
-    Check if a user has access to a specific feature.
+    # 1. Unknown category: do not silently allow in production.
+    if not is_known_category(category):
+        logger.warning(
+            "user_has_permission called with unknown category %r (user=%s)",
+            category,
+            user_id,
+        )
+        return _fallback_allow()
 
-    Educational Note: Three-level check:
-    1. If permissions is NULL → all enabled (default)
-    2. If category.enabled is False → entire category disabled
-    3. If item specified and items[item] is False → specific item disabled
+    # 2. Unknown item under a known category: also fail-closed.
+    if item is not None and not is_known_item(category, item):
+        logger.warning(
+            "user_has_permission called with unknown item %r in category %r "
+            "(user=%s)",
+            item,
+            category,
+            user_id,
+        )
+        return _fallback_allow()
 
-    Args:
-        user_id: The user UUID
-        category: One of the 5 category keys (e.g., "data_sources")
-        item: Optional sub-item key (e.g., "database")
+    # 3. Load stored permissions. ``get_user_permissions`` swallows
+    #    Supabase exceptions and returns defaults; to keep fail-closed
+    #    semantics in auth-required mode we re-do the call here and
+    #    handle failure explicitly.
+    try:
+        client = _get_supabase()
+        response = (
+            client.table("users")
+            .select("permissions")
+            .eq("id", user_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.warning(
+            "Permission lookup failed for user=%s category=%s item=%s: %s",
+            user_id,
+            category,
+            item,
+            e,
+        )
+        return _fallback_allow()
 
-    Returns:
-        True if the user has access
-    """
-    perms = get_user_permissions(user_id)
+    if not response.data:
+        # No users row: treat as "apply defaults" just like NULL.
+        perms = _get_default_permissions()
+    else:
+        stored = response.data[0].get("permissions")
+        if stored is None:
+            perms = _get_default_permissions()
+        else:
+            perms = _merge_with_defaults(stored, _get_default_permissions())
 
     cat = perms.get(category)
+    # ``cat`` cannot be missing here because we merged against defaults,
+    # but keep the guard so a malformed merge result still fails closed.
     if cat is None:
-        return True  # Unknown category = allowed
+        logger.warning(
+            "Merged permissions missing known category %r (user=%s)",
+            category,
+            user_id,
+        )
+        return _fallback_allow()
 
     if not cat.get("enabled", True):
-        return False  # Entire category disabled
+        return False
 
     if item is None:
-        return True  # Category-level check passed
+        return True
 
-    # For database/mcp: also check per-connection access
-    # (handled separately via connection_users tables, not here)
-
+    # Known item: trust the stored value, defaulting to True for
+    # items introduced after the user's row was last written.
     return cat.get("items", {}).get(item, True)
 
 

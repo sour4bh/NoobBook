@@ -17,10 +17,10 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of 2026-04-24, mid Phase 4 batch 2:
+As of 2026-04-24, end of Phase 4 batch 2:
 
-- Branch: `main` @ `9f18494`
-- Merged progress: 20 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; Phase 4 batch 2 partial: NBB-209D)
+- Branch: `main` @ `79d469e`
+- Merged progress: 21 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; Phase 4 batch 2: NBB-209D, NBB-209B)
 - Graph shape: 66 CSV rows, 7 epics, 59 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify each session with `tool_search` for refactory's `move_module` — either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (`--plugin-dir` plugin-framework load)
@@ -405,7 +405,7 @@ Update this table when work starts, merges, or blocks.
 | `NBB-207C` | Policy and contracts | Ready | unassigned |  |  |  |  | Deps merged: `NBB-207A` at `a41ea8f`, `NBB-203` at `353cb4b`. Tool-schema ownership map; unblocks `NBB-202B` and `NBB-403`. |
 | `NBB-208B` | Policy and contracts | Merged | top-level dispatcher | `worktree-agent-ac94071c62e316930` / cleaned up | `MERGE` | `9e7fe6a` (non-ff of `6f54935`) | PASS worker/reviewer checks; PASS merge/push cleanup | New `docs/deployment/observability.md` + comment-only pointers in `backend/gunicorn.conf.py`, `frontend/nginx.conf`, `backend/app/__init__.py`. No code behavior change; documentation-only boundary inventory. |
 | `NBB-209A` | Stores and mechanical moves | Ready | unassigned |  |  |  |  | Deps merged: `NBB-204` at `86012e4`, `NBB-109` at `465b676`. Move chat + message stores. Refactory required. Collides with any chat-public-surface work (`NBB-301`) — but `NBB-301` stays blocked until 209A merges, so no Phase 4 collision. |
-| `NBB-209B` | Stores and mechanical moves | In progress (attempt 5) | top-level dispatcher | `worktree-agent-a946d0446a5b997bb` (active) |  |  |  | Four prior attempts blocked on a rope limitation specific to lazy in-function imports of a singleton whose name matches the source module basename. Attempt 5 uses a bounded Option A: dead-singleton prep + refactory 2-op + 5-site manual repair (lazy-import path updates + call-site restorations) + singleton consolidation into `projects/store.py`. See Decision Log 2026-04-24 entry "NBB-209B: bounded one-ticket manual repair". |
+| `NBB-209B` | Stores and mechanical moves | Merged | top-level dispatcher | `worktree-agent-a946d0446a5b997bb` / cleaned up | `MERGE` | `79d469e` (non-ff of `d8bee5c`) | PASS worker/reviewer checks; PASS merge/push cleanup; PASS full backend pytest (296 passed, 2 deselected preexisting) | Five commits: dead-singleton removal (`32a13f3`), refactory apply (`48dcef1`), authorized manual repair of 5 lazy-import sites + 6 eager call-sites (`6b166c5`), singleton consolidation to `projects/store.py` (`b11dda5`), move-plan.csv rows (`d8bee5c`). 17 files changed. All tests green (12 smoke, 29 auth, 296 full). Decision Log 2026-04-24 "NBB-209B: bounded one-ticket manual repair" records the authorized exception. |
 | `NBB-209C` | Stores and mechanical moves | Blocked | unassigned |  |  |  |  | Blocked on `NBB-201` (not merged). Auth user/password store move must follow auth consolidation. |
 | `NBB-209D` | Stores and mechanical moves | Merged | top-level dispatcher | `worktree-agent-af10314bc6d887496` / cleaned up | `MERGE` | `9f18494` (non-ff of `a540a60`) | PASS worker/reviewer checks; PASS merge/push cleanup; SKIP full backend pytest (not required by ticket) | Brand asset + config stores moved to `backend/app/brand/{asset,config}/store.py` with class renames `BrandAssetService→BrandAssetStore`, `BrandConfigService→BrandConfigStore`. 4 move-plan rows. One minimal manual fix at `api/brand/routes.py` for a local-name basename collision (two `from X.store import store` shadowed). Singleton names `brand_asset_service`/`brand_config_service` preserved. Re-exports at `data_services/__init__.py` kept as backward-compat shim. |
 | `NBB-209E` | Stores and mechanical moves | Ready | unassigned |  |  |  |  | Deps merged: `NBB-204` at `86012e4`, `NBB-206` at `1057959`. Move connector stores (database, MCP connection). Refactory required. |

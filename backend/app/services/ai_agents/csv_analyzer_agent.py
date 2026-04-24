@@ -9,6 +9,15 @@ Educational Note: This agent uses pandas for flexible data analysis:
 
 The agent is triggered by main_chat when user asks about CSV sources.
 Results (including any generated plots) are returned to main_chat.
+
+Security Note (NBB-203, pre-migration mitigation):
+    This agent drives the raw-code ``exec()`` path in ``analysis_executor``.
+    It refuses to start and returns an error result unless
+    ``analysis_executor.raw_analysis_enabled()`` returns True — i.e. both
+    ``NOOBBOOK_AUTH_REQUIRED=false`` and ``NOOBBOOK_ALLOW_RAW_ANALYSIS=true``
+    are set. The early exit happens before any Claude API call so no cost is
+    burned and callers (main chat, business report executor) get a clean
+    disabled signal. Permanent replacement tracked by ``DEFERRED.md`` D-002.
 """
 
 import logging
@@ -18,7 +27,11 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.services.tool_executors.analysis_executor import analysis_executor
+from app.services.tool_executors.analysis_executor import (
+    analysis_executor,
+    raw_analysis_enabled,
+    RAW_ANALYSIS_DISABLED_MESSAGE,
+)
 from app.services.data_services import message_service
 from app.utils import claude_parsing_utils
 
@@ -83,6 +96,20 @@ class CSVAnalyzerAgent:
         Returns:
             Dict with success status, summary, and optional image_paths
         """
+        # NBB-203: Refuse to start the agent loop at all when raw-code
+        # analysis is disabled. We check BEFORE the first claude_service
+        # call so production/auth-required mode never incurs API cost just
+        # to reach a blocked exec().
+        if not raw_analysis_enabled():
+            logger.warning(
+                "csv_analyzer_agent refused to run: raw-code analysis disabled (NBB-203)."
+            )
+            return {
+                "success": False,
+                "error": RAW_ANALYSIS_DISABLED_MESSAGE,
+                "usage": {"input_tokens": 0, "output_tokens": 0},
+            }
+
         config = self._load_config()
         tools = self._load_tools()
 

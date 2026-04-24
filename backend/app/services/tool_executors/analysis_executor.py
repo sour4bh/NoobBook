@@ -9,10 +9,24 @@ Educational Note: This executor enables dynamic data analysis by:
 
 The AI agent writes pandas code based on user questions,
 making it flexible for any analysis task.
+
+Security Note (NBB-203, pre-migration mitigation):
+    This executor runs model-written Python via ``exec()``. That is unsafe
+    outside dev/single-user mode. Raw-code analysis is therefore gated off
+    unless BOTH of the following env vars are set:
+
+      - ``NOOBBOOK_AUTH_REQUIRED=false``  (dev/single-user mode)
+      - ``NOOBBOOK_ALLOW_RAW_ANALYSIS=true``  (explicit opt-in; defaults false)
+
+    When the gate is closed, ``run_analysis`` returns an error result and
+    ``exec()`` is never reached. A permanent replacement (declarative
+    analysis or a real sandbox) is tracked in ``docs/tickets/DEFERRED.md``
+    entry ``D-002``. Do not remove this gate until ``D-002`` lands.
 """
 
 import io
 import logging
+import os
 import uuid
 from typing import Dict, Any, Tuple
 
@@ -22,6 +36,53 @@ import numpy as np
 from app.services.integrations.supabase import storage_service
 
 logger = logging.getLogger(__name__)
+
+
+# NBB-203: Env var names for the raw-code analysis gate.
+# Duplicated truthy parsing instead of importing from app.services.auth to
+# keep the gate independent of that module during the structure migration
+# (see ticket NBB-203 parallel-safety note).
+_AUTH_REQUIRED_ENV = "NOOBBOOK_AUTH_REQUIRED"
+_ALLOW_RAW_ANALYSIS_ENV = "NOOBBOOK_ALLOW_RAW_ANALYSIS"
+_TRUTHY = {"1", "true", "yes", "on"}
+
+RAW_ANALYSIS_DISABLED_MESSAGE = (
+    "Raw-code analysis is disabled (NBB-203 / DEFERRED.md D-002). "
+    f"To enable for local dev, set BOTH {_AUTH_REQUIRED_ENV}=false "
+    f"AND {_ALLOW_RAW_ANALYSIS_ENV}=true. "
+    f"{_ALLOW_RAW_ANALYSIS_ENV} defaults to false."
+)
+
+
+def raw_analysis_enabled() -> bool:
+    """
+    Return True only when raw model-written Python execution is allowed.
+
+    Requires BOTH:
+      - ``NOOBBOOK_AUTH_REQUIRED`` is explicitly falsey (defaults to "true",
+        i.e. auth is required, i.e. the gate is closed).
+      - ``NOOBBOOK_ALLOW_RAW_ANALYSIS`` is truthy (defaults unset/false).
+
+    Temporary pre-migration mitigation. Tracked in ``DEFERRED.md`` D-002.
+    """
+    auth_required_raw = os.getenv(_AUTH_REQUIRED_ENV, "true").strip().lower()
+    auth_required = auth_required_raw in _TRUTHY
+    if auth_required:
+        return False
+    allow_raw_raw = os.getenv(_ALLOW_RAW_ANALYSIS_ENV, "false").strip().lower()
+    return allow_raw_raw in _TRUTHY
+
+
+def _raw_analysis_blocked_result() -> Dict[str, Any]:
+    """Build the user/log-facing disabled result for run_analysis."""
+    logger.warning(
+        "Raw-code analysis blocked: %s=%r, %s=%r. See NBB-203 / DEFERRED.md D-002.",
+        _AUTH_REQUIRED_ENV,
+        os.getenv(_AUTH_REQUIRED_ENV, ""),
+        _ALLOW_RAW_ANALYSIS_ENV,
+        os.getenv(_ALLOW_RAW_ANALYSIS_ENV, ""),
+    )
+    return {"success": False, "error": RAW_ANALYSIS_DISABLED_MESSAGE}
 
 
 class AnalysisExecutor:
@@ -56,6 +117,11 @@ class AnalysisExecutor:
             Tuple of (result_dict, is_termination)
         """
         if tool_name == "run_analysis":
+            # NBB-203: block raw-code execution unless dev/single-user mode
+            # has explicitly opted in. See DEFERRED.md D-002 for permanent
+            # replacement tracking.
+            if not raw_analysis_enabled():
+                return _raw_analysis_blocked_result(), False
             return self._run_analysis(tool_input, project_id, source_id), False
         elif tool_name == "return_analysis":
             return tool_input, True

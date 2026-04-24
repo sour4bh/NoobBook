@@ -4,7 +4,7 @@ This register prevents known risks from disappearing while keeping the structure
 
 ## D-001 - Move route modules into domains
 
-**Status:** Deferred.
+**Status:** Deferred
 
 **Reason:** This migration declares `backend/app/api` as transport-only and keeps route files in place to reduce churn. Moving route modules into domain packages is a separate API-boundary redesign.
 
@@ -12,19 +12,22 @@ This register prevents known risks from disappearing while keeping the structure
 
 **Suggested owner:** Future API/domain-boundary epic.
 
-## D-002 - Permanent raw-code analysis replacement if `NBB-404` is not completed in this program
+## D-002 - Permanent raw-code analysis replacement
 
-**Status:** Deferred only after `NBB-203` mitigation is live.
+**Status:** Deferred
+**Unblocks when:** `NBB-203` mitigation is live.
 
-**Reason:** `NBB-203` disables or flags off raw-code analysis outside explicit dev/single-user mode before migration. The permanent solution is declarative analysis or a real sandbox in `NBB-404`.
+**Reason:** `NBB-203` disables or flags off raw-code analysis unless both `NOOBBOOK_AUTH_REQUIRED=false` and `NOOBBOOK_ALLOW_RAW_ANALYSIS=true` before migration. The permanent solution is declarative analysis or a real sandbox, but that replacement is intentionally out of the active migration graph.
 
 **Guardrail:** Do not move source-analysis code before `NBB-203` lands.
+
+Production analysis remains disabled. No ticket may re-enable CSV/database-style model-generated code execution in auth-required mode until `D-002` is completed.
 
 **Suggested owner:** Sources/security owner.
 
 ## D-003 - Broad security review beyond permissions and raw-code analysis
 
-**Status:** Deferred.
+**Status:** Deferred
 
 **Reason:** This backlog fixes the obvious permission and raw-code execution risks, but does not attempt a full security audit.
 
@@ -32,16 +35,17 @@ This register prevents known risks from disappearing while keeping the structure
 - service-role Supabase access patterns
 - media/query-token routes
 - generated asset access
-- integration secret exposure
+- connector secret exposure
 - MCP and external connector trust boundaries
 
-**Suggested owner:** Security/platform owner.
+**Suggested owner:** Security/providers/connectors owner.
 
-## D-004 - Full frontend test expansion if `NBB-108` chooses deferral
+## D-004 - Full frontend test expansion if `NBB-108A` chooses deferral
 
-**Status:** Conditional.
+**Status:** Conditional
+**Unblocks when:** `NBB-108A` chooses deferral.
 
-**Reason:** `NBB-108` must either add baseline frontend ownership/render smoke tests or explicitly defer them here.
+**Reason:** `NBB-108A` must either send baseline frontend ownership/render smoke tests to `NBB-108B` or explicitly defer them here.
 
 **Minimum follow-up if deferred:**
 - app render smoke
@@ -53,7 +57,7 @@ This register prevents known risks from disappearing while keeping the structure
 
 ## D-005 - Cross-stack contract redesign beyond preservation
 
-**Status:** Deferred.
+**Status:** Deferred
 
 **Reason:** `NBB-205` names and preserves current contracts so migration can proceed. Redesigning those contracts is larger than this structure rewrite.
 
@@ -69,5 +73,8 @@ This register prevents known risks from disappearing while keeping the structure
 - source kind/MIME/status contract
 - studio job status/progress/result contract
 - permissions JSON contract
+- auth/session response contract
+- authenticated media/generated-asset access contract
+- query-token asset access contract
 
 **Suggested owner:** Contract/API owner.

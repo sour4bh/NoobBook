@@ -22,6 +22,9 @@ backend/.env
 backend/.flaskenv
 backend/data/google_tokens.json
 
+# Local MCP config (refactory plugin setup; see .mcp.json.example and CONTRIBUTING.md)
+.mcp.json
+
 # Project Data (user uploads, processed files)
 backend/data/projects/
 backend/data/tasks/

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "refactory": {
+      "command": "python",
+      "args": ["<PATH_TO_REFACTORY>/server/main.py"],
+      "cwd": "<PATH_TO_REFACTORY>/server"
+    }
+  }
+}

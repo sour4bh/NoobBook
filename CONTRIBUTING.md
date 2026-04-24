@@ -192,6 +192,8 @@ For the full self-hosted Supabase guide, see [`backend/supabase/SETUP.md`](backe
 - Keep PRs focused on a single feature or fix
 - See `CLAUDE.md` for code style, design system, and architecture details
 
+Agents working on structural migration tickets (`docs/tickets/`): see [`docs/tickets/REFACTORY_SETUP.md`](docs/tickets/REFACTORY_SETUP.md) for refactory plugin setup and the move-plan workflow.
+
 ## Questions?
 
 Open an issue or reach out at [noob@noobbooklm.com](mailto:noob@noobbooklm.com)

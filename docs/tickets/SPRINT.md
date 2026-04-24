@@ -17,9 +17,10 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of sprint start:
+As of 2026-04-24, end of Phase 4 batch 1:
 
-- Branch: `develop`
+- Branch: `main` @ `d102fd4`
+- Merged progress: 19 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1 merged: NBB-208B, NBB-401, NBB-704A)
 - Graph shape: 66 CSV rows, 7 epics, 59 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify each session with `tool_search` for refactory's `move_module` — either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (`--plugin-dir` plugin-framework load)
@@ -28,7 +29,7 @@ As of sprint start:
 
 ## Execution Rules
 
-1. A task may start only when every task in its `depends_on` field has merged to `develop`.
+1. A task may start only when every task in its `depends_on` field has merged to `main`.
 2. Epic-row dependencies are not scheduling gates for individual tasks.
 3. If implementation reveals a missing owner or contradiction, pause product-code edits and patch the owning ticket or deferred register first.
 4. No movement ticket may bypass refactory unless the ticket explicitly says the change is manual.
@@ -56,7 +57,7 @@ This keeps all destructive or history-altering operations in one place.
 
 The lead integrator is the top-level dispatcher and owns sprint flow, not ticket implementation. All irreversible repo state changes are the integrator's alone.
 
-- Keep `develop` green.
+- Keep `main` green.
 - Merge dependency-gate tickets before dependent tickets (subagents cannot merge).
 - Remove worker and reviewer worktrees after merge (`git worktree remove`) and prune stale metadata (`git worktree prune`).
 - Run `python docs/tickets/dag.py --check` after ticket graph edits.
@@ -360,7 +361,7 @@ Every ticket PR must include:
 2. Merge independent fanout tickets as soon as green.
 3. Prefer merging graph-unlocking P0 tickets before P1 cleanup tickets.
 4. Prefer small mechanical store moves before large domain splits if both are unblocked.
-5. Never merge a dependent ticket before its hard-gate ticket is on `develop`.
+5. Never merge a dependent ticket before its hard-gate ticket is on `main`.
 
 ## Verification Ladder
 
@@ -402,19 +403,20 @@ Update this table when work starts, merges, or blocks.
 | `NBB-202B` | Policy and contracts | Blocked | unassigned |  |  |  |  | Blocked on `NBB-202A` and `NBB-207C` (neither merged). `NBB-206` dep satisfied at `1057959`. ToolCapabilityPolicy for Claude-visible tools. |
 | `NBB-207B` | Policy and contracts | Ready | unassigned |  |  |  |  | Deps merged: `NBB-207A` at `a41ea8f`. Prompt ownership + prompt-loader compatibility; do not move prompt JSON yet — loader shims already landed in `NBB-207A`. |
 | `NBB-207C` | Policy and contracts | Ready | unassigned |  |  |  |  | Deps merged: `NBB-207A` at `a41ea8f`, `NBB-203` at `353cb4b`. Tool-schema ownership map; unblocks `NBB-202B` and `NBB-403`. |
-| `NBB-208B` | Policy and contracts | Ready | unassigned |  |  |  |  | Deps merged: `NBB-208A` at `e8a6ea2`. Observability + deployment boundary inventory; documentation-weight ticket. |
+| `NBB-208B` | Policy and contracts | Merged | top-level dispatcher | `worktree-agent-ac94071c62e316930` / cleaned up | `MERGE` | `9e7fe6a` (non-ff of `6f54935`) | PASS worker/reviewer checks; PASS merge/push cleanup | New `docs/deployment/observability.md` + comment-only pointers in `backend/gunicorn.conf.py`, `frontend/nginx.conf`, `backend/app/__init__.py`. No code behavior change; documentation-only boundary inventory. |
 | `NBB-209A` | Stores and mechanical moves | Ready | unassigned |  |  |  |  | Deps merged: `NBB-204` at `86012e4`, `NBB-109` at `465b676`. Move chat + message stores. Refactory required. Collides with any chat-public-surface work (`NBB-301`) — but `NBB-301` stays blocked until 209A merges, so no Phase 4 collision. |
 | `NBB-209B` | Stores and mechanical moves | Ready | unassigned |  |  |  |  | Deps merged: `NBB-204` at `86012e4`. Move project store. Refactory required. Small. |
 | `NBB-209C` | Stores and mechanical moves | Blocked | unassigned |  |  |  |  | Blocked on `NBB-201` (not merged). Auth user/password store move must follow auth consolidation. |
 | `NBB-209D` | Stores and mechanical moves | Ready | unassigned |  |  |  |  | Deps merged: `NBB-204` at `86012e4`. Move brand stores under brand ownership. Refactory required. Small. |
 | `NBB-209E` | Stores and mechanical moves | Ready | unassigned |  |  |  |  | Deps merged: `NBB-204` at `86012e4`, `NBB-206` at `1057959`. Move connector stores (database, MCP connection). Refactory required. |
 | `NBB-210` | Policy and contracts | Ready | unassigned |  |  |  |  | Deps merged: `NBB-204` at `86012e4`, `NBB-205` at `6273f9c`. Give background tasks + active-task status one owner. Critical-path ticket — do not let it sit idle once scheduled. |
-| `NBB-401` | Sources and analysis | Ready | unassigned |  |  |  |  | Deps merged: `NBB-104` at `b12bf50`, `NBB-206` at `1057959`. Create source pipeline skeleton + file-format ownership map. Gates the whole sources lane. |
+| `NBB-401` | Sources and analysis | Merged | top-level dispatcher | `worktree-agent-a61b82a5209584c11` / cleaned up | `MERGE` | `5bbf9d5` (non-ff of `b592272`) | PASS worker/reviewer checks; PASS merge/push cleanup | Extended `backend/app/sources/CHARTER.md` with NBB-401 file-format ownership map; new `backend/app/sources/README.md`; 10 skeleton `__init__.py` markers at `sources/{upload,pdf,pptx,docx,image,link,youtube,audio,analysis,research}/`. Unblocks NBB-402 and the whole sources lane. |
+| `NBB-402` | Sources and analysis | Ready | unassigned |  |  |  |  | Newly unblocked by `NBB-401` merge. Deps merged: `NBB-106` at `efd8b5a`, `NBB-205` at `6273f9c`, `NBB-401` at `5bbf9d5`. Move source ingestion/importers/stores/citations into `sources/` via refactory (7-row target map). Collides with any other ticket editing `backend/app/api/sources/*` or `backend/app/utils/{file,citation,source_content}_utils.py`. |
 | `NBB-501A` | Studio | Blocked | unassigned |  |  |  |  | Blocked on `NBB-207C` (not merged). `NBB-104` dep satisfied at `b12bf50`. Lock studio taxonomy. |
 | `NBB-602` | Frontend | Ready | unassigned |  |  |  |  | Deps merged: `NBB-601` at `0b09d4b`, `NBB-108A` at `6bdeb81`. Move feature-owned hooks/providers under owning domains. |
 | `NBB-603` | Frontend | Ready | unassigned |  |  |  |  | Deps merged: `NBB-601` at `0b09d4b`, `NBB-108A` at `6bdeb81`, `NBB-205` at `6273f9c`. Tighten lib/contexts/API clients/citations/logger ownership. |
 | `NBB-604` | Frontend | Blocked | unassigned |  |  |  |  | Blocked on `NBB-602` and `NBB-603` (neither merged). `NBB-108A` dep satisfied at `6bdeb81`. Normalize frontend domain subtrees + design-system guardrails. |
-| `NBB-704A` | Verification and cleanup | Ready | unassigned |  |  |  |  | Deps merged: `NBB-104` at `b12bf50`, `NBB-206` at `1057959`. Early architecture checks for root + dependency-direction basics. |
+| `NBB-704A` | Verification and cleanup | Merged | top-level dispatcher | `worktree-agent-a5c42c9b801c8ac3e` / cleaned up | `MERGE` | `d102fd4` (non-ff of `c52560b`) | PASS worker/reviewer checks; PASS merge/push cleanup | New `backend/scripts/verify_architecture.py` (root + dependency-direction checks); new `backend/STRUCTURE.md`; new CI job in `.github/workflows/ci.yml`. Enables early architecture enforcement before domain migrations complete. |
 | `NBB-705A` | Verification and cleanup | Blocked | unassigned |  |  |  |  | Blocked on `NBB-201` and `NBB-209C` (neither merged). Drain auth utilities. |
 | `NBB-705C` | Verification and cleanup | Ready | unassigned |  |  |  |  | Deps merged: `NBB-205` at `6273f9c`, `NBB-206` at `1057959`, `NBB-208A` at `e8a6ea2`. Drain provider/Anthropic utilities (Claude cost, token, media helpers). Runs early by design as an owner-specific provider utility drain. |
 
@@ -460,6 +462,8 @@ PASS <short command>; SKIP <short command> - <reason>; FAIL <short command> - <r
 | 2026-04-24 | `NBB-206` incident resolved: lead Dispatch Prompt Requirements now require repo-relative paths in worker prompts; committed in `ec78bdf`. First incident (main-checkout contamination) was caught by Rule 13 and rolled back cleanly. | Lead integrator |
 | 2026-04-24 | Refactory namespace investigation (from prior entry) resolved. Root cause: the `--plugin-dir` load path surfaces refactory under `mcp__plugin_refactory_refactory__*`, not `mcp__refactory__*`. Worker and reviewer specs now allowlist both namespaces; `REFACTORY_SETUP.md` documents both; the baseline self-check text accepts either. Movement tickets (`NBB-201`, `NBB-209A`–`E`, `NBB-402`, `NBB-504`–`507`, `NBB-602`–`604`, `NBB-705A`–`D`) can now dispatch without refactory blockage once their chain dependencies are merged. | Lead integrator |
 | 2026-04-24 | Refactory `validate_imports` at `project_root=backend/` returns ~120 false-positive `unresolved_import_name` errors for Python stdlib (`datetime`, `decimal`, `concurrent.futures`, etc.) because rope cannot resolve stdlib without venv/sys.path wiring. Workers must scope `validate_imports` narrowly (pass `project_root` at the moved package, not `backend/`) and compare the error set against the pre-move baseline instead of treating non-empty output as failure. Worker spec Refactory Workflow step 8 and reviewer spec reflect this. Treat only *new* errors introduced by the move as merge-blocking. | Lead integrator |
+| 2026-04-24 | Phase 4 batch 1 closed: `NBB-208B` at `9e7fe6a`, `NBB-401` at `5bbf9d5`, `NBB-704A` at `d102fd4`. Three documentation-weight tickets merged in parallel (disjoint write scopes: `docs/deployment/` + comment-only pointers, `backend/app/sources/` skeleton, `backend/scripts/` + `.github/workflows/`). `NBB-402` unblocked. Movers in batch 2 onward can dispatch with the refactory namespace + stdlib-baseline fixes in place. | Lead integrator |
+| 2026-04-24 | Batch-parallelism rule refinement: "disjoint write scopes" must account for refactory's transitive import-rewrite fanout, not just the `Primary write scope` field. Store-move tickets like NBB-209A/B/D/E all rewrite `api/**/*.py` routes that import the old `*Service` names; NBB-201 rewrites every auth-guard import site. Pairing two movers that both touch route files (even on disjoint symbols) risks integration-time merge conflicts. Safe mover pairs are two stores targeting fully disjoint `api/*` subtrees (e.g., 209B projects ↔ 209D brand). | Lead integrator |
 
 ## Done Criteria for the Sprint
 

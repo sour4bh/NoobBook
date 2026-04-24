@@ -29,7 +29,7 @@ This inventory names the owner for each observability concern, calls out what lo
 
 | Concern | File | Notes |
 |---|---|---|
-| Task lifecycle log | `backend/app/services/background_services/task_service.py` (`logger.info` on submit/start/complete; `logger.exception` on failure) | Owned by `background/` per `backend/app/background/CHARTER.md`. Persistent truth lives in the Supabase `background_tasks` table; the in-process logger is for operator visibility only. |
+| Task lifecycle log | `backend/app/background/tasks.py` (`logger.info` on submit/start/complete; `logger.exception` on failure) | Owned by `background/` per `backend/app/background/CHARTER.md`. Persistent truth lives in the Supabase `background_tasks` table; the in-process logger is for operator visibility only. |
 | Worker pool | `ThreadPoolExecutor(max_workers=MAX_WORKERS)` inside `TaskService` | See "Async paths" below for the trace-context gap. |
 | Per-domain background threads | `backend/app/services/tool_executors/memory_executor.py` (memory merge), `backend/app/services/integrations/freshdesk/freshdesk_sync_service.py` (`freshdesk-global-sync` daemon thread), `backend/app/services/ai_services/pdf_service.py` and `.../pptx_service.py` (page/slide `ThreadPoolExecutor`) | These are domain-owned today. Logging inside each thread goes through the domain's module logger. None currently propagate request identity or a trace ID across the thread boundary. |
 | Stale-task cleanup | `TaskService._cleanup_stale_tasks_on_startup` | Logs a count of stale tasks marked failed at startup. |

@@ -58,7 +58,7 @@ The lead integrator is the top-level dispatcher and owns sprint flow, not ticket
 
 - Keep `develop` green.
 - Merge dependency-gate tickets before dependent tickets (subagents cannot merge).
-- Remove worker worktrees after merge (`git worktree remove`) and prune stale metadata (`git worktree prune`).
+- Remove worker and reviewer worktrees after merge (`git worktree remove`) and prune stale metadata (`git worktree prune`).
 - Run `python docs/tickets/dag.py --check` after ticket graph edits.
 - Review `move-plan.csv` for one row per mechanical operation.
 - Verify each worker and reviewer result reports files touched, tests run, and any skipped checks.

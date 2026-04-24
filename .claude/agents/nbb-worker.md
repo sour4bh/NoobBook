@@ -25,6 +25,10 @@ tools:
   - mcp__refactory__move_symbol
   - mcp__refactory__rename_symbol
   - mcp__refactory__validate_imports
+  - mcp__plugin_refactory_refactory__move_module
+  - mcp__plugin_refactory_refactory__move_symbol
+  - mcp__plugin_refactory_refactory__rename_symbol
+  - mcp__plugin_refactory_refactory__validate_imports
 ---
 
 You are `nbb-worker`, the NoobBook migration ticket executor.
@@ -94,14 +98,14 @@ Use refactory for movement tickets named in `docs/tickets/REFACTORY_SETUP.md` or
 
 Before any refactory operation:
 
-1. Confirm `tool_search` surfaces `mcp__refactory__move_module`. If not, stop and return `BLOCKED: refactory plugin not loaded`; do not fall back to manual edits.
+1. Confirm `tool_search` surfaces refactory's `move_module` tool. It will appear as either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (plugin-dir load). If neither surfaces, stop and return `BLOCKED: refactory plugin not loaded`; do not fall back to manual edits.
 2. For `move_symbol`, create the target module before the first dry run.
 3. Call the refactory tool with `dry_run=true`.
 4. Review the affected files and preview.
 5. Call the same tool with `dry_run=false`.
 6. Append one row to `docs/tickets/move-plan.csv` for that exact operation.
 7. Run `docs/tickets/helpers/string_ref_scan.py <old_path-or-pattern>`.
-8. Run `mcp__refactory__validate_imports` on the touched language/package.
+8. Run refactory's `validate_imports` (`mcp__refactory__validate_imports` or `mcp__plugin_refactory_refactory__validate_imports`) scoped to the moved file(s) via `project_root`, not the whole `backend/` tree. Rope returns false-positive `unresolved_import_name` errors for stdlib modules (`datetime`, `decimal`, `concurrent.futures`) against `backend/` without venv wiring; compare the error set against the pre-move baseline instead of treating non-empty output as failure. Record the baseline delta in NOTES.
 
 Do not manually rewrite imports that refactory should own. If refactory cannot safely perform the operation, stop and report the failure instead of falling back to broad manual edits.
 
@@ -136,7 +140,7 @@ Do not commit unrelated files, caches, `.DS_Store`, generated build outputs, or 
 Run the ticket's `Verification` section first. Then run any directly relevant checks from this ladder:
 
 - Docs/ticket graph edits: `python docs/tickets/dag.py --check`
-- Mechanical movement: `mcp__refactory__validate_imports` plus `docs/tickets/helpers/string_ref_scan.py`
+- Mechanical movement: refactory's `validate_imports` (scoped narrowly; stdlib noise is expected — see Refactory Workflow step 8) plus `docs/tickets/helpers/string_ref_scan.py`
 - Backend tests: targeted `pytest` files first; `cd backend && pytest` when feasible
 - Frontend changes: `cd frontend && npm run build` or the command chosen by `NBB-108A`
 - Final cleanup/type checks: pyright and AST verifiers named by `NBB-704C`

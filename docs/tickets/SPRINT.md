@@ -22,7 +22,7 @@ As of sprint start:
 - Branch: `develop`
 - Graph shape: 66 CSV rows, 7 epics, 59 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
-- Refactory plugin: required for movement tickets; verify each session with `tool_search` for `mcp__refactory__move_module`
+- Refactory plugin: required for movement tickets; verify each session with `tool_search` for refactory's `move_module` — either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (`--plugin-dir` plugin-framework load)
 - Permanent raw-code analysis replacement: out of scope, tracked by `D-002`
 - Route movement out of `backend/app/api`: out of scope, tracked by `D-001`
 
@@ -458,6 +458,8 @@ PASS <short command>; SKIP <short command> - <reason>; FAIL <short command> - <r
 | 2026-04-24 | Investigate `mcp__refactory__*` tool availability in spawned worker sessions before dispatching Wave 4 movement tickets. `NBB-103`'s refactory dry-run smoke was skipped because the tools were not visible in the worker session; movement tickets (`NBB-201`, `NBB-209A`–`E`, `NBB-402`, `NBB-505`, `NBB-602`–`604`, etc.) depend on the plugin being loadable there. Likely fix is ensuring the worker's `.mcp.json` or plugin-dir configuration is present in each isolated worktree; otherwise movement work will regress to manual `git mv`. | Lead integrator |
 | 2026-04-24 | Name collision between `backend/config.py` (plain module exposing a config dict) and `backend/app/config/` (subpackage) is a preexisting structural issue. `NBB-106`'s worker surfaced it during route smoke scaffolding and worked around it with a test-only conftest shim. A structural fix (rename one of the two, or remove the top-level `backend/config.py`) must land in a later ticket — candidates are `NBB-109` (correctness sweep, if mechanically doable without scope drift) or a dedicated follow-up scoped under the backend charters. `NBB-109`'s dispatch prompt tells the worker to flag-not-fix any encounter of this collision so it does not spawn another shim. | Lead integrator |
 | 2026-04-24 | `NBB-206` incident resolved: lead Dispatch Prompt Requirements now require repo-relative paths in worker prompts; committed in `ec78bdf`. First incident (main-checkout contamination) was caught by Rule 13 and rolled back cleanly. | Lead integrator |
+| 2026-04-24 | Refactory namespace investigation (from prior entry) resolved. Root cause: the `--plugin-dir` load path surfaces refactory under `mcp__plugin_refactory_refactory__*`, not `mcp__refactory__*`. Worker and reviewer specs now allowlist both namespaces; `REFACTORY_SETUP.md` documents both; the baseline self-check text accepts either. Movement tickets (`NBB-201`, `NBB-209A`–`E`, `NBB-402`, `NBB-504`–`507`, `NBB-602`–`604`, `NBB-705A`–`D`) can now dispatch without refactory blockage once their chain dependencies are merged. | Lead integrator |
+| 2026-04-24 | Refactory `validate_imports` at `project_root=backend/` returns ~120 false-positive `unresolved_import_name` errors for Python stdlib (`datetime`, `decimal`, `concurrent.futures`, etc.) because rope cannot resolve stdlib without venv/sys.path wiring. Workers must scope `validate_imports` narrowly (pass `project_root` at the moved package, not `backend/`) and compare the error set against the pre-move baseline instead of treating non-empty output as failure. Worker spec Refactory Workflow step 8 and reviewer spec reflect this. Treat only *new* errors introduced by the move as merge-blocking. | Lead integrator |
 
 ## Done Criteria for the Sprint
 

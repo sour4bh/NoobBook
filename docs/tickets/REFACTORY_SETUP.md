@@ -14,7 +14,7 @@ You need refactory enabled in your session if your current ticket is one of:
 - `NBB-602`, `NBB-603`, `NBB-604`
 - `NBB-705A`, `NBB-705B`, `NBB-705C`, `NBB-705D`
 
-You do **not** need refactory for `NBB-109`, `NBB-207B`, or `NBB-207C` (those use direct edits or `docs/tickets/helpers/json_asset_move.sh`), nor for `NBB-706` (verification and manual cleanup — may still call `mcp__refactory__validate_imports` if the plugin is loaded, but does not execute moves or renames).
+You do **not** need refactory for `NBB-109`, `NBB-207B`, or `NBB-207C` (those use direct edits or `docs/tickets/helpers/json_asset_move.sh`), nor for `NBB-706` (verification and manual cleanup — may still call refactory's `validate_imports` if the plugin is loaded, but does not execute moves or renames).
 
 ## Setup
 
@@ -40,7 +40,12 @@ You do **not** need refactory for `NBB-109`, `NBB-207B`, or `NBB-207C` (those us
 
 ## Self-check before editing code
 
-In any agent session, confirm `tool_search` surfaces `mcp__refactory__move_module`. If it does not, the plugin is not loaded — **stop and fix session setup before editing code**. Silent fallback to manual import editing is a failure mode the migration is designed to avoid.
+In any agent session, confirm `tool_search` surfaces refactory's `move_module` tool. It appears as one of two namespaces depending on how refactory loaded:
+
+- `mcp__refactory__move_module` — raw `.mcp.json` registration.
+- `mcp__plugin_refactory_refactory__move_module` — `--plugin-dir` plugin-framework load (the recommended path).
+
+Either namespace is fine — the agent specs allowlist both. If neither surfaces, the plugin is not loaded — **stop and fix session setup before editing code**. Silent fallback to manual import editing is a failure mode the migration is designed to avoid.
 
 ## Safety rules
 
@@ -48,6 +53,7 @@ In any agent session, confirm `tool_search` surfaces `mcp__refactory__move_modul
 - **`move_symbol` needs the target file to exist.** Refactory's Python `move_symbol` dry-run fails if the target module is not on disk. `touch backend/app/<new_path>` before the first dry-run.
 - **Append to `move-plan.csv` after every move.** One row per operation, ticket id in the first column.
 - **Run `string_ref_scan.py` for the old path.** Refactory's `validate_imports` only sees import statements — string references (monkeypatch targets, `importlib` strings, doc mentions) need a separate pass.
+- **`validate_imports` stdlib noise.** Rope cannot resolve Python stdlib names (`datetime`, `decimal`, `concurrent.futures`, etc.) against NoobBook's `backend/` without venv wiring. Running `validate_imports` at `project_root=backend/` returns a baseline of 100+ false-positive `unresolved_import_name` errors on current `main`. Scope each run narrowly to the moved files (pass a `project_root` pointing at the moved package when possible), compare the error set against the pre-move baseline, and treat only *new* errors as merge-blocking. Record the delta in the worker's `NOTES`.
 - **Post-apply checks.** Run `pyright` on touched packages plus the `NBB-106` route smokes and `NBB-107` auth tests. The ticket is not done until these pass.
 
 ## JSON assets (NBB-207B/C)

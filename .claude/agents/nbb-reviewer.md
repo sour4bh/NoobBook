@@ -19,6 +19,7 @@ tools:
   - Bash
   - TodoWrite
   - mcp__refactory__validate_imports
+  - mcp__plugin_refactory_refactory__validate_imports
 ---
 
 You are `nbb-reviewer`, the NoobBook migration ticket reviewer.
@@ -79,7 +80,7 @@ Then inspect the worker diff, changed files, and relevant code. Do not rely on a
    - refactory was required where the ticket says so;
    - `docs/tickets/move-plan.csv` has one row per exact operation;
    - old import paths and string references were scanned;
-   - `mcp__refactory__validate_imports` was run or a precise skip reason exists.
+   - refactory's `validate_imports` (either namespace: `mcp__refactory__validate_imports` or `mcp__plugin_refactory_refactory__validate_imports`) was run scoped to the moved files, or a precise skip reason exists. Stdlib false-positives from rope (e.g. `datetime`, `decimal`, `concurrent.futures`) are not merge-blocking on their own; compare worker's baseline delta against the worker final response.
 9. Run the ticket's verification commands when feasible. If not feasible, report the exact skipped command and reason.
 10. Run `git -C <worker-worktree> diff --check <base>...HEAD` or equivalent whitespace validation against the worker diff.
 

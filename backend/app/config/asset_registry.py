@@ -197,6 +197,25 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
 }
 
 
+# Tool categories that have moved to domain-owned homes (NBB-207C). Paired
+# with `_PRODUCTION_PROMPT_PATHS` so both asset types replay through one
+# function; the autouse reset fixture in
+# `backend/tests/config/test_asset_registry.py` has a single replay hook.
+#
+# Key: category (the first argument to `tool_loader.load_tool` /
+# `load_tools_from_category` / `load_tools_for_agent`, and the `AGENT_NAME`
+# value for agent services). Consumers keep using the same key; only the
+# directory resolves to the new domain path.
+# Value: directory path relative to `backend/app/`.
+_PRODUCTION_TOOL_PATHS: Dict[str, str] = {
+    "pdf_tools": "sources/pdf/tools",
+    "pptx_tools": "sources/pptx/tools",
+    "image_tools": "sources/image/tools",
+    "web_agent": "sources/link/tools",
+    "deep_research": "sources/analysis/research/tools",
+}
+
+
 def register_production_asset_paths() -> None:
     """Register every domain-owned prompt/tool JSON path landed by NBB-207B/C.
 
@@ -209,3 +228,5 @@ def register_production_asset_paths() -> None:
     app_dir = Path(__file__).resolve().parents[1]
     for prompt_name, relative in _PRODUCTION_PROMPT_PATHS.items():
         register_prompt_path(prompt_name, app_dir / relative)
+    for category, relative in _PRODUCTION_TOOL_PATHS.items():
+        register_tool_category(category, app_dir / relative)

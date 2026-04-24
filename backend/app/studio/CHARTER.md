@@ -46,6 +46,9 @@ Path builder: `backend/app/services/integrations/supabase/storage_service.py::_b
 ## Cross-reference
 
 - Import/dependency charter: `backend/app/studio/__init__.py`.
+- Taxonomy (categories/items): `backend/app/studio/TAXONOMY.md` (NBB-501A).
+- Registry (per-item current vs target): `backend/app/studio/REGISTRY.md` (NBB-501B).
+- Per-item layer map (five-file shape + executable naming rule + contract links): `backend/app/studio/LAYER_MAP.md` (NBB-502).
 - Schema/RLS inventory: `backend/supabase/migrations/OWNERS.md`.
 - Storage bucket and object-path contracts: `backend/supabase/STORAGE_CONTRACTS.md`.
 - Access smoke checklist: `docs/tickets/checklists/data_access_smoke.md`.

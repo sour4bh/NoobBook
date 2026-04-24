@@ -33,12 +33,12 @@ from app.services.tool_executors import database_analyzer_agent_executor  # Modu
 from app.services.tool_executors.studio_signal_executor import studio_signal_executor
 from app.services.tool_executors.studio_audio_executor import studio_audio_executor
 from app.studio.marketing.email.run import email_agent_executor
-from app.services.tool_executors.presentation_agent_executor import presentation_agent_executor
 
 # website_agent_executor moved to app.studio.design.website.run (NBB-503);
 # blog_agent_executor moved to app.studio.documents.blog.run (NBB-504);
 # business_report_agent_executor moved to app.studio.documents.business_report.run (NBB-504);
 # presentation_agent_executor moved to app.studio.documents.presentation.run (NBB-504);
+# component_agent_executor moved to app.studio.design.component.run (NBB-506);
 # consumers import the singleton directly from the new home.
 
 __all__ = [

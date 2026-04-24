@@ -560,7 +560,3 @@ class ProjectService:
             .execute()
         )
         return bool(response.data)
-
-
-# Singleton instance
-project_service = ProjectService()

@@ -34,9 +34,9 @@ Routes:
 from datetime import datetime
 from flask import jsonify, request
 from app.api.projects import projects_bp
-from app.services.data_services import project_service
 from app.services.ai_services.memory_service import memory_service
 from app.services.auth.rbac import get_request_identity
+from app.projects import store
 
 
 @projects_bp.route('/projects/<project_id>/memory', methods=['GET'])
@@ -69,7 +69,7 @@ def get_project_memory(project_id):
     try:
         identity = get_request_identity()
         # Verify project exists
-        project = project_service.get_project(project_id, user_id=identity.user_id)
+        project = store.get_project(project_id, user_id=identity.user_id)
         if not project:
             return jsonify({
                 "success": False,
@@ -117,7 +117,7 @@ def update_project_memory(project_id):
         identity = get_request_identity()
 
         # Verify project exists
-        project = project_service.get_project(project_id, user_id=identity.user_id)
+        project = store.get_project(project_id, user_id=identity.user_id)
         if not project:
             return jsonify({
                 "success": False,
@@ -134,7 +134,7 @@ def update_project_memory(project_id):
         # Update user memory if provided
         if "user_memory" in data:
             user_mem_text = data["user_memory"] or ""
-            project_service.update_user_memory(user_mem_text, user_id=identity.user_id)
+            store.update_user_memory(user_mem_text, user_id=identity.user_id)
 
         # Update project memory if provided (wrap in JSONB shape)
         if "project_memory" in data:
@@ -143,7 +143,7 @@ def update_project_memory(project_id):
                 "memory": proj_mem_text,
                 "updated_at": datetime.now().isoformat()
             }
-            project_service.update_project_memory(project_id, memory_data, user_id=identity.user_id)
+            store.update_project_memory(project_id, memory_data, user_id=identity.user_id)
 
         return jsonify({"success": True}), 200
 

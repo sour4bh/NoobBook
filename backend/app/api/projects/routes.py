@@ -28,8 +28,8 @@ Routes:
 """
 from flask import request, jsonify
 from app.api.projects import projects_bp
-from app.services.data_services import project_service
 from app.services.auth.rbac import get_request_identity
+from app.projects import store
 
 
 @projects_bp.route('/projects', methods=['GET'])
@@ -49,7 +49,7 @@ def list_projects():
     """
     try:
         identity = get_request_identity()
-        projects = project_service.list_all_projects(user_id=identity.user_id)
+        projects = store.list_all_projects(user_id=identity.user_id)
         return jsonify({
             "success": True,
             "projects": projects,
@@ -103,7 +103,7 @@ def create_project():
             }), 400
 
         # Create the project
-        project = project_service.create_project(
+        project = store.create_project(
             name=name,
             description=data.get('description', ''),
             user_id=identity.user_id,
@@ -146,7 +146,7 @@ def get_project(project_id):
     """
     try:
         identity = get_request_identity()
-        project = project_service.get_project(project_id, user_id=identity.user_id)
+        project = store.get_project(project_id, user_id=identity.user_id)
 
         if not project:
             return jsonify({
@@ -202,7 +202,7 @@ def update_project(project_id):
             }), 400
 
         # Update the project
-        updated_project = project_service.update_project(
+        updated_project = store.update_project(
             project_id=project_id,
             name=data.get('name'),
             description=data.get('description'),
@@ -258,7 +258,7 @@ def delete_project(project_id):
     """
     try:
         identity = get_request_identity()
-        success = project_service.delete_project(project_id, user_id=identity.user_id)
+        success = store.delete_project(project_id, user_id=identity.user_id)
 
         if not success:
             return jsonify({
@@ -304,7 +304,7 @@ def open_project(project_id):
     """
     try:
         identity = get_request_identity()
-        project = project_service.open_project(project_id, user_id=identity.user_id)
+        project = store.open_project(project_id, user_id=identity.user_id)
 
         if not project:
             return jsonify({

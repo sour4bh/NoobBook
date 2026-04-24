@@ -16,10 +16,10 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 
 from app.services.integrations.claude import claude_service
-from app.services.data_services import project_service
-from app.services.data_services.project_service import DEFAULT_USER_ID
+from app.projects.store import DEFAULT_USER_ID
 from app.config import tool_loader, prompt_loader
 from app.utils import claude_parsing_utils
+from app.projects import store
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class MemoryService:
             User memory string or None if no memory exists
         """
         try:
-            return project_service.get_user_memory(user_id=user_id)
+            return store.get_user_memory(user_id=user_id)
         except Exception as e:
             logger.exception("Error reading user memory")
             return None
@@ -89,7 +89,7 @@ class MemoryService:
             Project memory string or None if no memory exists
         """
         try:
-            memory_data = project_service.get_project_memory(project_id, user_id=user_id)
+            memory_data = store.get_project_memory(project_id, user_id=user_id)
             if memory_data:
                 return memory_data.get("memory")
             return None
@@ -112,7 +112,7 @@ class MemoryService:
             True if saved successfully
         """
         try:
-            return project_service.update_user_memory(memory, user_id=user_id)
+            return store.update_user_memory(memory, user_id=user_id)
         except Exception as e:
             logger.exception("Error saving user memory")
             return False
@@ -138,7 +138,7 @@ class MemoryService:
                 "memory": memory,
                 "updated_at": datetime.now().isoformat()
             }
-            return project_service.update_project_memory(project_id, memory_data, user_id=user_id)
+            return store.update_project_memory(project_id, memory_data, user_id=user_id)
         except Exception as e:
             logger.exception("Error saving project memory")
             return False
@@ -325,7 +325,7 @@ class MemoryService:
         """
         try:
             # Clear the memory by setting it to empty
-            return project_service.update_project_memory(project_id, {}, user_id=user_id)
+            return store.update_project_memory(project_id, {}, user_id=user_id)
         except Exception as e:
             logger.exception("Error clearing project memory")
             return False

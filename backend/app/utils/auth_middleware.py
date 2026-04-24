@@ -22,6 +22,7 @@ from typing import Optional, Dict, Tuple
 
 from flask import request, jsonify, g
 from app.services.integrations.supabase import get_supabase
+import app.projects.store
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,7 @@ def verify_project_access(project_id: str) -> Optional[tuple]:
     from app.services.data_services import project_service
 
     user_id = get_current_user_id()
-    project = project_service.get_project(project_id, user_id=user_id)
+    project = app.projects.store.get_project(project_id, user_id=user_id)
 
     if not project:
         return jsonify({"success": False, "error": "Project not found"}), 404

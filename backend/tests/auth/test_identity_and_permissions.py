@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from flask import Flask
+import app.projects.store
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +84,7 @@ def test_identity_single_user_fallback_when_auth_required(auth_required_env):
     """No token, no dev headers, auth required: fallback to DEFAULT_USER_ID
     with the 'user' role (not admin)."""
     from app.services.auth import rbac
-    from app.services.data_services.project_service import DEFAULT_USER_ID
+    from app.projects.store import DEFAULT_USER_ID
 
     app = _make_flask_app()
     with patch.object(rbac, "is_supabase_enabled", return_value=False):
@@ -100,7 +101,7 @@ def test_identity_single_user_fallback_in_dev_mode(auth_optional_env):
     """Dev/single-user mode: fallback promotes to admin role. Captures
     current documented behavior; NBB-202A will reconsider."""
     from app.services.auth import rbac
-    from app.services.data_services.project_service import DEFAULT_USER_ID
+    from app.projects.store import DEFAULT_USER_ID
 
     app = _make_flask_app()
     with patch.object(rbac, "is_supabase_enabled", return_value=False):
@@ -154,7 +155,7 @@ def test_verify_project_access_owner_returns_none(auth_app):
     from app.services import data_services
 
     with auth_app.test_request_context("/x"), patch.object(
-        data_services.project_service,
+        app.projects.store,
         "get_project",
         return_value={"id": "proj-1", "user_id": "user-owner"},
     ):
@@ -173,7 +174,7 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
     from app.services import data_services
 
     with auth_app.test_request_context("/x"), patch.object(
-        data_services.project_service,
+        app.projects.store,
         "get_project",
         return_value=None,
     ):

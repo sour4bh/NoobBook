@@ -12,6 +12,7 @@ Pricing (per 1M tokens):
 import logging
 from typing import Dict, Any, Optional
 from threading import Lock
+import app.projects.store
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ def _calculate_cost(model_key: str, input_tokens: int, output_tokens: int) -> fl
 def _get_project_service():
     """Get project service (lazy import to avoid circular imports)."""
     from app.services.data_services import project_service
-    return project_service
+    return app.projects.store
 
 
 def _get_chat_service():

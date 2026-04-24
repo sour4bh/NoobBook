@@ -19,3 +19,17 @@ NBB-207B,json,backend/data/prompts/web_agent_prompt.json,backend/app/sources/lin
 NBB-207B,json,backend/data/prompts/web_agent_prompt.json,,,,text_reference_check,string_ref_scan.py
 NBB-207B,json,backend/data/prompts/deep_research_agent_prompt.json,backend/app/sources/analysis/research/prompts/deep_research_agent_prompt.json,,,json_asset_move,json_asset_move.sh
 NBB-207B,json,backend/data/prompts/deep_research_agent_prompt.json,,,,text_reference_check,string_ref_scan.py
+NBB-207C,json,backend/app/services/tools/pdf_tools/pdf_extraction.json,backend/app/sources/pdf/tools/pdf_extraction.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/pdf_tools,,,,text_reference_check,string_ref_scan.py
+NBB-207C,json,backend/app/services/tools/pptx_tools/pptx_extraction.json,backend/app/sources/pptx/tools/pptx_extraction.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/pptx_tools,,,,text_reference_check,string_ref_scan.py
+NBB-207C,json,backend/app/services/tools/image_tools/image_extraction.json,backend/app/sources/image/tools/image_extraction.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/image_tools,,,,text_reference_check,string_ref_scan.py
+NBB-207C,json,backend/app/services/tools/web_agent/return_search_result.json,backend/app/sources/link/tools/return_search_result.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/web_agent/tavily_search.json,backend/app/sources/link/tools/tavily_search.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/web_agent/web_search.json,backend/app/sources/link/tools/web_search.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/web_agent,,,,text_reference_check,string_ref_scan.py
+NBB-207C,json,backend/app/services/tools/deep_research/tavily_search_advance.json,backend/app/sources/analysis/research/tools/tavily_search_advance.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/deep_research/web_search.json,backend/app/sources/analysis/research/tools/web_search.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/deep_research/write_research_to_file.json,backend/app/sources/analysis/research/tools/write_research_to_file.json,,,json_asset_move,json_asset_move.sh
+NBB-207C,json,backend/app/services/tools/deep_research,,,,text_reference_check,string_ref_scan.py

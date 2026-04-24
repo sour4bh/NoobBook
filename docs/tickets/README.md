@@ -17,7 +17,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 | `NBB-401` through `NBB-403` | Sources migration tasks. Permanent raw-code replacement is deferred in `D-002`. |
 | `NBB-501A/B` through `NBB-507` | Studio migration tasks |
 | `NBB-601` through `NBB-604` | Frontend tightening tasks |
-| `NBB-701` through `NBB-706`, including split tasks `NBB-704A/B` and `NBB-705A-E` | Verification and cleanup tasks |
+| `NBB-701` through `NBB-706`, including split tasks `NBB-704A/B/C` and `NBB-705A-E` | Verification and cleanup tasks |
 
 ## Core Policies
 
@@ -59,11 +59,11 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 
 | Stream | May start after |
 |---|---|
-| Epic 003 Chat | `NBB-106`, `NBB-107`, `NBB-201`, `NBB-202A`, `NBB-205`, `NBB-206`, `NBB-207A`, `NBB-207C`, and `NBB-209A` |
+| Epic 003 Chat | `NBB-106`, `NBB-107`, `NBB-109`, `NBB-201`, `NBB-202A`, `NBB-205`, `NBB-206`, `NBB-207A`, `NBB-207C`, and `NBB-209A` |
 | Epic 004 Sources | Skeleton/map work starts after `NBB-104` and `NBB-206`; behavior moves wait on exact task deps such as `NBB-106`, `NBB-203`, `NBB-205`, `NBB-207A/B/C`, and `NBB-202B` where applicable |
 | Epic 005 Studio | Taxonomy starts after `NBB-104` and `NBB-207C`; registry and implementation work wait on exact task deps for route smokes, contracts, provider/connector boundaries, prompt/tool ownership, and background ownership |
 | Epic 006 Frontend | `NBB-105` and `NBB-108A`; `NBB-108B` may run in parallel if frontend tests are chosen |
-| Epic 007 Cleanup | Relevant owning migrations completed, then split cleanup tasks land by owner before `NBB-706` |
+| Epic 007 Cleanup | Relevant owning migrations completed, then split cleanup tasks land by owner; `NBB-704C` type/AST safety checks gate `NBB-706` |
 
 ## Epics
 

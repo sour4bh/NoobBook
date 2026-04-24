@@ -18,7 +18,8 @@ Generated from `docs/tickets/tickets.csv` by `python3 docs/tickets/dag.py --writ
 | 9 | `NBB-504`, `NBB-505`, `NBB-506`, `NBB-507`, `NBB-701`, `NBB-703`, `NBB-704B` |
 | 10 | `NBB-705D` |
 | 11 | `NBB-705E` |
-| 12 | `NBB-706` |
+| 12 | `NBB-704C` |
+| 13 | `NBB-706` |
 
 ## Mermaid Task Dependency DAG
 
@@ -180,6 +181,11 @@ flowchart LR
   NBB402 --> NBB704B
   NBB503 --> NBB704B
   NBB603 --> NBB704B
+  NBB704C["NBB-704C"]:::p1
+  NBB704B --> NBB704C
+  NBB109 --> NBB704C
+  NBB705E["NBB-705E"]:::p1
+  NBB705E --> NBB704C
   NBB705A["NBB-705A"]:::p1
   NBB201 --> NBB705A
   NBB209C --> NBB705A
@@ -195,7 +201,6 @@ flowchart LR
   NBB503 --> NBB705D
   NBB504 --> NBB705D
   NBB506 --> NBB705D
-  NBB705E["NBB-705E"]:::p1
   NBB705A --> NBB705E
   NBB705B --> NBB705E
   NBB705C --> NBB705E
@@ -205,6 +210,7 @@ flowchart LR
   NBB702 --> NBB706
   NBB703 --> NBB706
   NBB704B --> NBB706
+  NBB704C --> NBB706
   NBB705E --> NBB706
 ```
 
@@ -279,5 +285,6 @@ gantt
   NBB-704B M :2026-01-10, 1d
   NBB-705D M :2026-01-11, 1d
   NBB-705E S :2026-01-12, 1d
-  NBB-706 L :2026-01-13, 1d
+  NBB-704C M :2026-01-13, 1d
+  NBB-706 L :2026-01-14, 1d
 ```

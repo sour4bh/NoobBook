@@ -2,7 +2,7 @@
 
 This doc is agent-targeted setup for the `docs/tickets/` migration program. It documents how to enable the **refactory** Claude Code plugin so movement tickets share one codemod backend, plus the safety rules agents must follow.
 
-Refactory exposes four MCP tools — `move_module`, `move_symbol`, `rename_symbol`, `validate_imports` — backed by rope (Python) and ts-morph (TypeScript). NBB-103 wires it into NoobBook; movement tickets call refactory tools directly.
+Refactory exposes four MCP tools — `move_module`, `move_symbol`, `rename_symbol`, `validate_imports` — backed by rope (Python) and ts-morph (TypeScript). NBB-103 wires it into NoobBook; movement tickets call refactory tools directly. The safety contract is refactory dry-run, apply, `validate_imports`, string-reference scan, pyright on touched packages, and the relevant ticket tests.
 
 ## When you need this
 

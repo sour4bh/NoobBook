@@ -47,7 +47,7 @@ These maps are indexed here for review, but the owning ticket body is the implem
 | `NBB-015` | Utils cleanup | `NBB-705A` through `NBB-705E` |
 | `NBB-016` | Frontend shells | `NBB-105`, `NBB-601`, `NBB-602` |
 | `NBB-017` | Frontend lib/contexts | `NBB-603`, `NBB-604` |
-| `NBB-018` | Tests/shims/delete legacy | `NBB-103`, `NBB-701`, `NBB-702`, `NBB-703`, `NBB-704A`, `NBB-704B`, `NBB-706` |
+| `NBB-018` | Tests/shims/delete legacy | `NBB-103`, `NBB-701`, `NBB-702`, `NBB-703`, `NBB-704A`, `NBB-704B`, `NBB-704C`, `NBB-706` |
 
 ## Finding Mapping
 
@@ -66,7 +66,7 @@ These maps are indexed here for review, but the owning ticket body is the implem
 | Executor/tool-run pair invariant missing | `NBB-502`, `NBB-403` |
 | Chat naming collision risk | `NBB-304` |
 | Service suffix dropping/stateless conversion/barrel cleanup missing | `NBB-706` |
-| Codemod, AST verifier, pyright, CI missing | `NBB-103`, `NBB-704A`, `NBB-704B` |
+| Codemod, AST verifier, pyright, CI missing | `NBB-103`, `NBB-109`, `NBB-704A`, `NBB-704B`, `NBB-704C` |
 | Sub-buckets not frozen | `NBB-103` |
 | Auth middleware target ambiguity | `NBB-201` |
 | Cross-stack citation and source contracts omitted | `NBB-205`, `NBB-301`, `NBB-402` |

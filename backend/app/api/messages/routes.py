@@ -101,7 +101,7 @@ def send_message(project_id, chat_id):
             'error': str(e)
         }), 404
     except Exception as e:
-        current_app.logger.error(f"Error sending message: {e}")
+        current_app.logger.exception("Error sending message")
         return jsonify({
             'success': False,
             'error': str(e)

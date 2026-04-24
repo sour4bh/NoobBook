@@ -7,8 +7,6 @@ jira_search_issues, jira_get_issue, jira_get_project) for a specific project.
 No data is synced or stored locally — all queries go directly to the Jira API.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import uuid

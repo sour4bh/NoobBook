@@ -12,8 +12,6 @@ Authentication note:
 - Otherwise we fall back to DEFAULT_USER_ID (admin).
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import os
 from functools import wraps

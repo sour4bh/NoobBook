@@ -8,8 +8,6 @@ It uses tool-calling to:
 3) Return a final answer via return_database_result (termination tool)
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import uuid

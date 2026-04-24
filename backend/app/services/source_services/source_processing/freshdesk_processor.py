@@ -7,8 +7,6 @@ sync and just builds the summary. Only the first Freshdesk source triggers
 a full API sync. Subsequent projects get instant access to existing data.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 from datetime import datetime

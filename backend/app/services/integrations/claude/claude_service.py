@@ -257,6 +257,15 @@ class ClaudeService:
         if limit_error:
             raise ValueError(limit_error)
 
+        # Warn loudly if project_id is missing so cost tracking omissions are
+        # observable. The call still proceeds — billing just won't be recorded.
+        if not project_id:
+            logger.warning(
+                "claude_service.send_message called without project_id; "
+                "cost tracking skipped (model=%s)",
+                model,
+            )
+
         client = self._get_client()
         api_params = self._build_api_params(
             messages=messages,

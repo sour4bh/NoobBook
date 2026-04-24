@@ -61,16 +61,27 @@ class ChatService:
         )
 
         chats = response.data or []
+        if not chats:
+            return chats
 
-        # Add message count for each chat
+        # Fetch message counts in a single query rather than one per chat
+        # (per-chat SELECT count(*) was an N+1 hot path before the chat store move).
+        chat_ids = [chat["id"] for chat in chats]
+        messages_response = (
+            self.supabase.table(self.messages_table)
+            .select("chat_id")
+            .in_("chat_id", chat_ids)
+            .execute()
+        )
+
+        counts: Dict[str, int] = {}
+        for row in messages_response.data or []:
+            chat_id = row.get("chat_id")
+            if chat_id:
+                counts[chat_id] = counts.get(chat_id, 0) + 1
+
         for chat in chats:
-            count_response = (
-                self.supabase.table(self.messages_table)
-                .select("id", count="exact")
-                .eq("chat_id", chat["id"])
-                .execute()
-            )
-            chat["message_count"] = count_response.count or 0
+            chat["message_count"] = counts.get(chat["id"], 0)
 
         return chats
 

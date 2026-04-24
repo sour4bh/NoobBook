@@ -20,6 +20,8 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+from app.config import asset_registry
+
 
 class ToolLoader:
     """
@@ -41,6 +43,32 @@ class ToolLoader:
         # Tools are stored in app/services/tools/
         self.tools_dir = Path(__file__).parent.parent / "services" / "tools"
 
+    def _resolve_tool_file(self, category: str, tool_name: str) -> Path:
+        """Resolve a tool JSON file through the registry, then the legacy dir.
+
+        Raises `AssetNotFoundError` (a `FileNotFoundError`) when no candidate
+        exists, preserving the long-standing `load_tool` contract that
+        missing tools raise `FileNotFoundError`.
+        """
+        return asset_registry.resolve_tool_path(
+            category, tool_name, self.tools_dir
+        )
+
+    def _resolve_category_dirs(self, category: str) -> List[Path]:
+        """Return existing directories for a tool category in priority order.
+
+        Registered domain-owned directories come first; the legacy
+        `services/tools/<category>/` directory comes last. Non-existent
+        registered dirs are skipped so a partially-migrated category still
+        enumerates its legacy files.
+        """
+        dirs = [
+            d
+            for d in asset_registry.iter_tool_category_dirs(category, self.tools_dir)
+            if d.exists()
+        ]
+        return dirs
+
     def load_tool(self, category: str, tool_name: str) -> Dict[str, Any]:
         """
         Load a single tool definition from a JSON file.
@@ -59,12 +87,16 @@ class ToolLoader:
             FileNotFoundError: If tool file doesn't exist
             json.JSONDecodeError: If JSON is malformed
         """
-        tool_path = self.tools_dir / category / f"{tool_name}.json"
-
-        if not tool_path.exists():
+        try:
+            tool_path = self._resolve_tool_file(category, tool_name)
+        except asset_registry.AssetNotFoundError:
+            available = (
+                list(self.tools_dir.iterdir()) if self.tools_dir.exists() else []
+            )
             raise FileNotFoundError(
-                f"Tool definition not found: {tool_path}\n"
-                f"Available categories: {list(self.tools_dir.iterdir())}"
+                f"Tool definition not found for category={category!r} "
+                f"tool={tool_name!r}.\n"
+                f"Available legacy categories: {available}"
             )
 
         with open(tool_path, "r") as f:
@@ -91,20 +123,31 @@ class ToolLoader:
         Raises:
             FileNotFoundError: If category directory doesn't exist
         """
-        category_dir = self.tools_dir / category
+        category_dirs = self._resolve_category_dirs(category)
 
-        if not category_dir.exists():
+        if not category_dirs:
+            available = (
+                [d.name for d in self.tools_dir.iterdir() if d.is_dir()]
+                if self.tools_dir.exists()
+                else []
+            )
             raise FileNotFoundError(
-                f"Tool category not found: {category_dir}\n"
-                f"Available categories: {[d.name for d in self.tools_dir.iterdir() if d.is_dir()]}"
+                f"Tool category not found: {category!r}\n"
+                f"Available legacy categories: {available}"
             )
 
-        tools = []
-        for tool_file in category_dir.glob("*.json"):
-            with open(tool_file, "r") as f:
-                tool_def = json.load(f)
-            self._validate_tool_definition(tool_def, str(tool_file))
-            tools.append(tool_def)
+        tools: List[Dict[str, Any]] = []
+        seen: set = set()
+        for category_dir in category_dirs:
+            for tool_file in category_dir.glob("*.json"):
+                if tool_file.stem in seen:
+                    # Registered dirs win over legacy when stems collide.
+                    continue
+                with open(tool_file, "r") as f:
+                    tool_def = json.load(f)
+                self._validate_tool_definition(tool_def, str(tool_file))
+                tools.append(tool_def)
+                seen.add(tool_file.stem)
 
         return tools
 
@@ -146,11 +189,22 @@ class ToolLoader:
         Get list of available tool categories.
 
         Returns:
-            List of category names (subdirectory names)
+            Category names from the legacy `services/tools/` directory plus
+            any categories registered via the asset registry.
         """
-        if not self.tools_dir.exists():
-            return []
-        return [d.name for d in self.tools_dir.iterdir() if d.is_dir()]
+        categories: List[str] = []
+        seen: set = set()
+        # Registered categories first (same priority they have for loads).
+        for category in asset_registry.registered_tool_categories():
+            if category not in seen:
+                categories.append(category)
+                seen.add(category)
+        if self.tools_dir.exists():
+            for d in self.tools_dir.iterdir():
+                if d.is_dir() and d.name not in seen:
+                    categories.append(d.name)
+                    seen.add(d.name)
+        return categories
 
     def get_available_tools(self, category: str) -> List[str]:
         """
@@ -162,12 +216,15 @@ class ToolLoader:
         Returns:
             List of tool names (without .json extension)
         """
-        category_dir = self.tools_dir / category
-
-        if not category_dir.exists():
-            return []
-
-        return [f.stem for f in category_dir.glob("*.json")]
+        tools: List[str] = []
+        seen: set = set()
+        for category_dir in self._resolve_category_dirs(category):
+            for f in category_dir.glob("*.json"):
+                if f.stem in seen:
+                    continue
+                tools.append(f.stem)
+                seen.add(f.stem)
+        return tools
 
     def load_tools_for_agent(
         self,
@@ -190,19 +247,33 @@ class ToolLoader:
         Returns:
             Dict with 'server_tools', 'client_tools', and 'beta_headers'
         """
-        category_dir = self.tools_dir / category
+        category_dirs = self._resolve_category_dirs(category)
 
-        if not category_dir.exists():
+        if not category_dirs:
+            available = (
+                [d.name for d in self.tools_dir.iterdir() if d.is_dir()]
+                if self.tools_dir.exists()
+                else []
+            )
             raise FileNotFoundError(
-                f"Tool category not found: {category_dir}\n"
-                f"Available categories: {[d.name for d in self.tools_dir.iterdir() if d.is_dir()]}"
+                f"Tool category not found: {category!r}\n"
+                f"Available legacy categories: {available}"
             )
 
-        server_tools = []
-        client_tools = []
-        beta_headers = []
+        server_tools: List[Dict[str, Any]] = []
+        client_tools: List[Dict[str, Any]] = []
+        beta_headers: List[str] = []
+        seen: set = set()
 
-        for tool_file in category_dir.glob("*.json"):
+        tool_files = []
+        for category_dir in category_dirs:
+            for tool_file in category_dir.glob("*.json"):
+                if tool_file.stem in seen:
+                    continue
+                tool_files.append(tool_file)
+                seen.add(tool_file.stem)
+
+        for tool_file in tool_files:
             with open(tool_file, "r") as f:
                 tool_def = json.load(f)
 

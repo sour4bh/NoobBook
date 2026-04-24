@@ -27,7 +27,7 @@ You'll need the following API keys:
 
 ### 1. Clone and Navigate
 ```bash
-git clone https://github.com/your-repo/NoobBook.git
+git clone https://github.com/sour4bh/NoobBook.git
 cd NoobBook/docker
 ```
 

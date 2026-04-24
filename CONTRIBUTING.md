@@ -2,24 +2,19 @@
 
 Thanks for your interest in contributing to NoobBook!
 
-## Branch Strategy
+## Repository and Branch
 
-We use two main branches:
+- Canonical repository: [`sour4bh/NoobBook`](https://github.com/sour4bh/NoobBook).
+- Default branch: `main`.
+- All pull requests target `main`.
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Stable release. Use this to test and play around with NoobBook. |
-| `develop` | Latest changes (Supabase, Docker, multi-user). **This is where all new work goes.** |
-
-We don't have a separate staging branch yet — `develop` serves as both development and staging for now.
-
-> **All contributions must target `develop`.** PRs to `main` will be rejected.
+> Historical note: an earlier `develop` branch and the `TeacherOp/NoobBook` upstream fork are legacy. Do not clone or target them for new work.
 
 ---
 
-## Development Setup (develop branch)
+## Development Setup
 
-The `develop` branch requires **Supabase** (PostgreSQL + Storage + Auth). The app will not start without it.
+NoobBook requires **Supabase** (PostgreSQL + Storage + Auth). The app will not start without it.
 
 ### Prerequisites
 
@@ -49,10 +44,9 @@ Get these before starting:
 This starts everything — Supabase, backend, frontend, and runs database migrations automatically.
 
 ```bash
-# 1. Clone and switch to develop
-git clone https://github.com/amitdevv/NoobBook.git
+# 1. Clone
+git clone https://github.com/sour4bh/NoobBook.git
 cd NoobBook
-git checkout develop
 
 # 2. Copy env template and add your API keys
 cp docker/.env.example docker/.env
@@ -160,10 +154,10 @@ For the full self-hosted Supabase guide, see [`backend/supabase/SETUP.md`](backe
 
 1. **Fork the repository**
 
-2. **Pull from `develop`** (not main)
+2. **Sync with `main`**
    ```bash
-   git checkout develop
-   git pull origin develop
+   git checkout main
+   git pull origin main
    ```
 
 3. **Create your feature branch**
@@ -180,15 +174,15 @@ For the full self-hosted Supabase guide, see [`backend/supabase/SETUP.md`](backe
    cd backend && pytest
    ```
 
-6. **Push and create a Pull Request to `develop`**
+6. **Push and open a Pull Request against `main`**
    ```bash
    git push origin your-feature-name
    ```
-   Then open a PR targeting the `develop` branch.
+   Open the PR against `sour4bh/NoobBook`'s `main` branch.
 
 ## Important
 
-- PRs to `main` will be rejected — always target `develop`
+- All PRs target `main` on `sour4bh/NoobBook`
 - Keep PRs focused on a single feature or fix
 - See `CLAUDE.md` for code style, design system, and architecture details
 

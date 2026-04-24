@@ -240,9 +240,8 @@ Get these before running setup:
 
 ```bash
 # Clone the repo
-git clone https://github.com/TeacherOp/NoobBook.git
+git clone https://github.com/sour4bh/NoobBook.git
 cd NoobBook
-git checkout develop
 
 # Copy env template
 cp docker/.env.example docker/.env
@@ -486,15 +485,14 @@ For the full Supabase setup guide, see [`backend/supabase/SETUP.md`](backend/sup
 
 Contributions welcome!
 
-**Branch strategy:**
-- `main` - Stable branch for testing and using NoobBook
-- `develop` - Latest changes, all PRs go here
+- Canonical repo: [`sour4bh/NoobBook`](https://github.com/sour4bh/NoobBook)
+- Default branch and PR target: `main`
 
 **Quick start:**
 1. Fork the repo
-2. Pull from `develop`
+2. Sync with `main`
 3. Create your branch
-4. Open a PR to `develop` (not main)
+4. Open a PR against `main`
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full details and `CLAUDE.md` for code guidelines.
 

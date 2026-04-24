@@ -47,7 +47,7 @@ docker compose version
 ## 4. Clone and Configure
 
 ```bash
-git clone -b develop https://github.com/TeacherOp/NoobBook.git
+git clone https://github.com/sour4bh/NoobBook.git
 cd NoobBook
 cp docker/.env.example docker/.env
 nano docker/.env
@@ -130,7 +130,7 @@ sudo rm -rf NoobBook                           # Remove repo
 sudo docker system prune -a --volumes -f       # Remove all Docker data
 
 # Then redo from step 4
-git clone -b develop https://github.com/TeacherOp/NoobBook.git
+git clone https://github.com/sour4bh/NoobBook.git
 cd NoobBook
 cp docker/.env.example docker/.env
 nano docker/.env                               # Add API keys

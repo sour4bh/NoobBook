@@ -1,6 +1,10 @@
 """
 Gunicorn configuration for NoobBook production deployment.
 
+Owner: deployment surface (no Python package owner). Inventory in
+`docs/deployment/observability.md` (NBB-208B). Migration tickets must preserve
+the deployment constraints listed there before altering anything in this file.
+
 Educational Note: Gunicorn is a production-grade WSGI server that replaces
 Flask's built-in Werkzeug dev server. Key differences:
 - Werkzeug: single-process, no crash recovery, not designed for real traffic

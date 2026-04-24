@@ -14,12 +14,12 @@ from typing import Any, Dict, List, Optional, Tuple
 from supabase import create_client
 
 from app.services.integrations.supabase import is_supabase_enabled
-from app.utils.password_utils import generate_secure_password
+from app.auth.password import generate_secure_password
 
 logger = logging.getLogger(__name__)
 
 
-class UserService:
+class UserStore:
     def __init__(self) -> None:
         if not is_supabase_enabled():
             raise RuntimeError(
@@ -328,13 +328,13 @@ class UserService:
         return password
 
 
-_user_service: Optional[UserService] = None
+_user_service: Optional[UserStore] = None
 
 
-def get_user_service() -> UserService:
+def get_user_service() -> UserStore:
     """Lazy initialization — only create the client when first needed."""
     global _user_service
     if _user_service is None:
-        _user_service = UserService()
+        _user_service = UserStore()
     return _user_service
 

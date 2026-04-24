@@ -17,11 +17,11 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of 2026-04-24, end of Phase 4 batch 4 (batch 5 in flight):
+As of 2026-04-24, mid Phase 4 batch 5:
 
-- Branch: `main` @ `d3457c4`
-- Merged progress: 25 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210)
-- Batch 5 workers in flight from base `de4bf76`: NBB-501A (docs-only) + NBB-209A (chat/message stores with pre-authorized manual repair for utils/cost_tracking.py:80-83)
+- Branch: `main` @ `b41a791`
+- Merged progress: 26 of 59 tasks merged (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5 partial: NBB-501A)
+- Batch 5 remaining in flight: NBB-209A (chat/message stores with pre-authorized manual repair for utils/cost_tracking.py:80-83)
 - Graph shape: 66 CSV rows, 7 epics, 59 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify each session with `tool_search` for refactory's `move_module` — either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (`--plugin-dir` plugin-framework load)
@@ -413,7 +413,7 @@ Update this table when work starts, merges, or blocks.
 | `NBB-210` | Policy and contracts | Merged | top-level dispatcher | `worktree-agent-a6485fbf941ffafde` / cleaned up | `MERGE` | `d3457c4` (non-ff of `6edd21a`) | PASS worker/reviewer checks; PASS merge/push cleanup; PASS full backend pytest (308 passed, 2 deselected); PASS verify_architecture.py | `task_service.py → background/tasks.py` (partition deferred — `status/cancel/logs` require semantic splits, out of mechanical-move scope; `active_tasks.py` already route-owned). 37 consumer rewrites. Manual repair applied for TWO rope-hostile categories (A: hoisted lazy imports — 14 sites; B: eager shim-form rewritten to module-attribute `tasks.method()` — 13 sites). Singleton `task_service` name preserved. Re-export shim preserved at `services/background_services/__init__.py`. Critical-path cleared — unblocks NBB-501B, NBB-502, NBB-503, NBB-703. |
 | `NBB-401` | Sources and analysis | Merged | top-level dispatcher | `worktree-agent-a61b82a5209584c11` / cleaned up | `MERGE` | `5bbf9d5` (non-ff of `b592272`) | PASS worker/reviewer checks; PASS merge/push cleanup | Extended `backend/app/sources/CHARTER.md` with NBB-401 file-format ownership map; new `backend/app/sources/README.md`; 10 skeleton `__init__.py` markers at `sources/{upload,pdf,pptx,docx,image,link,youtube,audio,analysis,research}/`. Unblocks NBB-402 and the whole sources lane. |
 | `NBB-402` | Sources and analysis | Ready | unassigned |  |  |  |  | Newly unblocked by `NBB-401` merge. Deps merged: `NBB-106` at `efd8b5a`, `NBB-205` at `6273f9c`, `NBB-401` at `5bbf9d5`. Move source ingestion/importers/stores/citations into `sources/` via refactory (7-row target map). Collides with any other ticket editing `backend/app/api/sources/*` or `backend/app/utils/{file,citation,source_content}_utils.py`. |
-| `NBB-501A` | Studio | Blocked | unassigned |  |  |  |  | Blocked on `NBB-207C` (not merged). `NBB-104` dep satisfied at `b12bf50`. Lock studio taxonomy. |
+| `NBB-501A` | Studio | Merged | top-level dispatcher | `worktree-agent-a2e88760d7e174575` / cleaned up | `MERGE` (1 P3 wording polish) | `b41a791` (non-ff of `2d6b65a`) | PASS worker/reviewer checks; PASS merge/push cleanup | New `backend/app/studio/TAXONOMY.md` (5 categories × 19 items, locked verbatim from decision map) + `backend/app/studio/README.md`. 16 studio tool rows aligned with NBB-207C; `read_source_content.json` correctly listed as sources-owned. Logo-generation in `studio/design/logo/`, brand asset/config under `brand/`. `logo_utils.py` placement deferred to NBB-502/NBB-506. Unblocks NBB-501B. |
 | `NBB-602` | Frontend | Ready | unassigned |  |  |  |  | Deps merged: `NBB-601` at `0b09d4b`, `NBB-108A` at `6bdeb81`. Move feature-owned hooks/providers under owning domains. |
 | `NBB-603` | Frontend | Ready | unassigned |  |  |  |  | Deps merged: `NBB-601` at `0b09d4b`, `NBB-108A` at `6bdeb81`, `NBB-205` at `6273f9c`. Tighten lib/contexts/API clients/citations/logger ownership. |
 | `NBB-604` | Frontend | Blocked | unassigned |  |  |  |  | Blocked on `NBB-602` and `NBB-603` (neither merged). `NBB-108A` dep satisfied at `6bdeb81`. Normalize frontend domain subtrees + design-system guardrails. |

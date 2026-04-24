@@ -307,7 +307,7 @@ from app.services.studio_services.jobs.video_jobs import (
     delete_video_job,
 )
 
-from app.services.studio_services.jobs.ad_jobs import (
+from app.studio.marketing.ad.job import (
     create_ad_job,
     update_ad_job,
     get_ad_job,

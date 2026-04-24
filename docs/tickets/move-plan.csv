@@ -76,3 +76,7 @@ NBB-503,python,backend/app/services/tool_executors/website_agent_executor.py,,,,
 NBB-503,python,backend/app/services/ai_agents/website_agent_service.py,,,,text_reference_check,string_ref_scan.py
 NBB-503,json,backend/app/services/tools/website_agent,,,,text_reference_check,string_ref_scan.py
 NBB-503,python,backend/app/studio/design/website/tool.py,backend/app/studio/design/website/tool.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-505,python,backend/app/services/studio_services/ad_creative_service.py,backend/app/studio/marketing/ad/create.py,,,python_module_move,refactory:move_module
+NBB-505,python,backend/app/studio/marketing/ad/create.py,backend/app/studio/marketing/ad/create.py,AdCreativeService,AdCreator,python_symbol_rename,refactory:rename_symbol
+NBB-505,python,backend/app/services/studio_services/jobs/ad_jobs.py,backend/app/studio/marketing/ad/job.py,,,python_module_move,refactory:move_module
+NBB-505,json,backend/data/prompts/ad_creative_prompt.json,backend/app/studio/marketing/ad/prompts/ad_creative_prompt.json,,,json_asset_move,json_asset_move.sh

@@ -195,6 +195,7 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
     "web_agent": "sources/link/prompts",
     "deep_research_agent": "sources/analysis/research/prompts",
     "website_agent": "studio/design/website/prompts",
+    "ad_creative": "studio/marketing/ad/prompts",
 }
 
 

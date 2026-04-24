@@ -6,13 +6,56 @@ Ticket tracking lives in `docs/tickets/`. Epic `NBB-001` (`docs/tickets/epics/NB
 
 ## Direction
 
-The migration replaces a mechanism-first backend layout (`services/`, `utils/`, `ai_agents/`, `ai_services/`, `tool_executors/`, `services/tools/`, `data/prompts/`) with a **domain-first** layout. New behavior should live under the domain that owns it (chat, sources, studio, auth, projects, brand, settings, background, connectors, providers, api) rather than under a bucket named after the technical mechanism it uses.
+The migration replaces a mechanism-first backend layout (`services/`, `utils/`, `ai_agents/`, `ai_services/`, `tool_executors/`, `services/tools/`, `data/prompts/`) with a **domain-first** layout. New behavior lives under the domain that owns it rather than under a bucket named after the technical mechanism it uses.
 
-The canonical backend root list (auth, projects, chat, sources, studio, brand, settings, connectors, providers, background, api, base) is finalized by ticket `NBB-104`. Until `NBB-104` publishes that decision, new backend work should:
+## Canonical Backend Roots (NBB-104)
 
-- Not default to any frozen destination in the list below.
-- Land under the closest obvious domain if one exists in the tree today, or wait on `NBB-104` if placement is genuinely unclear.
-- Never land in a frozen destination.
+The backend root list is finalized. Every backend file belongs under exactly one of these roots. No new backend root may be created without amending this list through a follow-up ticket.
+
+| Root | Purpose |
+|---|---|
+| `backend/app/api/` | Transport adapters only: parse HTTP, run guards, call domain public surfaces, format responses. |
+| `backend/app/auth/` | Identity, route/service guards, permission policy, user identity store. |
+| `backend/app/projects/` | Project domain behavior and project store. |
+| `backend/app/chat/` | Chat loop, streaming, memory invocation, chat persistence coordination. |
+| `backend/app/sources/` | Source ingestion, search, citation, extraction, indexing, and analysis. |
+| `backend/app/studio/` | Studio generation items and studio job/tool/run behavior. |
+| `backend/app/brand/` | Brand config and brand asset ownership. |
+| `backend/app/settings/` | App/user settings and API-key UI backend. |
+| `backend/app/connectors/` | Product-level configured external capabilities, user/project connection stores, permission-gated tool surfaces. |
+| `backend/app/providers/` | Low-level external API clients, SDK wrappers, auth primitives, storage adapters, and runtime IO adapters. |
+| `backend/app/background/` | Task lifecycle, cancellation, active-task status, and execution-log ownership. |
+| `backend/app/base/` | Empty unless a charter exception proves 3+ domain consumers and no better owner. |
+
+Each root's `__init__.py` carries the full charter (owner scope, allowed import direction, migration sources). Read the charter before adding a file to a root.
+
+Legacy roots such as `backend/app/utils/` and `backend/app/services/` are not approved destinations. They are frozen by `NBB-103` and drained or reduced to approved exceptions by `NBB-705A` through `NBB-705E`.
+
+## Base and Shared Charters (NBB-104)
+
+| Directory family | Charter |
+|---|---|
+| `backend/app/base/` | Reserved for truly cross-domain primitives with 3+ domain consumers and no better owner. `base/` ships empty at the end of Epic 001. No file lands in `base/` without a PR note explaining why no domain owns it. |
+| `backend/app/<domain>/shared/` | Allowed only after that domain has 3+ concrete slices using the same behavior. The shared code must name the boundary it serves, for example `studio/shared/` or `sources/analysis/shared/`. |
+| Preemptive `shared/` directories | Forbidden. A directory cannot exist only to reserve a future convenience bucket. |
+| Generic helpers in `base/` or `shared/` | Forbidden. Rehome to the owning domain, provider/client boundary, connector capability, or the approved `utils/` exceptions from `NBB-705E`. |
+
+## Dependency Direction (NBB-104)
+
+Backend imports flow in one direction:
+
+```text
+api/ -> domain public surfaces -> connector public surfaces -> provider clients
+```
+
+- `api/` route modules may import domain public surfaces, not domain internals.
+- Domains may depend on other domains' public surfaces only when the ticket body calls for it. Domains must not reach into another domain's internals.
+- Connectors wrap providers into configured product capabilities and expose tool surfaces to domains.
+- Domains may depend on `providers/` directly only for provider-neutral runtime primitives (for example HTTP clients, storage adapters, Claude API primitives). Product-specific integrations must pass through `connectors/`.
+- `providers/` does not import from `api/`, domains, or `connectors/`.
+- `base/` does not import from `api/`, any domain, `connectors/`, or `providers/`.
+
+Rich import-boundary enforcement is owned by `NBB-704A` and `NBB-704B`.
 
 ## Frozen Destinations
 
@@ -33,16 +76,11 @@ These paths still contain code today. Treat them as **legacy/migration sources**
 
 `NBB-103` will enforce this list in CI. `NBB-705A` through `NBB-705E` and `NBB-706` drain or delete what remains.
 
-## Allowed Destinations (interim rule)
+## Allowed Destinations
 
-During the migration, new backend work should land under the owning domain subtree that already exists, or wait on the `NBB-104` charter if the domain does not exist yet:
+New backend behavior lands under its domain root from the Canonical Backend Roots table above. The migration sources named in each root's charter docstring remain readable during the move; read the charter before adding or moving a file.
 
-- Domain behavior: the domain directory (for example `backend/app/services/chat/`, `backend/app/services/sources/`, `backend/app/services/studio/`, `backend/app/services/auth/`, `backend/app/services/projects/`, `backend/app/services/brand/`, `backend/app/services/app_settings/`).
-- External clients and SDK wrappers: under the providers/connectors split defined by `NBB-206`.
-- Background task behavior: under the background owner defined by `NBB-210`.
-- Prompt JSON and tool JSON: wait for `NBB-207A` loader support; until then do not move existing JSON assets.
-
-`NBB-104` may rename or re-root these subtrees. Agents must not pre-empt that decision by inventing new root names.
+External clients and SDK wrappers follow the providers/connectors split defined by `NBB-206`. Background task behavior lives under the background owner defined by `NBB-210`. Prompt JSON and tool JSON wait for `NBB-207A` loader support; existing JSON assets do not move until then.
 
 ## Placement Checklist (canonical)
 

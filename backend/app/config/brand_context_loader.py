@@ -15,8 +15,8 @@ project_id, which is resolved to user_id here — so agents need zero changes.
 import logging
 from typing import Dict, Any, Optional
 
-from app.services.data_services.brand_config_service import brand_config_service
-from app.services.data_services.brand_asset_service import brand_asset_service
+from app.brand.config.store import brand_config_service
+from app.brand.asset.store import brand_asset_service
 
 logger = logging.getLogger(__name__)
 

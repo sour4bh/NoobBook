@@ -60,7 +60,7 @@ def resolve_brand_logo() -> Tuple[Optional[bytes], str]:
     Returns:
         Tuple of (image_bytes, mime_type). Bytes is None if not found.
     """
-    from app.services.data_services.brand_asset_service import brand_asset_service
+    from app.brand.asset.store import brand_asset_service
 
     try:
         user_id = g.user_id

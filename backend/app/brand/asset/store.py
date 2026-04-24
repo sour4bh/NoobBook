@@ -12,7 +12,7 @@ from app.services.integrations.supabase import get_supabase, is_supabase_enabled
 from app.services.integrations.supabase import storage_service
 
 
-class BrandAssetService:
+class BrandAssetStore:
     """
     Service class for managing brand assets using Supabase.
 
@@ -375,4 +375,4 @@ class BrandAssetService:
 
 
 # Singleton instance
-brand_asset_service = BrandAssetService()
+brand_asset_service = BrandAssetStore()

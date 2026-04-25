@@ -1,3 +1,4 @@
+# Cross-cutting: canonical filesystem path helper. Approved exception to utils dissolution (NBB-705E). Do not re-home without updating NBB-705E and the dependency-direction rules in NBB-104.
 """
 Path Utils - Centralized path management for project directories.
 

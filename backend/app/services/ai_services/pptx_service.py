@@ -22,13 +22,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.services.integrations.claude import claude_service
 from app.config import tool_loader, prompt_loader, get_anthropic_config
-from app.utils.batching_utils import create_batches, DEFAULT_BATCH_SIZE
+from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE
 from app.providers.anthropic.media import encode_bytes_to_base64
-from app.utils.pdf_utils import get_page_count, get_all_page_bytes
-from app.utils.pptx_utils import convert_pptx_to_pdf
+from app.sources.pdf.ops import get_page_count, get_all_page_bytes
+from app.sources.pptx.ops import convert_pptx_to_pdf
 from app.providers.anthropic.rate import RateLimiter
 from app.utils.text import build_processed_output
-from app.utils.embedding_utils import count_tokens
+from app.sources.tokens import count_tokens
 from app.background.tasks import task_service
 import app.providers.anthropic.response_parser
 

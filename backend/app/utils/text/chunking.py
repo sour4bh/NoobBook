@@ -31,11 +31,12 @@ import logging
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
-
 from app.utils.text.cleaning import clean_text_for_embedding
 from app.utils.text.page_markers import ANY_PAGE_PATTERN, find_all_markers, get_page_number
-from app.utils.embedding_utils import count_tokens, get_chunk_config
+from app.sources.tokens import count_tokens, get_chunk_config
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

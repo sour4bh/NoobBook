@@ -29,6 +29,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+from app.sources.tokens import count_tokens
+
 logger = logging.getLogger(__name__)
 
 
@@ -193,7 +195,6 @@ class AudioService:
             )
 
             # Calculate token count
-            from app.utils.embedding_utils import count_tokens
             token_count = count_tokens(processed_content)
 
             logger.info("Transcript generated: %s chars, %s tokens", len(transcript_text), token_count)
@@ -343,7 +344,6 @@ class AudioService:
             Formatted content with standardized header and AUDIO PAGE markers
         """
         from app.utils.text import build_processed_output
-        from app.utils.embedding_utils import count_tokens
 
         # Audio transcripts don't have logical page boundaries
         # Pass entire transcript as single page, let token-based chunking handle splits

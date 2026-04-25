@@ -3,10 +3,13 @@ Anthropic API token counting.
 
 Educational Note: Use this when you need exact Claude token counts,
 such as for billing estimation or quota tracking. For local chunking
-operations, use ``count_tokens()`` from ``app.utils.embedding_utils``
+operations, use ``count_tokens()`` from ``app.sources.tokens``
 which uses tiktoken (fast, local) and is ~10000x faster than this API.
 """
 import logging
+
+from app.services.integrations.claude import claude_service
+from app.sources.tokens import count_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +24,6 @@ def count_tokens_api(text: str) -> int:
     Returns:
         Exact token count according to Claude's tokenizer
     """
-    from app.services.integrations.claude import claude_service
-    from app.utils.embedding_utils import count_tokens
-
     if not text:
         return 0
 

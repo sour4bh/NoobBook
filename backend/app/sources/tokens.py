@@ -1,5 +1,5 @@
 """
-Embedding Utils - Token counting and embedding decisions.
+Local token counting and embedding decisions for the source pipeline.
 
 Educational Note: We ALWAYS create chunks and embed them for every source.
 This creates a consistent pipeline across all file types:

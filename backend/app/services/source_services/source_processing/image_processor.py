@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from app.services.integrations.supabase import storage_service
-from app.utils.embedding_utils import needs_embedding
+from app.sources.tokens import needs_embedding
 from app.services.ai_services.embedding_service import embedding_service
 from app.services.ai_services.summary_service import summary_service
 

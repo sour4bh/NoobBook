@@ -228,3 +228,5 @@ NBB-505,python,backend/app/services/tool_executors/marketing_strategy_tool_execu
 NBB-505,python,backend/app/services/studio_services/social_posts_service.py,,,,text_reference_check,string_ref_scan.py
 NBB-705A,python,backend/app/utils/auth_middleware.py,,,,text_reference_check,string_ref_scan.py
 NBB-705A,python,backend/app/utils/password_utils.py,,,,text_reference_check,string_ref_scan.py
+NBB-602,typescript,frontend/src/components/hooks/useVoiceRecording.ts,frontend/src/components/chat/useVoiceRecording.ts,,,module,refactory:move_module
+NBB-602,typescript,frontend/src/hooks/useAuth.tsx,frontend/src/components/auth/useAuth.tsx,,,module,refactory:move_module

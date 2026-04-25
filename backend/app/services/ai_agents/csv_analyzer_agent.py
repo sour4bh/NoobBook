@@ -32,8 +32,9 @@ from app.services.tool_executors.analysis_executor import (
     raw_analysis_enabled,
     RAW_ANALYSIS_DISABLED_MESSAGE,
 )
-from app.utils import claude_parsing_utils
 from app.chat.message.store import message_service
+import app.providers.anthropic.response_parser
+import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)
 
@@ -152,17 +153,17 @@ class CSVAnalyzerAgent:
             total_output_tokens += response["usage"]["output_tokens"]
 
             content_blocks = response.get("content_blocks", [])
-            tool_blocks = claude_parsing_utils.extract_tool_use_blocks(response)
+            tool_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
 
             # Check for tool blocks BEFORE appending to messages.
             # Appending first then doing `continue` would leave messages ending
             # with an assistant role, causing a prefill API error on the next iteration.
             if not tool_blocks:
-                if claude_parsing_utils.is_end_turn(response):
+                if app.providers.anthropic.response_parser.is_end_turn(response):
                     logger.warning("End turn without return_analysis tool")
                 continue
 
-            serialized_content = claude_parsing_utils.serialize_content_blocks(content_blocks)
+            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
             messages.append({"role": "assistant", "content": serialized_content})
 
             tool_results_data = []
@@ -209,7 +210,7 @@ class CSVAnalyzerAgent:
                 })
 
             if tool_results_data:
-                tool_results_content = claude_parsing_utils.build_tool_result_content(tool_results_data)
+                tool_results_content = app.providers.anthropic.content.build_tool_result_content(tool_results_data)
                 messages.append({"role": "user", "content": tool_results_content})
 
         logger.warning("Max iterations reached (%d)", self.MAX_ITERATIONS)

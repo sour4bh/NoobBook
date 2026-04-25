@@ -19,8 +19,8 @@ from app.services.integrations.claude import claude_service
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.config import prompt_loader, tool_loader
-from app.utils import claude_parsing_utils
 from app.sources import index
+import app.providers.anthropic.response_parser
 
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ class QuizService:
 
             # Extract tool use result
             # Note: extract_tool_inputs returns a LIST of inputs (one per tool call)
-            tool_inputs_list = claude_parsing_utils.extract_tool_inputs(
+            tool_inputs_list = app.providers.anthropic.response_parser.extract_tool_inputs(
                 response, "generate_quiz"
             )
 

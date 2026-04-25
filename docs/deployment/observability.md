@@ -23,7 +23,7 @@ This inventory names the owner for each observability concern, calls out what lo
 | Opik wrapping of Anthropic client | `backend/app/services/integrations/claude/claude_service.py` (`_get_client`, `_build_opik_kwargs`, `_run_tracked`) | Owned by `providers/` per `backend/app/providers/CHARTER.md`. `track_anthropic` wraps the client when `OPIK_API_KEY` is set; `@opik.track` adds a parent trace with `project_id`, `user_id`, `thread_id`, `tags` metadata. Graceful no-op when the key or package is absent. |
 | Opik env knobs | `OPIK_API_KEY`, `OPIK_URL_OVERRIDE`, `OPIK_WORKSPACE`, `OPIK_PROJECT_NAME` | Documented in `backend/app/api/settings/api_keys.py`. Reload hook: `claude_service.reload_config()` (added in `NBB-208A`). |
 | Opik key validator | `backend/app/services/app_settings/validation/opik_validator.py` | Attempts `opik.configure(api_key=...)`. Remaining three OPIK\_\* keys are accepted-if-present. |
-| Spending-limit short-circuit log | `backend/app/utils/cost_tracking.py` via `claude_service.send_message` | Raises before the API call; the warning path for missing `project_id` is emitted here, not in domain code. |
+| Spending-limit short-circuit log | `backend/app/providers/anthropic/cost.py` via `claude_service.send_message` | Raises before the API call; the warning path for missing `project_id` is emitted here, not in domain code. |
 
 ### Background (task lifecycle)
 

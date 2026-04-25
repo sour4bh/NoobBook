@@ -18,8 +18,8 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
 from app.services.tool_executors import deep_research_executor
-from app.utils import claude_parsing_utils
 from app.chat.message.store import message_service
+import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class DeepResearchAgent:
 
             # Serialize and add assistant response to messages
             content_blocks = response.get("content_blocks", [])
-            serialized_content = claude_parsing_utils.serialize_content_blocks(content_blocks)
+            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
             messages.append({"role": "assistant", "content": serialized_content})
 
             # Process tool calls via executor

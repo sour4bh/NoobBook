@@ -17,7 +17,7 @@ from typing import Optional, List, Dict, Any, Callable
 import anthropic
 from anthropic import APIStatusError, APITimeoutError, APIConnectionError
 
-from app.utils.cost_tracking import add_usage as add_cost_usage, check_user_spending_limit
+from app.providers.anthropic.cost import add_usage as add_cost_usage, check_user_spending_limit
 
 logger = logging.getLogger(__name__)
 

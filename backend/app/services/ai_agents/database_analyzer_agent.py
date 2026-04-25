@@ -17,8 +17,9 @@ from typing import Any, Dict, List, Optional
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
 from app.services.tool_executors.database_executor import DatabaseExecutor
-from app.utils import claude_parsing_utils
 from app.chat.message.store import message_service
+import app.providers.anthropic.response_parser
+import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,7 @@ class DatabaseAnalyzerAgent:
                 total_output_tokens += response["usage"]["output_tokens"]
 
                 content_blocks = response.get("content_blocks", [])
-                tool_blocks = claude_parsing_utils.extract_tool_use_blocks(response)
+                tool_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
 
                 # Check for tool blocks BEFORE appending to messages.
                 # Appending first then doing `continue` would leave messages ending
@@ -152,7 +153,7 @@ class DatabaseAnalyzerAgent:
                 if not tool_blocks:
                     continue
 
-                serialized_content = claude_parsing_utils.serialize_content_blocks(content_blocks)
+                serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
                 messages.append({"role": "assistant", "content": serialized_content})
 
                 tool_results_data = []
@@ -205,7 +206,7 @@ class DatabaseAnalyzerAgent:
                     )
 
                 if tool_results_data:
-                    tool_results_content = claude_parsing_utils.build_tool_result_content(tool_results_data)
+                    tool_results_content = app.providers.anthropic.content.build_tool_result_content(tool_results_data)
                     messages.append({"role": "user", "content": tool_results_content})
 
                 # Early bail-out: if we get the same type of error repeatedly,

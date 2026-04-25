@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional
 
 from app.config import prompt_loader, tool_loader
 from app.services.integrations.claude import claude_service
-from app.utils import claude_parsing_utils
 from app.services.tool_executors.freshdesk_executor import freshdesk_executor
+import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +82,8 @@ class FreshdeskAnalyzerAgent:
                 total_usage["input_tokens"] += usage.get("input_tokens", 0)
                 total_usage["output_tokens"] += usage.get("output_tokens", 0)
 
-                if claude_parsing_utils.is_end_turn(response):
-                    text = claude_parsing_utils.extract_text(response)
+                if app.providers.anthropic.response_parser.is_end_turn(response):
+                    text = app.providers.anthropic.response_parser.extract_text(response)
                     return {
                         "success": True,
                         "content": text,
@@ -95,12 +95,12 @@ class FreshdeskAnalyzerAgent:
                         "usage": total_usage,
                     }
 
-                if not claude_parsing_utils.is_tool_use(response):
-                    text = claude_parsing_utils.extract_text(response)
+                if not app.providers.anthropic.response_parser.is_tool_use(response):
+                    text = app.providers.anthropic.response_parser.extract_text(response)
                     return {"success": True, "content": text, "iterations": iteration, "usage": total_usage}
 
                 # Process tool calls
-                tool_blocks = claude_parsing_utils.extract_tool_use_blocks(response)
+                tool_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
                 content_blocks = response.get("content_blocks", [])
                 messages.append({"role": "assistant", "content": content_blocks})
 

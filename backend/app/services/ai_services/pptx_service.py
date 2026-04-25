@@ -22,15 +22,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.services.integrations.claude import claude_service
 from app.config import tool_loader, prompt_loader, get_anthropic_config
-from app.utils import claude_parsing_utils
 from app.utils.batching_utils import create_batches, DEFAULT_BATCH_SIZE
-from app.utils.encoding_utils import encode_bytes_to_base64
+from app.providers.anthropic.media import encode_bytes_to_base64
 from app.utils.pdf_utils import get_page_count, get_all_page_bytes
 from app.utils.pptx_utils import convert_pptx_to_pdf
-from app.utils.rate_limit_utils import RateLimiter
+from app.providers.anthropic.rate import RateLimiter
 from app.utils.text import build_processed_output
 from app.utils.embedding_utils import count_tokens
 from app.background.tasks import task_service
+import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -367,7 +367,7 @@ class PPTXService:
         results = {}
 
         # Use claude_parsing_utils for generic tool parsing
-        tool_inputs = claude_parsing_utils.extract_tool_inputs(response, "submit_slide_extraction")
+        tool_inputs = app.providers.anthropic.response_parser.extract_tool_inputs(response, "submit_slide_extraction")
 
         # Process PPTX-specific fields from each tool call
         for input_data in tool_inputs:

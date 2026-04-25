@@ -14,11 +14,11 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
 from app.studio.marketing.strategy.tool import marketing_strategy_tool_executor
 from app.chat.message.store import message_service
+import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class MarketingStrategyPlanner:
             total_output_tokens += response["usage"]["output_tokens"]
 
             content_blocks = response.get("content_blocks", [])
-            serialized_content = claude_parsing_utils.serialize_content_blocks(content_blocks)
+            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
             messages.append({"role": "assistant", "content": serialized_content})
 
             # Process tool calls

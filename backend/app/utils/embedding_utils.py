@@ -13,12 +13,12 @@ Token count is used for:
 
 Every source gets chunked and embedded - no exceptions (for now).
 
-Token Counting Strategy (Hybrid Approach):
+Token Counting Strategy:
 - Local counting (tiktoken): Used for chunking operations where speed matters
   and thousands of calls are made. tiktoken uses cl100k_base encoding which
   closely matches Claude's tokenizer for most text.
-- API counting: Available via count_tokens_api() when exact Claude token
-  count is needed (e.g., for billing estimation).
+- API counting (exact Claude tokenizer) lives in
+  ``app.providers.anthropic.token_count`` for billing/quota cases.
 
 Why tiktoken? Chunking calls count_tokens() thousands of times (per page,
 per sentence, per word for long sentences). API calls would take minutes
@@ -104,34 +104,6 @@ def count_tokens(text: str) -> int:
         # Fallback: estimate ~4 chars per token (rough approximation)
         logger.warning("tiktoken encoding failed, using estimation: %s", e)
         return len(text) // 4
-
-
-def count_tokens_api(text: str) -> int:
-    """
-    Count tokens using Claude's count_tokens API (accurate but slow).
-
-    Educational Note: Use this when you need exact Claude token counts,
-    such as for billing estimation or quota tracking. For chunking
-    operations, use count_tokens() which uses tiktoken.
-
-    Args:
-        text: The text to count tokens for
-
-    Returns:
-        Exact token count according to Claude's tokenizer
-    """
-    from app.services.integrations.claude import claude_service
-
-    if not text:
-        return 0
-
-    messages = [{"role": "user", "content": text}]
-
-    try:
-        return claude_service.count_tokens(messages=messages)
-    except Exception as e:
-        logger.warning("API token counting failed, falling back to tiktoken: %s", e)
-        return count_tokens(text)
 
 
 def get_chunk_config() -> dict:

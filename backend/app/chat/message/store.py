@@ -21,11 +21,11 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 
 from config import Config
-from app.utils import claude_parsing_utils
 from app.utils.path_utils import get_web_agent_dir, get_agents_dir
 import logging
 
 from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)
 
@@ -302,7 +302,7 @@ class MessageStore:
             The created message dict
         """
         # Use claude_parsing_utils to build the tool_result content block
-        content = claude_parsing_utils.build_single_tool_result(
+        content = app.providers.anthropic.content.build_single_tool_result(
             tool_use_id=tool_use_id,
             result=str(result) if not isinstance(result, str) else result,
             is_error=is_error

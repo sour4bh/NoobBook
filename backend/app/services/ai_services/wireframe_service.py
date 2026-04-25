@@ -12,10 +12,10 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.services.studio_services import studio_index_service
 from app.config import prompt_loader, tool_loader
-from app.utils import claude_parsing_utils
 from app.sources.content import get_source_content
 from app.utils.excalidraw_utils import convert_to_excalidraw_elements
 from app.sources import index
+import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class WireframeService:
             )
 
             # Extract tool use result
-            tool_inputs_list = claude_parsing_utils.extract_tool_inputs(
+            tool_inputs_list = app.providers.anthropic.response_parser.extract_tool_inputs(
                 response, "generate_wireframe"
             )
 

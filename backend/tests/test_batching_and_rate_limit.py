@@ -11,7 +11,7 @@ import time
 from unittest.mock import patch
 
 from app.utils.batching_utils import create_batches, get_batch_info, DEFAULT_BATCH_SIZE
-from app.utils.rate_limit_utils import RateLimiter
+from app.providers.anthropic.rate import RateLimiter
 
 
 # ===========================================================================

@@ -2,7 +2,7 @@
 Message endpoints - the core AI interaction.
 
 Educational Note: This is where the magic happens! When a user sends a message,
-the main_chat_service orchestrates:
+the chat domain's public surface orchestrates:
 
 1. Context Building:
    - Loads project sources (with summaries)
@@ -27,16 +27,12 @@ Routes:
 - POST /projects/<id>/chats/<id>/messages/stream - Send message, stream AI response
 """
 import json
-import queue
-import threading
 
 from flask import jsonify, request, current_app, Response, stream_with_context
+
+from app import chat
 from app.api.messages import messages_bp
-from app.services.chat_services import main_chat_service
-from app.services.auth.rbac import get_request_identity
-
-
-_STREAM_SENTINEL = object()
+from app.auth.identity import get_request_identity
 
 
 def _format_sse(event_name: str, payload: dict | None = None) -> str:
@@ -50,8 +46,8 @@ def send_message(project_id, chat_id):
     """
     Send a message in a chat and get AI response.
 
-    Educational Note: This endpoint is kept thin - all logic is delegated
-    to main_chat_service. The service handles:
+    Educational Note: This endpoint is kept thin - the chat public surface
+    handles:
     1. Storing user message
     2. Building context with system prompt
     3. Calling Claude API
@@ -78,20 +74,18 @@ def send_message(project_id, chat_id):
                 'error': 'Message is required'
             }), 400
 
-        user_message_text = data['message']
-
-        # Delegate all processing to main_chat_service
-        # This is the RAG + agentic loop entry point
-        user_msg, assistant_msg = main_chat_service.send_message(
+        identity = get_request_identity()
+        result = chat.send(
             project_id=project_id,
             chat_id=chat_id,
-            user_message_text=user_message_text
+            message=data['message'],
+            identity=identity,
         )
 
         return jsonify({
             'success': True,
-            'user_message': user_msg,
-            'assistant_message': assistant_msg
+            'user_message': result['user_message'],
+            'assistant_message': result['assistant_message'],
         }), 200
 
     except ValueError as e:
@@ -125,39 +119,15 @@ def stream_message(project_id, chat_id):
 
     user_message_text = data['message']
     identity = get_request_identity()
-    user_id = identity.user_id
-    app = current_app._get_current_object()
-    event_queue: "queue.Queue[object]" = queue.Queue()
-
-    def emit(event_name: str, payload: dict) -> None:
-        event_queue.put(_format_sse(event_name, payload))
-
-    def worker() -> None:
-        try:
-            main_chat_service.stream_message(
-                project_id=project_id,
-                chat_id=chat_id,
-                user_message_text=user_message_text,
-                user_id=user_id,
-                on_event=emit,
-            )
-        except ValueError as exc:
-            emit("error", {"message": str(exc)})
-        except Exception as exc:
-            app.logger.error(f"Error streaming message: {exc}")
-            emit("error", {"message": str(exc)})
-        finally:
-            event_queue.put(_STREAM_SENTINEL)
-
-    thread = threading.Thread(target=worker, daemon=True)
-    thread.start()
 
     def generate():
-        while True:
-            item = event_queue.get()
-            if item is _STREAM_SENTINEL:
-                break
-            yield item
+        for event in chat.stream(
+            project_id=project_id,
+            chat_id=chat_id,
+            message=user_message_text,
+            identity=identity,
+        ):
+            yield _format_sse(event['event'], event['data'])
 
     headers = {
         "Content-Type": "text/event-stream",

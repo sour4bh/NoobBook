@@ -1,14 +1,11 @@
 """
-Chat Services - Services for chat orchestration and message flow.
+Chat Services - legacy chat orchestration package.
 
-Educational Note: This folder contains services that handle chat conversations,
-including message processing, AI response generation, and tool execution loops.
-
-Services:
-- main_chat_service: Main chat orchestrator - handles message flow with tool support
-  - Builds dynamic system prompt with source and memory context
-  - Manages tool use loop (search_sources, store_memory tools)
-  - Logs all API calls for debugging
+Migration status (NBB-301): The canonical chat entry points are now
+`chat.send` and `chat.stream` on the `app.chat` public surface. This package
+remains as a temporary import shim for `main_chat_service`, which `chat.loop`
+delegates to until NBB-302 splits its internals. NBB-706 removes this
+re-export once NBB-302 lands.
 """
 from app.services.chat_services.main_chat_service import main_chat_service
 

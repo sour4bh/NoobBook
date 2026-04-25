@@ -28,14 +28,14 @@ class StudioSignalExecutor:
     delegating actual signal storage to background task.
     """
 
-    def execute(
+    def emit(
         self,
         project_id: str,
         chat_id: str,
         signals: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
-        Execute the studio_signal tool call.
+        Emit studio signals from the studio_signal tool call.
 
         Educational Note: This method:
         1. Validates signals array

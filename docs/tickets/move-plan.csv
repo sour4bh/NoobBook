@@ -358,3 +358,7 @@ NBB-403,python,backend/app/services/tools/analysis_agent,,,,text_reference_check
 NBB-403,python,backend/app/services/tools/csv_tool,,,,text_reference_check,string_ref_scan.py
 NBB-403,python,backend/app/services/tools/database_agent,,,,text_reference_check,string_ref_scan.py
 NBB-403,python,backend/app/services/tools/freshdesk_agent,,,,text_reference_check,string_ref_scan.py
+NBB-303,python,backend/app/services/tool_executors/memory_executor.py,backend/app/chat/memory/store.py,,,python_module_move,manual
+NBB-303,python,backend/app/services/tool_executors/studio_signal_executor.py,backend/app/studio/signal.py,,,python_module_move,manual
+NBB-303,python,backend/app/services/tool_executors/source_search_executor.py,backend/app/sources/search.py,,,python_module_move,manual
+NBB-303,python,backend/app/services/tool_executors/web_agent_executor.py,backend/app/sources/link/run.py,,,python_module_move,manual

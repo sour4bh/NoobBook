@@ -4,9 +4,9 @@
  * Resolves [[cite:CHUNK_ID]] citations into numbered footnotes with source content.
  */
 
-import { parseCitations } from './citations';
-import { sourcesAPI, type ChunkContent } from './api/sources';
-import type { Chat } from './api/chats';
+import { parseCitations } from '../../lib/citations';
+import { sourcesAPI, type ChunkContent } from '../../lib/api/sources';
+import type { Chat } from '../../lib/api/chats';
 
 /**
  * Convert a title into a filename-safe slug

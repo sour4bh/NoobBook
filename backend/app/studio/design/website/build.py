@@ -14,7 +14,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-from app.config import prompt_loader, tool_loader, brand_context_loader
+from app.config.prompt_loader import prompt_loader
+from app.config.tool_loader import tool_loader
+from app.config import brand_context_loader
 from app.sources.content import get_source_content
 from app.services.studio_services import studio_index_service
 from app.studio.design.website.tool import website_tool_executor

@@ -19,7 +19,8 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.services.integrations.google.imagen_service import imagen_service
 from app.services.studio_services import studio_index_service
-from app.config import prompt_loader, brand_context_loader
+from app.config.prompt_loader import prompt_loader
+from app.config import brand_context_loader
 from app.services.integrations.supabase import storage_service
 
 

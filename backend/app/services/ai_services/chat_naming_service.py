@@ -14,7 +14,7 @@ import logging
 from typing import Optional
 
 from app.services.integrations.claude import claude_service
-from app.config import prompt_loader
+from app.config.prompt_loader import prompt_loader
 import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)

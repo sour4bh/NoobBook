@@ -8,7 +8,7 @@ stored in JSON files. By storing tools in separate files:
 - Tool definitions are easy to test and validate
 
 Usage:
-    from app.config import tool_loader
+    from app.config.tool_loader import tool_loader
 
     # Load a specific tool by name
     tool = tool_loader.load_tool("pdf_tools", "pdf_extraction")

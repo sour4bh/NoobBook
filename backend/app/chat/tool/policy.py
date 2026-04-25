@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.auth.tool_capabilities import mcp_capability_for
 from app.auth.tool_policy import tool_capability_policy
-from app.config import tool_loader
+from app.config.tool_loader import tool_loader
 from app.services.integrations.knowledge_bases import knowledge_base_service
 from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
 

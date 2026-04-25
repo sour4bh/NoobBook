@@ -32,8 +32,6 @@ from app.config.asset_registry import (
 # could miss the registered directory and fall through to the legacy path.
 asset_registry.register_production_asset_paths()
 
-from app.config.tool_loader import tool_loader
-from app.config.prompt_loader import prompt_loader
 from app.config.context_loader import context_loader
 from app.config.brand_context_loader import brand_context_loader, load_brand_context
 from app.config.tier_loader import (
@@ -66,8 +64,6 @@ __all__ = [
     "register_prompt_path",
     "register_tool_category",
     "register_tool_path",
-    "tool_loader",
-    "prompt_loader",
     "context_loader",
     "brand_context_loader",
     "load_brand_context",

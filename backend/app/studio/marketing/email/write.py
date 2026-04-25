@@ -14,7 +14,9 @@ from datetime import datetime
 from pathlib import Path
 
 from app.services.integrations.claude import claude_service
-from app.config import prompt_loader, tool_loader, brand_context_loader
+from app.config.prompt_loader import prompt_loader
+from app.config.tool_loader import tool_loader
+from app.config import brand_context_loader
 from app.sources.content import get_source_content
 from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service

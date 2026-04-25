@@ -26,7 +26,8 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-from app.config import prompt_loader, tool_loader
+from app.config.prompt_loader import prompt_loader
+from app.config.tool_loader import tool_loader
 from app.sources.analysis.csv.run import (
     analysis_executor,
     raw_analysis_enabled,

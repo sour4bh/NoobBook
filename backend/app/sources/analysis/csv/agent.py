@@ -27,7 +27,7 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.services.tool_executors.analysis_executor import (
+from app.sources.analysis.csv.run import (
     analysis_executor,
     raw_analysis_enabled,
     RAW_ANALYSIS_DISABLED_MESSAGE,
@@ -174,7 +174,7 @@ class CSVAnalyzerAgent:
                 tool_id = tool_block["id"]
 
                 # Execute tool via analysis_executor
-                result, is_termination = analysis_executor.execute_tool(
+                result, is_termination = analysis_executor.dispatch(
                     tool_name, tool_input, project_id, source_id
                 )
 

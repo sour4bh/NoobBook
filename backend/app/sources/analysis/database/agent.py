@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.services.tool_executors.database_executor import DatabaseExecutor
+from app.sources.analysis.database.tool import DatabaseExecutor
 from app.chat.message.store import message_service
 import app.providers.anthropic.response_parser
 import app.providers.anthropic.content
@@ -164,7 +164,7 @@ class DatabaseAnalyzerAgent:
                     tool_input = tool_block.get("input", {}) or {}
                     tool_id = tool_block.get("id")
 
-                    result, is_termination = executor.execute_tool(
+                    result, is_termination = executor.query(
                         tool_name, tool_input, project_id, source_id
                     )
 

@@ -97,7 +97,7 @@ class AnalysisExecutor:
         """Initialize the executor."""
         self._df_cache: Dict[str, pd.DataFrame] = {}
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],

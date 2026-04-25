@@ -78,7 +78,7 @@ ANALYZE_FRESHDESK_AGENT = ToolCapability(
 # this tool.
 RUN_ANALYSIS = ToolCapability(
     name="run_analysis",
-    owner="sources/analysis/csv/tools/",
+    owner="sources/analysis/csv/raw_tools/",
     required_permission=RequiredPermission(
         category="data_sources", item="csv"
     ),
@@ -91,7 +91,7 @@ RUN_ANALYSIS = ToolCapability(
 
 RETURN_ANALYSIS = ToolCapability(
     name="return_analysis",
-    owner="sources/analysis/csv/tools/",
+    owner="sources/analysis/csv/raw_tools/",
     required_permission=RequiredPermission(
         category="data_sources", item="csv"
     ),

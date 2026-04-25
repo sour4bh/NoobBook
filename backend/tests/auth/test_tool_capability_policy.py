@@ -231,12 +231,14 @@ _NAME_REGISTRY_ALIASES = {
     ("web_search", "app/sources/analysis/research/tools/web_search.json"):
         "research_web_search",
     # database + freshdesk both expose ``query_runner``; database
-    # takes the canonical key, freshdesk gets prefixed.
-    ("query_runner", "app/services/tools/freshdesk_agent/query_runner.json"):
+    # takes the canonical key, freshdesk gets prefixed. Path moved to
+    # sources/analysis/freshdesk/tools/ in NBB-403.
+    ("query_runner", "app/sources/analysis/freshdesk/tools/query_runner.json"):
         "freshdesk_query_runner",
     # ``schema_info`` is freshdesk-only but registered with a prefix
-    # for symmetry with ``freshdesk_query_runner``.
-    ("schema_info", "app/services/tools/freshdesk_agent/schema_info.json"):
+    # for symmetry with ``freshdesk_query_runner``. Path moved to
+    # sources/analysis/freshdesk/tools/ in NBB-403.
+    ("schema_info", "app/sources/analysis/freshdesk/tools/schema_info.json"):
         "freshdesk_schema_info",
 }
 

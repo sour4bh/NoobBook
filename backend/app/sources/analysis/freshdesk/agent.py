@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from app.config import prompt_loader, tool_loader
 from app.services.integrations.claude import claude_service
-from app.services.tool_executors.freshdesk_executor import freshdesk_executor
+from app.sources.analysis.freshdesk.tool import freshdesk_executor
 import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ class FreshdeskAnalyzerAgent:
                     tool_input = block.get("input", {})
                     tool_id = block.get("id", "")
 
-                    result, is_term = freshdesk_executor.execute_tool(
+                    result, is_term = freshdesk_executor.fetch(
                         tool_name, tool_input, project_id, source_id,
                     )
 

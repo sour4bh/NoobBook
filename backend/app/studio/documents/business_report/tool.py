@@ -11,7 +11,7 @@ from datetime import datetime
 
 from app.services.integrations.supabase import storage_service
 from app.services.studio_services import studio_index_service
-from app.services.ai_agents.csv_analyzer_agent import csv_analyzer_agent
+from app.sources.analysis.csv.agent import csv_analyzer_agent
 
 logger = logging.getLogger(__name__)
 

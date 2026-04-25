@@ -1,10 +1,6 @@
 """
-Validation - API key validators for various services.
+API-key validators.
 
-Educational Note: Each validator is in its own file to keep the code
-manageable and follow single responsibility principle. The ValidationService
-class combines all validators into a single interface.
+Each validator lives in its own sibling module. The dispatcher and
+re-exports live in `validation_service.py` (module form after NBB-706).
 """
-from app.services.app_settings.validation.validation_service import ValidationService
-
-__all__ = ["ValidationService"]

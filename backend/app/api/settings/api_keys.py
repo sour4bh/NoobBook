@@ -82,7 +82,7 @@ act on it.
 
 Validator-ownership rule (NBB-208A).
 - `settings/` owns the validate endpoint, the `.env` CRUD orchestration, and
-  the ValidationService facade that routes key_ids to individual validators.
+  the validation_service module that routes key_ids to individual validators.
 - `providers/` will own the raw SDK health-check calls (individual
   `*_validator.py` bodies under `app_settings/validation/`) once the provider
   charters land in `NBB-206`.
@@ -110,12 +110,12 @@ docstring.
 """
 from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
-from app.services.app_settings import EnvService, ValidationService
+from app.services.app_settings import EnvService
+from app.services.app_settings.validation import validation_service
 from app.auth.guards import require_admin
 
 # Initialize services
 env_service = EnvService()
-validation_service = ValidationService()
 
 # API keys configuration - defines all managed keys
 API_KEYS_CONFIG = [

@@ -84,8 +84,8 @@ Copied verbatim from `docs/tickets/epics/NBB-004.md#nbb-401`. Downstream tickets
 | YouTube source orchestration | `sources/youtube/` | Source-side transcript orchestration. Vendor/library client code stays under provider ownership. |
 | Audio source orchestration | `sources/audio/` | Source-side transcription flow. ElevenLabs client code stays under provider ownership. |
 | Deep research source processing | `sources/analysis/research/` | Source analysis slice; implementation move happens in `NBB-403`. |
-| `presentation_export_utils.py` | Not `NBB-401`; `NBB-502`/`NBB-705D` | Studio export ownership. |
-| `screenshot_utils.py` | Not `NBB-401`; `NBB-502`/`NBB-705D` | Studio screenshot/export ownership. |
+| `studio/export/presentation.py` (was `utils/presentation_export_utils.py`) | Not `NBB-401`; landed under `NBB-705D` | Studio export ownership. |
+| `studio/export/screenshot.py` (was `utils/screenshot_utils.py`) | Not `NBB-401`; landed under `NBB-705D` | Studio screenshot/export ownership. |
 | `path_utils.py` | Not `NBB-401`; approved exception unless `NBB-705E` rehomes it | Cross-cutting filesystem path helper. |
 | `logger.py`, `utils/text/` | Not `NBB-401`; approved exceptions unless `NBB-705E` rehomes them | Bootstrap logging and cohesive text package. |
 

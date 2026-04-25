@@ -8,7 +8,7 @@ Executes:
 """
 
 from typing import Dict, Any, Tuple
-from app.utils.excalidraw_utils import convert_to_excalidraw_elements
+from app.studio.design.wireframe.excalidraw import convert_to_excalidraw_elements
 
 
 class WireframeDispatcher:

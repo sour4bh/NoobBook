@@ -11,7 +11,7 @@ Why Playwright?
 - Supports all CSS features (Tailwind, custom fonts, etc.)
 
 Usage:
-    from app.utils.screenshot_utils import capture_slides_as_screenshots
+    from app.studio.export.screenshot import capture_slides_as_screenshots
 
     screenshots = capture_slides_as_screenshots(
         slides_dir="/path/to/slides",

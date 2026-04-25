@@ -44,7 +44,7 @@ Skeleton markers present today: `sources/upload/__init__.py`, `sources/pdf/__ini
 
 - **Low-level external API clients** (Anthropic vision, OpenAI embeddings, Pinecone, ElevenLabs, Tavily, YouTube transcript fetch, Supabase storage). These stay under `providers/` per `NBB-206`. `sources/` imports them as provider-neutral runtime primitives.
 - **Configured product ingestion hand-offs** (Google Drive download, connector attachment fetch, Notion/Jira/Freshdesk product orchestration). These stay under `connectors/<name>/` per `NBB-206`. A connector may fetch bytes and hand them to `sources/`; it must not parse file formats.
-- **Studio export and screenshot helpers** (`presentation_export_utils.py`, `screenshot_utils.py`). These are studio-owned under `NBB-502` / `NBB-705D`.
+- **Studio export and screenshot helpers** (`studio/export/presentation.py`, `studio/export/screenshot.py`). These are studio-owned; landed under `NBB-705D`.
 - **Cross-cutting helpers** (`path_utils.py`, `logger.py`, `utils/text/`). These are approved exceptions unless `NBB-705E` rehomes them.
 
 `platform/files/` and `providers/files/` are explicitly rejected as default homes for any file-format helper. There is no generic file-adapter root; source format operations live under `sources/<format>/` per the decision map in `CHARTER.md`.

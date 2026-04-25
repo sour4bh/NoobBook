@@ -13,7 +13,7 @@ from app.services.integrations.claude import claude_service
 from app.services.studio_services import studio_index_service
 from app.config import prompt_loader, tool_loader
 from app.sources.content import get_source_content
-from app.utils.excalidraw_utils import convert_to_excalidraw_elements
+from app.studio.design.wireframe.excalidraw import convert_to_excalidraw_elements
 from app.sources import index
 import app.providers.anthropic.response_parser
 

@@ -251,3 +251,6 @@ NBB-705C,python,backend/app/utils/cost_tracking.py,backend/app/providers/anthrop
 NBB-705C,python,backend/app/utils/embedding_utils.py,backend/app/providers/anthropic/token_count.py,count_tokens_api,count_tokens_api,python_symbol_move,manual
 NBB-705C,python,backend/app/utils/rate_limit_utils.py,backend/app/providers/anthropic/rate.py,,,python_module_move,refactory:move_module
 NBB-705C,python,backend/app/utils/encoding_utils.py,backend/app/providers/anthropic/media.py,,,python_module_move,refactory:move_module
+NBB-705D,python,backend/app/utils/excalidraw_utils.py,backend/app/studio/design/wireframe/excalidraw.py,,,python_module_move,refactory:move_module
+NBB-705D,python,backend/app/utils/presentation_export_utils.py,backend/app/studio/export/presentation.py,,,python_module_move,refactory:move_module
+NBB-705D,python,backend/app/utils/screenshot_utils.py,backend/app/studio/export/screenshot.py,,,python_module_move,refactory:move_module

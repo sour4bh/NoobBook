@@ -62,8 +62,8 @@ class PresentationRunner:
         from app.studio.documents.presentation.compose import presentation_agent_service
         from app.services.source_services import source_service
         from app.services.integrations.supabase import storage_service
-        from app.utils.screenshot_utils import capture_slides_as_screenshots
-        from app.utils.presentation_export_utils import create_pptx_from_screenshots
+        from app.studio.export.screenshot import capture_slides_as_screenshots
+        from app.studio.export.presentation import create_pptx_from_screenshots
 
         # Get source info
         source_name = "No Source"

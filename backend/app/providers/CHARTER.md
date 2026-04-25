@@ -32,6 +32,20 @@ Provider territory:
 
 Rich import-direction enforcement lands in `NBB-704A` and `NBB-704B`.
 
+## Documented exceptions (NBB-704B)
+
+`NBB-704B` accepts five inherited providers→domain imports under `providers/anthropic/` and encodes them line-by-line in `backend/scripts/verify_architecture.py` as `INHERITED_PROVIDER_VIOLATIONS`. These are not regressions and do not weaken the leaf rule above; they are observability hooks that legitimately depend on user/project/chat ownership, and the cycle is broken at runtime by lazy imports inside helper functions.
+
+| File and line | Imports | Why it stays |
+|---|---|---|
+| `backend/app/providers/anthropic/cost.py:76` | `app.projects.store.project_service` | Project cost tracking writes through the project ownership store; `_get_project_service` lazily imports inside a helper to break the runtime cycle. |
+| `backend/app/providers/anthropic/cost.py:82` | `app.chat.store.chat_service` | Per-chat cost mirroring (NBB-209A schema) writes through the chat store; lazy-imported alongside the project service. |
+| `backend/app/providers/anthropic/cost.py:300` | `app.auth.user.store.get_user_service` | Spending-limit lookup reads `users.cost_limit` and `users.period_*` columns owned by `auth/`; lazy-imported inside `check_user_spending_limit`. |
+| `backend/app/providers/anthropic/cost.py:357` | `app.auth.user.store.get_user_service` | Period-spend write companion to the lookup above; lazy-imported inside `record_user_period_spend`. |
+| `backend/app/providers/anthropic/token_count.py:12` | `app.sources.tokens.count_tokens` | tiktoken fallback when the Anthropic count-tokens API call fails; the fallback is the same helper `sources/` uses for chunking, so duplicating it here would diverge the two estimators. Eager import is acceptable because `sources.tokens` does not import back into `providers/`. |
+
+NBB-705C reviewer confirmed the `cost.py` imports are byte-identical to the pre-move `utils/cost_tracking.py` source. The allowlist is keyed on `(rel_path, lineno, target_root)`; if any of these helpers move to a new line, the verifier surfaces the move and the entry must be re-confirmed under the same rationale.
+
 ## Current-code inventory
 
 Classification of today's `backend/app/services/integrations/` subtree against the providers/connectors split. No code moves in this ticket. Target shape is `backend/app/providers/<name>/`; the actual move plan lives in `NBB-705C` (Anthropic-family utilities) and the per-domain/per-connector tickets that follow.

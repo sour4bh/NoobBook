@@ -102,7 +102,7 @@ class SourcePipeline:
             Dict with success status and processing info
         """
         # Import here to avoid circular imports
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
 
         source = source_service.get_source(project_id, source_id)
         if not source:
@@ -243,7 +243,7 @@ class SourcePipeline:
         Returns:
             True if cancellation was initiated, False otherwise
         """
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
         from app.background.tasks import task_service
 
         source = source_service.get_source(project_id, source_id)
@@ -289,7 +289,7 @@ class SourcePipeline:
         Returns:
             Dict with success status and message
         """
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
         from app.background.tasks import task_service
 
         source = source_service.get_source(project_id, source_id)

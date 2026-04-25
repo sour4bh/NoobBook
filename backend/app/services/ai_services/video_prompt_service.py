@@ -125,7 +125,7 @@ Generate a clear, vivid video prompt (2-4 sentences) that describes what should 
         Educational Note: Sample chunks for large sources, use full content for small ones.
         """
         try:
-            from app.services.source_services import source_service
+            from app.sources.catalog import source_service
 
             source = source_service.get_source(project_id, source_id)
             if not source:

@@ -62,7 +62,7 @@ class BlogRunner:
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
         from app.studio.documents.blog.write import blog_agent_service
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
 
         # Get source info (optional — blog can be generated from direction alone)
         source_name = "No Source"

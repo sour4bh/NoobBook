@@ -151,7 +151,7 @@ class TestProcessSourceErrorPaths:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service:
             mock_service.get_source.return_value = None
 
@@ -163,7 +163,7 @@ class TestProcessSourceErrorPaths:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service:
             mock_service.get_source.return_value = {
                 "id": SOURCE_ID,
@@ -199,7 +199,7 @@ class TestCancelProcessing:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service, patch(
             "app.background.tasks.task_service"
         ) as mock_tasks, patch(
@@ -221,7 +221,7 @@ class TestCancelProcessing:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service:
             mock_service.get_source.return_value = None
 
@@ -234,7 +234,7 @@ class TestCancelProcessing:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service, patch(
             "app.background.tasks.task_service"
         ) as mock_tasks, patch(
@@ -269,7 +269,7 @@ class TestRetryProcessing:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service:
             mock_service.get_source.return_value = {
                 "id": SOURCE_ID,
@@ -286,7 +286,7 @@ class TestRetryProcessing:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service:
             mock_service.get_source.return_value = None
             result = pipeline.retry_processing(PROJECT_ID, SOURCE_ID)
@@ -297,7 +297,7 @@ class TestRetryProcessing:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service, patch(
             "app.background.tasks.task_service"
         ):
@@ -317,7 +317,7 @@ class TestRetryProcessing:
         pipeline = SourcePipeline()
 
         with patch(
-            "app.services.source_services.source_service"
+            "app.sources.catalog.source_service"
         ) as mock_service, patch(
             "app.background.tasks.task_service"
         ), patch(

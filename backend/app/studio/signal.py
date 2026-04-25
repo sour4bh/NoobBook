@@ -249,7 +249,7 @@ class StudioSignalExecutor:
             List of source ID strings (may be empty if no sources exist)
         """
         try:
-            from app.services.source_services import source_service
+            from app.sources.catalog import source_service
             all_sources = source_service.list_sources(project_id)
             fallback_ids = []
             for src in all_sources:

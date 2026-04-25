@@ -372,7 +372,7 @@ def _run_freshdesk_sync(project_id: str, source_id: str, mode: str, days_back: i
     tickets (not just for this source) since there's one shared pool.
     """
     from app.services.integrations.freshdesk.freshdesk_sync_service import freshdesk_sync_service
-    from app.services.source_services import source_service
+    from app.sources.catalog import source_service
 
     try:
         if clear_first:
@@ -400,7 +400,7 @@ def _run_freshdesk_sync(project_id: str, source_id: str, mode: str, days_back: i
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("Freshdesk sync failed: %s", e)
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
         source_service.update_source(project_id, source_id, status="ready",
                                      processing_info={"syncing": False, "error": str(e)})
 

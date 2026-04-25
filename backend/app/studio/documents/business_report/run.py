@@ -65,7 +65,7 @@ class BusinessReportRunner:
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
         from app.studio.documents.business_report.write import business_report_agent_service
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
 
         csv_source_ids = csv_source_ids or []
         context_source_ids = context_source_ids or []

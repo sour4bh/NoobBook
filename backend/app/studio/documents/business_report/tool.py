@@ -106,7 +106,7 @@ class BusinessReportDispatcher:
             pass
 
         # Not a UUID — try to find the source by name
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
         sources = source_service.list_sources(project_id)
 
         # Try matching by name

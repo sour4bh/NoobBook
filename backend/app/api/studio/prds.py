@@ -41,7 +41,7 @@ def generate_prd(project_id: str):
         202 Accepted with job_id for polling
     """
     from app.studio.documents.prd.write import prd_agent_service
-    from app.services.source_services import source_service
+    from app.sources.catalog import source_service
     from app.background.tasks import task_service
     import uuid
 

@@ -202,7 +202,7 @@ class BusinessReportWriter:
     ) -> Dict[str, Any]:
         """Get information about available sources."""
         try:
-            from app.services.source_services import source_service
+            from app.sources.catalog import source_service
 
             csv_sources = []
             for source_id in csv_source_ids:

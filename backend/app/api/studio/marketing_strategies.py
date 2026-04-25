@@ -41,7 +41,7 @@ def generate_marketing_strategy(project_id: str):
     Returns:
         202 Accepted with job_id for polling
     """
-    from app.services.source_services import source_service
+    from app.sources.catalog import source_service
     from app.background.tasks import task_service
     import uuid
 

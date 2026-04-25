@@ -47,7 +47,7 @@ def process_link(
     Returns:
         Dict with success status
     """
-    from app.services.ai_agents import web_agent_service
+    from app.services.ai_agents.web_agent_service import web_agent_service
     from app.services.source_services.source_processing.youtube_processor import process_youtube
 
     # Read the .link file to get URL

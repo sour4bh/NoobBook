@@ -4,9 +4,10 @@
 #   - no-new-legacy-files : structural guardrail that blocks new files under
 #                           frozen legacy destinations (see STRUCTURE.md and
 #                           docs/tickets/epics/NBB-001.md#nbb-103).
-#   - verify-architecture : early root + providers/connectors import-direction
-#                           checks from NBB-104 and NBB-206 (see
-#                           docs/tickets/epics/NBB-007.md#nbb-704a).
+#   - verify-architecture : root + providers/connectors import-direction
+#                           checks from NBB-104 and NBB-206, plus post-migration
+#                           chat publics-only and independent-roots checks (see
+#                           docs/tickets/epics/NBB-007.md#nbb-704a and #nbb-704b).
 #   - backend-tests       : pytest suite at HEAD (NBB-106/107 extend coverage).
 
 name: ci
@@ -55,7 +56,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Verify early architecture checks
+      - name: Verify architecture checks (NBB-704A + NBB-704B)
         run: python backend/scripts/verify_architecture.py
 
   backend-tests:

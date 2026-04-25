@@ -69,25 +69,15 @@ Disposition values:
 
 ## Summary
 
-- Total classes: 43 (34 *Service + 9 *Executor)
-- KEEP: 36 (33 *Service + 9 *Executor — the 9 retained executors plus 27 retained services)
-
-Wait, let me recount. The KEEP `*Service` is 34 minus 5 converted (ChatNaming, Embedding, Summary, Validation, VideoPrompt) = 29? Two of the seven conversions (`SupabaseClient`, `OpenAIService`) — `SupabaseClient` is not in the *Service grep list (no `Service` suffix), and `OpenAIService` is. Let me verify:
-
-The seven NBB-706 conversion targets:
-1. SupabaseClient — class name, not `*Service`/`*Executor` suffix; will not appear in either grep. Counted separately below.
-2. OpenAIService — *Service.
-3. EmbeddingService — *Service.
-4. ValidationService — *Service.
-5. SummaryService — *Service.
-6. ChatNamingService — *Service.
-7. VideoPromptService — *Service.
-
-So six of the seven conversions are visible in the *Service grep. The *Service total is 34, 6 converted = 28 KEEP. *Executor total is 9, all KEEP. The seventh conversion (SupabaseClient) is tracked in the supplemental row below.
-
-- KEEP: 28 *Service + 9 *Executor = 37
-- CONVERTED-IN-NBB-706 (visible in *Service grep): 6
-- HOLDOUTS: 0
+- Total classes in inventory: 43 (34 *Service + 9 *Executor).
+- KEEP: 37 (28 *Service + 9 *Executor).
+- CONVERTED-IN-NBB-706 (matched by the *Service grep): 6 — `ChatNamingService`,
+  `EmbeddingService`, `SummaryService`, `ValidationService`, `VideoPromptService`,
+  and `OpenAIService`.
+- HOLDOUTS: 0.
+- The seventh NBB-706 conversion target (`SupabaseClient`) carries a `Client`
+  suffix and is invisible to the inventory greps. It is logged in the
+  Supplemental row below for completeness.
 
 ## Supplemental: non-suffix class also converted in NBB-706
 

@@ -1,140 +1,100 @@
 """
-Supabase Client - Centralized Supabase client initialization.
+Supabase client lifecycle.
 
-Educational Note: This module provides a singleton Supabase client instance
-that can be imported throughout the application. It handles configuration
-from environment variables and provides a clean interface for database operations.
+Lazy module-level singleton: the first `get_client()` call reads the env,
+constructs the supabase-py client, and caches it as `_client`. Subsequent
+calls reuse the cached client until `reset()` is called.
+
+The client is exposed as module functions because the previous class form
+held no per-instance state — `_client` and `_initialized` were always
+class-level. NBB-706 collapses the wrapper.
+
+Tests that need to inject a fake client should set the module attributes
+directly:
+
+    from app.services.integrations.supabase import supabase_client
+    supabase_client._client = MagicMock()
+    supabase_client._initialized = True
 """
 
 import logging
 import os
 from typing import Optional
-from supabase import create_client, Client
+
 from dotenv import load_dotenv
+from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables
+# Load environment variables once at module import (matches the previous
+# class-form behavior; tests still set SUPABASE_URL via conftest before
+# import).
 load_dotenv()
 
+_client: Optional[Client] = None
+_initialized: bool = False
 
-class SupabaseClient:
+
+def get_client() -> Client:
+    """Return the cached Supabase client, constructing it on first call."""
+    global _client, _initialized
+    if not _initialized:
+        _initialize()
+    if _client is None:
+        raise RuntimeError("Supabase client failed to initialize")
+    return _client
+
+
+def _initialize() -> None:
+    """Build the supabase-py client from `SUPABASE_*` env vars.
+
+    Educational Note: SERVICE_KEY (not anon key) is preferred for
+    single-user/local mode because it bypasses Row Level Security (RLS).
+    For multi-user production, use the anon key with proper auth.
     """
-    Singleton Supabase client wrapper.
+    global _client, _initialized
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 
-    Educational Note: Using a singleton pattern ensures we only create one
-    Supabase client instance throughout the application lifecycle, which is
-    more efficient and prevents connection issues.
-    """
+    if not supabase_url:
+        raise ValueError(
+            "SUPABASE_URL environment variable is not set. "
+            "Please add it to your .env file."
+        )
+    if not supabase_key:
+        raise ValueError(
+            "SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY environment variable is not set. "
+            "Please add SUPABASE_SERVICE_KEY to your .env file for single-user mode."
+        )
 
-    _instance: Optional[Client] = None
-    _initialized: bool = False
-
-    @classmethod
-    def get_client(cls) -> Client:
-        """
-        Get or create the Supabase client instance.
-
-        Returns:
-            Supabase client instance
-
-        Raises:
-            ValueError: If required environment variables are not set
-        """
-        if not cls._initialized:
-            cls._initialize()
-
-        if cls._instance is None:
-            raise RuntimeError("Supabase client failed to initialize")
-
-        return cls._instance
-
-    @classmethod
-    def _initialize(cls) -> None:
-        """
-        Initialize the Supabase client from environment variables.
-
-        Educational Note: We use the SERVICE_KEY (not anon key) for single-user mode
-        because it bypasses Row Level Security (RLS). This is safe for local/single-user
-        deployments. For multi-user production, use anon key with proper auth.
-        """
-        supabase_url = os.getenv("SUPABASE_URL")
-        # Prefer service key for single-user mode (bypasses RLS)
-        # Fall back to anon key for backwards compatibility
-        supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY")
-
-        if not supabase_url:
-            raise ValueError(
-                "SUPABASE_URL environment variable is not set. "
-                "Please add it to your .env file."
-            )
-
-        if not supabase_key:
-            raise ValueError(
-                "SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY environment variable is not set. "
-                "Please add SUPABASE_SERVICE_KEY to your .env file for single-user mode."
-            )
-
-        try:
-            cls._instance = create_client(supabase_url, supabase_key)
-            cls._initialized = True
-            key_type = "service" if os.getenv("SUPABASE_SERVICE_KEY") else "anon"
-            logger.info("Supabase client initialized (%s key): %s", key_type, supabase_url)
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize Supabase client: {str(e)}")
-
-    @classmethod
-    def is_configured(cls) -> bool:
-        """
-        Check if Supabase is configured (environment variables are set).
-
-        Returns:
-            True if configured, False otherwise
-        """
-        has_url = bool(os.getenv("SUPABASE_URL"))
-        has_key = bool(os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY"))
-        return has_url and has_key
-
-    @classmethod
-    def reset(cls) -> None:
-        """
-        Reset the client instance (useful for testing).
-
-        Educational Note: This method allows tests to reset the singleton
-        state between test runs.
-        """
-        cls._instance = None
-        cls._initialized = False
+    try:
+        _client = create_client(supabase_url, supabase_key)
+        _initialized = True
+        key_type = "service" if os.getenv("SUPABASE_SERVICE_KEY") else "anon"
+        logger.info("Supabase client initialized (%s key): %s", key_type, supabase_url)
+    except Exception as exc:
+        raise RuntimeError(f"Failed to initialize Supabase client: {exc}")
 
 
-# Convenience function for easy importing
+def is_configured() -> bool:
+    """True when both URL and a service/anon key are present in the env."""
+    has_url = bool(os.getenv("SUPABASE_URL"))
+    has_key = bool(os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY"))
+    return has_url and has_key
+
+
+def reset() -> None:
+    """Drop the cached client; the next `get_client()` call rebuilds it."""
+    global _client, _initialized
+    _client = None
+    _initialized = False
+
+
 def get_supabase() -> Client:
-    """
-    Get the Supabase client instance.
-
-    This is the recommended way to access the Supabase client throughout
-    the application.
-
-    Returns:
-        Supabase client instance
-
-    Example:
-        from app.services.integrations.supabase import get_supabase
-
-        supabase = get_supabase()
-        projects = supabase.table("projects").select("*").execute()
-    """
-    return SupabaseClient.get_client()
+    """Public alias kept stable for callers that already imported it."""
+    return get_client()
 
 
 def is_supabase_enabled() -> bool:
-    """
-    Check if Supabase integration is enabled.
-
-    Returns:
-        True if Supabase is configured, False otherwise
-
-    Educational Note: This allows the application to gracefully handle
-    cases where Supabase is not yet configured during initial setup.
-    """
-    return SupabaseClient.is_configured()
+    """Public alias kept stable for callers that already imported it."""
+    return is_configured()

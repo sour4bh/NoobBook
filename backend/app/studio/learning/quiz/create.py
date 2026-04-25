@@ -26,7 +26,7 @@ import app.providers.anthropic.response_parser
 logger = logging.getLogger(__name__)
 
 
-class QuizService:
+class QuizCreator:
     """
     Service for generating quiz questions from source content.
 
@@ -249,4 +249,4 @@ class QuizService:
 
 
 # Singleton instance
-quiz_service = QuizService()
+quiz_service = QuizCreator()

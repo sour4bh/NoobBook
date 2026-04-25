@@ -15,7 +15,7 @@ from app.services.integrations.supabase import storage_service
 from app.sources import index
 
 
-class StudioAudioExecutor:
+class AudioDispatcher:
     """
     Executor for studio audio generation tools.
 
@@ -34,7 +34,7 @@ class StudioAudioExecutor:
         """Initialize the executor."""
         pass
 
-    def execute(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
@@ -42,7 +42,7 @@ class StudioAudioExecutor:
         job_id: Optional[str] = None
     ) -> Tuple[str, bool]:
         """
-        Execute a studio audio tool.
+        Dispatch a studio audio tool by name.
 
         Args:
             tool_name: The tool to execute
@@ -258,4 +258,4 @@ class StudioAudioExecutor:
 
 
 # Singleton instance
-studio_audio_executor = StudioAudioExecutor()
+studio_audio_executor = AudioDispatcher()

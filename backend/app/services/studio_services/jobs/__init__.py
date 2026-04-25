@@ -9,14 +9,14 @@ This __init__.py re-exports all job functions for backward compatibility.
 """
 
 # Audio Jobs
-from .audio_jobs import (
+from app.studio.media.audio.job import (
     create_audio_job,
     update_audio_job,
     get_audio_job,
     list_audio_jobs,
     delete_audio_job,
 )
-from .video_jobs import (
+from app.studio.media.video.job import (
     create_video_job,
     update_video_job,
     get_video_job,
@@ -29,21 +29,21 @@ from app.studio.marketing.ad.job import (
     get_ad_job,
     list_ad_jobs,
 )
-from .flash_card_jobs import (
+from app.studio.learning.flash_card.job import (
     create_flash_card_job,
     update_flash_card_job,
     get_flash_card_job,
     list_flash_card_jobs,
     delete_flash_card_job,
 )
-from .mind_map_jobs import (
+from app.studio.learning.mind_map.job import (
     create_mind_map_job,
     update_mind_map_job,
     get_mind_map_job,
     list_mind_map_jobs,
     delete_mind_map_job,
 )
-from .quiz_jobs import (
+from app.studio.learning.quiz.job import (
     create_quiz_job,
     update_quiz_job,
     get_quiz_job,
@@ -104,4 +104,6 @@ from app.studio.marketing.strategy.job import (
 # Component, flow_diagram, wireframe jobs: moved to app/studio/design/<item>/job.py (NBB-506).
 # Ad, email, infographic, social_post, marketing_strategy jobs: moved to app/studio/marketing/<item>/job.py (NBB-505).
 # Presentation, prd, blog, business_report jobs: moved to app/studio/documents/<item>/job.py (NBB-504).
+# Audio, video jobs: moved to app/studio/media/<item>/job.py (NBB-507).
+# Flash_card, mind_map, quiz jobs: moved to app/studio/learning/<item>/job.py (NBB-507).
 # Consumers import from studio_index_service (re-exports from new home) or directly from the new domain-owned module.

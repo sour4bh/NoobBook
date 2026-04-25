@@ -31,7 +31,9 @@ from app.services.tool_executors.deep_research_executor import deep_research_exe
 from app.services.tool_executors import csv_analyzer_agent_executor  # Module import (has execute function)
 from app.services.tool_executors import database_analyzer_agent_executor  # Module import (has execute function)
 from app.services.tool_executors.studio_signal_executor import studio_signal_executor
-from app.services.tool_executors.studio_audio_executor import studio_audio_executor
+# studio_audio_executor moved to app.studio.media.audio.tool (NBB-507);
+# re-export preserved as backward-compat shim. NBB-706 owns removal.
+from app.studio.media.audio.tool import studio_audio_executor
 from app.studio.marketing.email.run import email_agent_executor
 
 # website_agent_executor moved to app.studio.design.website.run (NBB-503);

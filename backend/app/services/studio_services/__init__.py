@@ -15,6 +15,8 @@ Planned Services:
 - Interactive Q&A features
 """
 from app.services.studio_services import studio_index_service
-from app.services.studio_services.audio_overview_service import audio_overview_service
+# audio_overview_service moved to app.studio.media.audio.generate (NBB-507);
+# re-export preserved as backward-compat shim. NBB-706 owns removal.
+from app.studio.media.audio.generate import audio_overview_service
 
 __all__ = ["audio_overview_service", "studio_index_service"]

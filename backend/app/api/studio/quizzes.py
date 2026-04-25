@@ -28,7 +28,7 @@ import uuid
 from flask import jsonify, request, current_app
 from app.api.studio import studio_bp
 from app.services.studio_services import studio_index_service
-from app.services.studio_services.quiz_service import quiz_service
+from app.studio.learning.quiz.create import quiz_service
 from app.background.tasks import task_service
 from app.auth.guards import require_permission
 from app.sources import index

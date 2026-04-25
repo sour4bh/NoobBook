@@ -21,9 +21,9 @@ Public surface (NBB-301):
 - `chat.schemas` — `ChatResponse`, `ChatEvent`, and chat contract shapes
   traced to NBB-205.
 
-Migration source: `backend/app/services/chat_services/` and
-`backend/app/services/tool_executors/` feed this domain; moves are owned by
-`NBB-301` through `NBB-304`.
+Migration source: `backend/app/services/chat_services/` is removed as of
+NBB-302. `backend/app/services/tool_executors/` still feeds chat-invoked
+tools until `NBB-303` reassigns them to their owning domains.
 """
 from typing import Iterator, Optional
 
@@ -52,7 +52,8 @@ def send(
     """Run a chat turn synchronously and return the saved message rows.
 
     Public surface entry point. Internals run through `chat.loop.run_send`,
-    which delegates to the legacy `MainChatService` until NBB-302 splits it.
+    which constructs a `ChatLoop` and runs the agentic loop end-to-end
+    (NBB-302).
     """
     return loop.run_send(project_id, chat_id, message, identity)
 

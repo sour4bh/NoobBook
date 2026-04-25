@@ -33,7 +33,7 @@
 ## Data-move pre-flight (NBB-209A and any future chat-store migrations)
 
 1. Keep the RLS subquery shape unchanged when moving the store; any rename that breaks the `chat_id -> project_id` join must be staged as a dedicated migration ticket.
-2. When NBB-302 splits `main_chat_service.py`, preserve the existing ownership query path. Do not introduce new direct reads of `messages` from outside `chat/` internals.
+2. NBB-302 split the legacy `main_chat_service.py` into `chat/loop.py`, `chat/context.py`, `chat/tool/policy.py`, `chat/persistence.py`, `chat/stream.py`, `chat/memory/`, and `chat/naming.py`; the existing ownership query path is preserved. Do not introduce new direct reads of `messages` from outside `chat/` internals.
 3. Chat-invoked tools (NBB-303) may store rows in other domain tables (memory, studio signals, connector invocations). Those rows remain owned by the target domain's charter, not this one.
 
 ## Cross-reference

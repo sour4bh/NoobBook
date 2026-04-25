@@ -180,7 +180,7 @@ class ChatStore:
                 })
         else:
             # Normal mode: filter out tool chain intermediates
-            # Educational Note: During a tool_use loop, main_chat_service stores:
+            # Educational Note: During a tool_use loop, the chat loop stores:
             #   1. Intermediate assistant messages with LIST content (serialized content
             #      blocks containing text + tool_use blocks)
             #   2. Tool_result user messages with LIST content

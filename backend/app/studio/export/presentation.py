@@ -15,7 +15,7 @@ Workflow:
 3. Slide dimensions are set to standard widescreen (13.333" x 7.5")
 
 Usage:
-    from app.utils.presentation_export_utils import create_pptx_from_screenshots
+    from app.studio.export.presentation import create_pptx_from_screenshots
 
     pptx_path = create_pptx_from_screenshots(
         screenshots=[{"screenshot_path": "/path/to/slide_01.png", ...}],

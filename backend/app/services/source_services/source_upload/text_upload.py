@@ -109,7 +109,7 @@ def _submit_processing_task(project_id: str, source_id: str) -> None:
     """
     try:
         from app.services.source_services.source_processing import source_processing_service
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
 
         task_id = task_service.submit_task(
             "source_processing",

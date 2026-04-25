@@ -21,8 +21,8 @@ from typing import Dict, Any
 from app.utils.text import build_processed_output
 from app.sources.tokens import needs_embedding, count_tokens
 from app.services.integrations.supabase import storage_service
-from app.services.ai_services.embedding_service import embedding_service
-from app.services.ai_services.summary_service import summary_service
+from app.services.ai_services import embedding_service
+from app.services.ai_services import summary_service
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def process_link(
     Returns:
         Dict with success status
     """
-    from app.services.ai_agents import web_agent_service
+    from app.services.ai_agents.web_agent_service import web_agent_service
     from app.services.source_services.source_processing.youtube_processor import process_youtube
 
     # Read the .link file to get URL

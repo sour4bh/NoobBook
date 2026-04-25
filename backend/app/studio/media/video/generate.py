@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional
 from app.services.integrations.google.video_service import google_video_service
 
 logger = logging.getLogger(__name__)
-from app.services.ai_services.video_prompt_service import video_prompt_service
+from app.studio.media.video import prompt as video_prompt
 from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
 
@@ -63,7 +63,7 @@ class VideoGenerator:
         )
 
         # Step 1: Generate optimized video prompt using Claude
-        prompt_result = video_prompt_service.generate_video_prompt(
+        prompt_result = video_prompt.generate_video_prompt(
             project_id=project_id,
             source_id=source_id,
             direction=direction,

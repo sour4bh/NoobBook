@@ -56,7 +56,7 @@ class VideoDispatcher:
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
         from app.studio.media.video.generate import video_service
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
 
         # Get source info
         source = source_service.get_source(project_id, source_id)

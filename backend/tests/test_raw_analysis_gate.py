@@ -38,8 +38,8 @@ os.environ.setdefault(
 
 from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
 
-_supabase_client.SupabaseClient._instance = MagicMock()
-_supabase_client.SupabaseClient._initialized = True
+_supabase_client._client = MagicMock()
+_supabase_client._initialized = True
 
 from app.sources.analysis.csv import run as analysis_executor_module  # noqa: E402
 from app.sources.analysis.csv.run import (  # noqa: E402

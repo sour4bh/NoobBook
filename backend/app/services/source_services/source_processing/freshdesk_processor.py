@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from app.services.ai_services.summary_service import summary_service
+from app.services.ai_services import summary_service
 from app.services.integrations.freshdesk.freshdesk_sync_service import (
     freshdesk_sync_service,
 )

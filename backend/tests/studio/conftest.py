@@ -30,5 +30,5 @@ os.environ["NOOBBOOK_AUTH_REQUIRED"] = "false"
 # constructors and the background-task startup hook do not make network calls.
 from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
 
-_supabase_client.SupabaseClient._instance = MagicMock()
-_supabase_client.SupabaseClient._initialized = True
+_supabase_client._client = MagicMock()
+_supabase_client._initialized = True

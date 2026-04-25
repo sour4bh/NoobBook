@@ -16,7 +16,9 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-from app.config import tool_loader, prompt_loader, get_anthropic_config
+from app.config.tool_loader import tool_loader
+from app.config.prompt_loader import prompt_loader
+from app.config import get_anthropic_config
 from app.providers.anthropic.media import encode_file_to_base64, get_media_type
 from app.providers.anthropic.rate import RateLimiter
 from app.utils.text import build_processed_output

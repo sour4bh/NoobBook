@@ -244,7 +244,7 @@ def test_rbac_require_auth_bypasses_in_dev_mode(auth_optional_env):
     function without running the identity check. NBB-202A will revisit
     this policy — the test captures today's behavior, not the target."""
     from app.auth.guards import require_auth
-    from app.services.auth.rbac import is_auth_required
+    from app.auth.identity import is_auth_required
 
     assert is_auth_required() is False
 
@@ -264,7 +264,7 @@ def test_rbac_fallback_identity_is_admin_in_dev_mode(
     NOOBBOOK_AUTH_REQUIRED=false, `get_request_identity` falls through
     to DEFAULT_USER_ID with the admin role. Captures present behavior
     ahead of NBB-202A tightening."""
-    from app.services.auth.rbac import get_request_identity
+    from app.auth.identity import get_request_identity
     from app.projects.store import DEFAULT_USER_ID
 
     with auth_app.test_request_context("/api/v1/anything"):

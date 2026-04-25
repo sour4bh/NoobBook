@@ -1,35 +1,16 @@
 """
-Source Services - Services for managing project sources.
+Source Services - legacy migration source.
 
-Educational Note: This folder contains services that handle uploading, storing,
-processing, and managing source files for projects. Sources are the documents,
-images, audio, and data files that users upload to be used as context for AI
-conversations.
+Submodules `source_upload/` and `source_processing/` still live in this
+package and remain in active use; they are explicitly out of scope for
+NBB-706. The lazy `__getattr__` re-export shim that exposed `source_service`,
+`SourceService`, and `source_index_service` was removed in NBB-706 — those
+names now import from their domain homes:
 
-Folder Structure:
-- source_service.py: Main source management (CRUD operations, delegates to modules below)
-- source_index_service.py: Source metadata CRUD operations (Supabase sources table)
-- source_upload/: Upload handlers for different source types (file, URL, text)
-- source_processing/: Processing orchestration and processors for different file types
+- `source_service`     -> `app.sources.catalog.source_service`
+- `SourceService`      -> `app.sources.catalog.SourceCatalog`
+- `source_index_service` -> `app.sources.index`
 
-Processing Pipeline:
-1. Upload: source_upload/ modules handle validation and upload to Supabase Storage
-2. Index: source_index_service manages metadata in Supabase sources table
-3. Process: source_processing/ extracts content, generates embeddings and summaries
+Future ownership work can collapse this package into the source domain
+once `source_upload/` and `source_processing/` are migrated.
 """
-__all__ = ["source_service", "SourceService", "source_index_service"]
-
-
-def __getattr__(name):
-    # Lazy re-export avoids circular imports with app.sources.catalog,
-    # which imports back into source_services.source_upload at module load.
-    if name == "source_service":
-        from app.sources.catalog import source_service
-        return source_service
-    if name == "SourceService":
-        from app.sources.catalog import SourceCatalog
-        return SourceCatalog
-    if name == "source_index_service":
-        from app.sources import index
-        return index
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

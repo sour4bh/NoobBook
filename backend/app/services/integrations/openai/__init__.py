@@ -1,9 +1,8 @@
 """
-OpenAI Integration - OpenAI API wrapper for embeddings.
+OpenAI integration: embeddings module.
 
-Educational Note: This module provides embedding creation using OpenAI's
-text-embedding-3-small model. Used by the RAG pipeline for semantic search.
+Used by the RAG pipeline for semantic search. The module exposes
+`create_embedding`, `create_embeddings_batch`, and
+`get_embedding_dimensions`; callers import from
+`app.services.integrations.openai.openai` directly.
 """
-from app.services.integrations.openai.openai_service import openai_service
-
-__all__ = ["openai_service"]

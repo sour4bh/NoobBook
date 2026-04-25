@@ -35,7 +35,7 @@ def get_source_content(
         Source content string
     """
     try:
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
 
         source = source_service.get_source(project_id, source_id)
         if not source:
@@ -75,7 +75,7 @@ def get_source_content(
 def get_source_name(project_id: str, source_id: str) -> Optional[str]:
     """Get source name by ID."""
     try:
-        from app.services.source_services import source_service
+        from app.sources.catalog import source_service
         source = source_service.get_source(project_id, source_id)
         return source.get("name") if source else None
     except Exception:

@@ -14,7 +14,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.services.integrations.claude import claude_service
-from app.config import prompt_loader, tool_loader, brand_context_loader
+from app.config.prompt_loader import prompt_loader
+from app.config.tool_loader import tool_loader
+from app.config import brand_context_loader
 import app.providers.anthropic.content
 from app.services.studio_services import studio_index_service
 from app.studio.documents.business_report.tool import business_report_tool_executor
@@ -202,7 +204,7 @@ class BusinessReportWriter:
     ) -> Dict[str, Any]:
         """Get information about available sources."""
         try:
-            from app.services.source_services import source_service
+            from app.sources.catalog import source_service
 
             csv_sources = []
             for source_id in csv_source_ids:

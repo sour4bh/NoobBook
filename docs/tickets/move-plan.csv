@@ -371,3 +371,5 @@ NBB-303,python,backend/app/services/tool_executors/web_agent_executor.py,backend
 NBB-706,python,backend/app/studio/signal.py,backend/app/studio/signal.py,execute,emit,python_symbol_rename,manual
 NBB-706,python,backend/app/sources/search.py,backend/app/sources/search.py,execute,search,python_symbol_rename,manual
 NBB-706,python,backend/app/sources/link/run.py,backend/app/sources/link/run.py,execute_tool,dispatch,python_symbol_rename,manual
+NBB-706,python,backend/app/chat/stream.py,backend/app/chat/streaming.py,,,python_module_move,manual
+NBB-706,python,backend/app/chat/memory/store.py,backend/app/chat/memory/run.py,,,python_module_move,manual

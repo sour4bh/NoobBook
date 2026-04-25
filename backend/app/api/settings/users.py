@@ -11,7 +11,7 @@ Routes:
 from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
-from app.services.auth.rbac import get_request_identity
+from app.auth.identity import get_request_identity
 from app.auth.user.store import get_user_service
 from app.auth.guards import require_admin
 
@@ -171,7 +171,7 @@ def get_my_permissions():
     Educational Note: Non-admin endpoint — any authenticated user can
     fetch their own permissions so the frontend knows what to show/hide.
     """
-    from app.services.auth.rbac import get_request_identity
+    from app.auth.identity import get_request_identity
     from app.auth.permissions import get_user_permissions
 
     identity = get_request_identity()

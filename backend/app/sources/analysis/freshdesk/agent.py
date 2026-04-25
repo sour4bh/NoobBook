@@ -10,7 +10,8 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional
 
-from app.config import prompt_loader, tool_loader
+from app.config.prompt_loader import prompt_loader
+from app.config.tool_loader import tool_loader
 from app.services.integrations.claude import claude_service
 from app.sources.analysis.freshdesk.tool import freshdesk_executor
 import app.providers.anthropic.response_parser

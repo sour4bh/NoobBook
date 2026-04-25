@@ -428,7 +428,7 @@ def test_user_has_permission_logs_warning_on_db_failure_in_auth_required_mode(
 
 def test_require_admin_rejects_non_admin(auth_required_env):
     """Decorator returns 403 for authenticated non-admin users."""
-    from app.services.auth import rbac
+    from app.auth import identity as rbac
     from app.auth import guards
 
     app = _make_flask_app()
@@ -454,7 +454,7 @@ def test_require_admin_rejects_non_admin(auth_required_env):
 def test_require_admin_rejects_unauthenticated(auth_required_env):
     """Decorator returns 401 when auth required and caller is not
     authenticated."""
-    from app.services.auth import rbac
+    from app.auth import identity as rbac
     from app.auth import guards
 
     app = _make_flask_app()
@@ -478,7 +478,7 @@ def test_require_admin_rejects_unauthenticated(auth_required_env):
 
 def test_require_admin_allows_admin(auth_required_env):
     """Decorator passes through for admin identity."""
-    from app.services.auth import rbac
+    from app.auth import identity as rbac
     from app.auth import guards
 
     app = _make_flask_app()
@@ -500,7 +500,7 @@ def test_require_admin_allows_admin(auth_required_env):
 def test_require_permission_admin_bypasses_check(auth_required_env):
     """`require_permission` short-circuits for admin identities regardless
     of the user's permission JSONB."""
-    from app.services.auth import rbac
+    from app.auth import identity as rbac
     from app.auth import guards
 
     app = _make_flask_app()
@@ -528,7 +528,7 @@ def test_require_permission_admin_bypasses_check(auth_required_env):
 
 def test_require_permission_allows_user_with_permission(auth_required_env):
     """Non-admin with the permission granted passes through."""
-    from app.services.auth import rbac
+    from app.auth import identity as rbac
     from app.auth import guards
 
     app = _make_flask_app()
@@ -552,7 +552,7 @@ def test_require_permission_allows_user_with_permission(auth_required_env):
 def test_require_permission_blocks_user_without_permission(auth_required_env):
     """Non-admin missing the permission gets a 403 with the standard
     contact-admin message."""
-    from app.services.auth import rbac
+    from app.auth import identity as rbac
     from app.auth import guards
 
     app = _make_flask_app()

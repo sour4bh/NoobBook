@@ -1,22 +1,14 @@
 """
-Studio Services - Services for studio features (audio overview, deep dive, etc.).
+Studio Services - legacy migration source.
 
-Educational Note: This folder contains services that handle studio features
-like audio overview generation, deep dive conversations, and other interactive
-content creation features.
+`studio_index_service` still lives here as a real submodule and is imported
+directly via `app.services.studio_services.studio_index_service` (or the
+package re-import that resolves the submodule by Python's normal package
+mechanics, e.g. `from app.services.studio_services import studio_index_service`).
 
-Current Services:
-- audio_overview_service: Generates audio overviews from source content
-  Uses agentic loop to read content and generate TTS-optimized scripts
-- studio_index_service: Tracks studio generation jobs (status, progress)
-
-Planned Services:
-- Deep dive conversation mode
-- Interactive Q&A features
+The former `audio_overview_service` re-export shim was removed in NBB-706;
+callers import it from `app.studio.media.audio.generate` directly.
 """
 from app.services.studio_services import studio_index_service
-# audio_overview_service moved to app.studio.media.audio.generate (NBB-507);
-# re-export preserved as backward-compat shim. NBB-706 owns removal.
-from app.studio.media.audio.generate import audio_overview_service
 
-__all__ = ["audio_overview_service", "studio_index_service"]
+__all__ = ["studio_index_service"]

@@ -13,8 +13,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 
 from flask import has_request_context
 
-from app.auth.identity import RequestIdentity
-from app.background.tasks import task_service
+from app.auth.identity import RequestIdentity, get_request_identity
 from app.chat import memory as chat_memory
 from app.chat.context import build_system_prompt
 from app.chat.message.store import message_service
@@ -22,16 +21,16 @@ from app.chat.persistence import emit_event
 from app.chat.naming import submit_naming_task
 from app.chat.schemas import ChatEvent, ChatResponse
 from app.chat.store import chat_service
-from app.chat.stream import ClaudeStreamError, call_claude, iter_chat_events
+from app.chat.streaming import ClaudeStreamError, call_claude, iter_chat_events
 from app.chat.tool.policy import chat_tool_policy
-from app.config import context_loader, prompt_loader
+from app.config.prompt_loader import prompt_loader
+from app.config import context_loader
 from app.projects.store import DEFAULT_USER_ID
 from app.providers.anthropic.content import serialize_content_blocks
 from app.providers.anthropic.response_parser import (
     extract_tool_use_blocks,
     is_tool_use,
 )
-from app.services.auth.rbac import get_request_identity
 from app.services.integrations.knowledge_bases import knowledge_base_service
 from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
 from app.sources.search import source_search_executor

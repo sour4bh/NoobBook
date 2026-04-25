@@ -18,7 +18,8 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.services.integrations.supabase import storage_service
 from app.services.studio_services import studio_index_service
-from app.config import prompt_loader, tool_loader
+from app.config.prompt_loader import prompt_loader
+from app.config.tool_loader import tool_loader
 from app.sources import index
 import app.providers.anthropic.response_parser
 

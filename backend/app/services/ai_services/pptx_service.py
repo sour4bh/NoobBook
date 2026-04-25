@@ -21,7 +21,9 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.services.integrations.claude import claude_service
-from app.config import tool_loader, prompt_loader, get_anthropic_config
+from app.config.tool_loader import tool_loader
+from app.config.prompt_loader import prompt_loader
+from app.config import get_anthropic_config
 from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE
 from app.providers.anthropic.media import encode_bytes_to_base64
 from app.sources.pdf.ops import get_page_count, get_all_page_bytes

@@ -3,7 +3,9 @@ App Settings - Services for managing application configuration.
 
 Educational Note: This folder contains services related to application settings:
 - EnvService: Manages .env file operations (read, write, delete keys)
-- ValidationService: Validates API keys by making test requests to each service
+- validation_service module: Validates API keys by making test requests to each
+  service. Exposes `validate(key_name, value, **extras)` plus per-provider
+  validator functions; converted from a class façade in NBB-706.
 
 The validation folder contains individual validators for each service,
 keeping the code modular and easy to maintain.
@@ -35,12 +37,11 @@ Service-reload contract.
 
 Validator ownership.
 - `settings/` owns the validate endpoint, `.env` CRUD orchestration, and the
-  `ValidationService` facade that routes `key_id`s to individual validators.
+  `validation_service` module that routes `key_id`s to individual validators.
 - Post-`NBB-206`, raw SDK health-check validators move under `providers/`;
   product-capability validators (Notion, Jira, Freshdesk, Mixpanel) move
   under `connectors/`. See `api_keys.py` for the full map.
 """
 from app.services.app_settings.env_service import EnvService
-from app.services.app_settings.validation import ValidationService
 
-__all__ = ["EnvService", "ValidationService"]
+__all__ = ["EnvService"]

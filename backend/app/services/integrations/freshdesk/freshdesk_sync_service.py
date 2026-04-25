@@ -71,7 +71,7 @@ class FreshdeskSyncService:
         def _on_progress(total_fetched: int, rate_info: dict = None) -> None:
             """Update source processing_info with live ticket count + ETA."""
             try:
-                from app.services.source_services import source_service
+                from app.sources.catalog import source_service
                 elapsed = time.time() - _sync_start
                 info: Dict[str, Any] = {
                     "syncing": True,

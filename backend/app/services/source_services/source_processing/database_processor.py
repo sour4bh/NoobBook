@@ -22,8 +22,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import pymysql
 
-from app.services.ai_services.embedding_service import embedding_service
-from app.services.ai_services.summary_service import summary_service
+from app.services.ai_services import embedding_service
+from app.services.ai_services import summary_service
 from app.connectors.database.connection.store import database_connection_service
 from app.services.integrations.supabase import storage_service
 

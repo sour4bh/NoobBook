@@ -81,11 +81,10 @@ REPO_ROOT = BACKEND_DIR.parent
 # (rel_path, class_name); the comment names the singleton variable plus the
 # NBB-706 disposition (CONVERSION-TARGET vs KEEP-AS-CLASS).
 ALLOWLIST: frozenset[Tuple[str, str]] = frozenset({
-    # CONVERSION-TARGETS — NBB-706 will delete these classes and replace with
-    # module-level functions; remove the allowlist entry when that lands.
-    # EmbeddingService entry removed in NBB-706 conversion 3 (class deleted).
-    # NBB-706 ticket body row 7: VideoPromptService -> module-level functions.
-    ("backend/app/services/ai_services/video_prompt_service.py", "VideoPromptService"),
+    # CONVERSION-TARGETS — NBB-706 deleted both AST-detected classes
+    # (EmbeddingService, VideoPromptService) and dropped their allowlist
+    # entries in the same commit as each conversion. No conversion targets
+    # remain in this allowlist.
 
     # KEEP-AS-CLASS — orchestration classes per NBB-706's Keep-as-class list.
     # The allowlist entry stays unless a future ticket names a specific

@@ -117,7 +117,7 @@ def create_app(config_name='development'):
         auth_service.bootstrap_admin_from_env()
 
     # Optional auth enforcement (RBAC)
-    from app.services.auth.rbac import get_request_identity, is_auth_required
+    from app.auth.identity import get_request_identity, is_auth_required
 
     @app.before_request
     def enforce_auth():

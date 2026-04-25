@@ -29,7 +29,7 @@ from typing import Optional
 from flask import jsonify, request, redirect, current_app
 from app.api.google import google_bp
 from app.services.integrations.google import google_auth_service
-from app.services.auth.rbac import get_request_identity
+from app.auth.identity import get_request_identity
 
 
 def _get_current_user_id() -> Optional[str]:

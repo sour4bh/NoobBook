@@ -96,7 +96,7 @@ Validator-ownership rule (NBB-208A).
 
 App-factory touch points for this surface (see `backend/app/__init__.py`).
 - `@require_admin` on every endpoint in this module depends on
-  `app.services.auth.rbac` bootstrapped in the factory; `NBB-107` owns the
+  `app.auth.identity` bootstrapped in the factory; `NBB-107` owns the
   auth test seam.
 - `env_service.reload_env()` relies on `.env` living under
   `self.backend_dir = Path(__file__).parent.parent.parent.parent`

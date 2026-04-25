@@ -35,7 +35,7 @@ from datetime import datetime
 from flask import jsonify, request
 from app.api.projects import projects_bp
 from app.services.ai_services.memory_service import memory_service
-from app.services.auth.rbac import get_request_identity
+from app.auth.identity import get_request_identity
 from app.projects.store import project_service
 
 

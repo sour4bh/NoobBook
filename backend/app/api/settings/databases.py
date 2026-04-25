@@ -16,7 +16,7 @@ Routes:
 from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
-from app.services.auth.rbac import get_request_identity
+from app.auth.identity import get_request_identity
 from app.connectors.database.connection.store import database_connection_service, DEFAULT_USER_ID
 from app.auth.guards import require_admin
 

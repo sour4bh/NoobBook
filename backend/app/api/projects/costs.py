@@ -28,7 +28,7 @@ Routes:
 from flask import jsonify
 from app.api.projects import projects_bp
 from app.providers.anthropic.cost import get_project_costs
-from app.services.auth.rbac import get_request_identity
+from app.auth.identity import get_request_identity
 from app.projects.store import project_service
 
 

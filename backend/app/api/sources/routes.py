@@ -37,7 +37,7 @@ from typing import Optional, Tuple
 from flask import jsonify, request, current_app, send_file, redirect
 from app.api.sources import sources_bp
 from app.sources.catalog import source_service
-from app.services.auth.rbac import get_request_identity
+from app.auth.identity import get_request_identity
 from app.auth.permissions import user_has_permission
 
 

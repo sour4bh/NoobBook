@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 
 from flask import has_request_context
 
-from app.auth.identity import RequestIdentity
+from app.auth.identity import RequestIdentity, get_request_identity
 from app.chat import memory as chat_memory
 from app.chat.context import build_system_prompt
 from app.chat.message.store import message_service
@@ -30,7 +30,6 @@ from app.providers.anthropic.response_parser import (
     extract_tool_use_blocks,
     is_tool_use,
 )
-from app.services.auth.rbac import get_request_identity
 from app.services.integrations.knowledge_bases import knowledge_base_service
 from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
 from app.sources.search import source_search_executor

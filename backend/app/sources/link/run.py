@@ -29,13 +29,13 @@ class WebAgentExecutor:
         """Initialize the executor."""
         pass
 
-    def execute_tool(
+    def dispatch(
         self,
         tool_name: str,
         tool_input: Dict[str, Any]
     ) -> Tuple[Dict[str, Any], bool]:
         """
-        Execute a tool and return the result.
+        Dispatch a tool call and return the result.
 
         Educational Note: Returns a tuple of (result, is_termination).
         The is_termination flag tells the agent loop to stop processing.

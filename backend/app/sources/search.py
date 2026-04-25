@@ -47,7 +47,7 @@ class SourceSearchExecutor:
         """Initialize the executor."""
         pass
 
-    def execute(
+    def search(
         self,
         project_id: str,
         source_id: str,
@@ -55,7 +55,7 @@ class SourceSearchExecutor:
         query: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Execute a source search with smart strategy based on source size.
+        Search a source with smart strategy based on source size.
 
         Educational Note: The search strategy adapts to source size:
         - Small sources (<1000 tokens): Return all chunks immediately

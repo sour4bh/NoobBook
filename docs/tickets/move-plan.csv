@@ -363,3 +363,7 @@ NBB-705B,python,backend/app/utils/pdf_utils.py,backend/app/sources/pdf/ops.py,,,
 NBB-705B,python,backend/app/utils/pptx_utils.py,backend/app/sources/pptx/ops.py,,,python_module_move,refactory:move_module
 NBB-705B,python,backend/app/utils/docx_utils.py,backend/app/sources/docx/ops.py,,,python_module_move,refactory:move_module
 NBB-705B,python,backend/app/utils/batching_utils.py,backend/app/sources/extract/batching.py,,,python_module_move,refactory:move_module
+NBB-303,python,backend/app/services/tool_executors/memory_executor.py,backend/app/chat/memory/store.py,,,python_module_move,manual
+NBB-303,python,backend/app/services/tool_executors/studio_signal_executor.py,backend/app/studio/signal.py,,,python_module_move,manual
+NBB-303,python,backend/app/services/tool_executors/source_search_executor.py,backend/app/sources/search.py,,,python_module_move,manual
+NBB-303,python,backend/app/services/tool_executors/web_agent_executor.py,backend/app/sources/link/run.py,,,python_module_move,manual

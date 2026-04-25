@@ -34,7 +34,8 @@ from app.providers.anthropic.response_parser import (
 from app.services.auth.rbac import get_request_identity
 from app.services.integrations.knowledge_bases import knowledge_base_service
 from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
-from app.services.tool_executors import source_search_executor, studio_signal_executor
+from app.sources.search import source_search_executor
+from app.studio.signal import studio_signal_executor
 from app.sources.analysis.csv import entry as csv_entry
 from app.sources.analysis.database import entry as database_entry
 from app.sources.analysis.freshdesk import entry as freshdesk_entry
@@ -367,7 +368,7 @@ class ChatLoop:
         in-scope mapping; redesigning routing is NBB-303's job.
         """
         if tool_name == "search_sources":
-            result = source_search_executor.execute(
+            result = source_search_executor.search(
                 project_id=project_id,
                 source_id=tool_input.get("source_id", ""),
                 keywords=tool_input.get("keywords"),
@@ -438,7 +439,7 @@ class ChatLoop:
 
         if tool_name == "studio_signal":
             # Studio signal returns immediately, actual storage happens in background.
-            result = studio_signal_executor.execute(
+            result = studio_signal_executor.emit(
                 project_id=project_id,
                 chat_id=chat_id,
                 signals=tool_input.get("signals", []),

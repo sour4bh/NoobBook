@@ -3,11 +3,11 @@ Chat-owned memory invocation surface.
 
 The `store_memory` tool returns immediately and queues a background merge via
 `memory_executor.execute`. This module is the public seam chat code calls
-into; the executor's domain home moves under NBB-303.
+into; the executor's domain home is `app.chat.memory.store` after NBB-303.
 """
 from typing import Any, Dict, Optional
 
-from app.services.tool_executors import memory_executor
+from app.chat.memory.store import memory_executor
 
 
 def store(

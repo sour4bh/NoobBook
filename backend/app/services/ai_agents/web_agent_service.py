@@ -23,7 +23,7 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.services.tool_executors import web_agent_executor
+from app.sources.link.run import web_agent_executor
 from app.chat.message.store import message_service
 import app.providers.anthropic.content
 
@@ -162,7 +162,7 @@ class WebAgentService:
 
                     # CLIENT TOOL: tavily_search - execute and add result
                     elif tool_name == "tavily_search":
-                        result, _ = web_agent_executor.execute_tool(tool_name, tool_input)
+                        result, _ = web_agent_executor.dispatch(tool_name, tool_input)
                         # Result is already a formatted string, use directly
                         content = result if isinstance(result, str) else json.dumps(result)
                         tool_results.append({

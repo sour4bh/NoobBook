@@ -76,9 +76,9 @@ The following paths are frozen. New files must not be added to them unless they 
 - `backend/app/services/studio_services/jobs/`
 - `backend/app/services/studio_services/studio_processing/`
 - `backend/data/prompts/`
-- `frontend/src/components/hooks/`
+- `frontend/src/components/hooks/` (directory removed by `NBB-602`; entry retained for the `NBB-103` legacy-files guardrail until `NBB-706` retires it)
 
-These paths still contain code today. Treat them as **legacy/migration sources**: you may read from them, import from them, and drain from them as ownership moves. Do not add new files to them and do not describe them as the preferred home for new work.
+These paths still contain code today, except where annotated as removed. Treat them as **legacy/migration sources**: you may read from them, import from them, and drain from them as ownership moves. Do not add new files to them and do not describe them as the preferred home for new work.
 
 `NBB-103` will enforce this list in CI. `NBB-705A` through `NBB-705E` and `NBB-706` drain or delete what remains.
 
@@ -98,7 +98,7 @@ Reviewers and authors run this checklist for every new file. If any row fails, t
 4. **External edge respected.** Low-level external clients sit under `providers/`; product-configured capabilities sit under `connectors/`; domain behavior does not reach into another domain's internals.
 5. **Shared or base boundaries are earned.** New `base/` or `<domain>/shared/` files cite the `NBB-104` charter rule (3+ concrete consumers, no better owner). Preemptive `shared/` directories are not created.
 6. **Prompt/tool JSON deferred to `NBB-207A`.** New prompt JSON or tool JSON is not added under `backend/data/prompts/` or `backend/app/services/tools/` until `NBB-207A` loader shims land; once they do, ownership follows `NBB-207B` (prompts) and `NBB-207C` (tools).
-7. **Frontend features land under owning subtrees.** New feature-specific React code lives under its feature subtree, not in `frontend/src/components/hooks/` or other root-level buckets whose meaning `NBB-105` tightens.
+7. **Frontend features land under owning subtrees.** New feature-specific React code lives under its feature subtree (for example `frontend/src/components/chat/`, `frontend/src/components/sources/`, `frontend/src/components/studio/`), not in shell buckets such as `frontend/src/components/`, `frontend/src/hooks/`, `frontend/src/lib/`, or `frontend/src/contexts/` whose meaning `NBB-105` tightens. The legacy `frontend/src/components/hooks/` directory was removed by `NBB-602`; it remains in the frozen list above only as a CI guardrail entry.
 8. **Refactory used for moves.** If this file is reached by moving or renaming an existing module, the movement ticket uses the refactory MCP plugin and records the operation in `docs/tickets/move-plan.csv` per `docs/tickets/README.md`.
 
 If the answer to any row is "I am not sure," stop and check the owning ticket in `docs/tickets/epics/*.md` instead of guessing a path.

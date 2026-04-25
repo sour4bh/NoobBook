@@ -25,14 +25,14 @@ The frontend shell is the set of top-level directories directly under `frontend/
 What is not allowed in the shell:
 - Feature-specific components, hooks, helpers, or contexts.
 - Anything that reads as "this belongs to chat / sources / studio / brand / etc." Those live in the owning feature subtree (for example `frontend/src/components/chat/`, `frontend/src/components/sources/`, `frontend/src/components/studio/`).
-- New files under `frontend/src/components/hooks/`. See Legacy Markers below.
+- New files under any frozen path listed in the repo-root `STRUCTURE.md`. The legacy `frontend/src/components/hooks/` directory is one such path; see Legacy Markers below.
 
 ## Shell Charters
 
 Each shell has one charter. If a file does not match its shell's charter, it does not belong there - reject the file in review, do not widen the charter.
 
 - `frontend/src/components/` - app shell composition and cross-feature layouts only; the only feature reference allowed is the mount point that renders a feature subtree's root component.
-- `frontend/src/components/ui/` - design-system primitives only (shadcn wrappers and low-level atoms with no feature logic and no product nouns).
+- `frontend/src/components/ui/` - design-system primitives only (shadcn wrappers and low-level atoms with no feature logic and no product nouns). New primitives must come from `npx shadcn@latest add <component>` (or be a thin wrapper of a shadcn primitive) and follow the Phosphor icons + amber-600 + Tailwind contract documented in `frontend/DESIGN_SYSTEM.md`. Domain components do not migrate into `components/ui/`; if a feature needs a styled element, it lives in the feature subtree and composes from `components/ui/` primitives.
 - `frontend/src/hooks/` - app-wide hooks only (consumed by 2+ features, no feature-specific state, routing, or API calls).
 - `frontend/src/lib/` - cross-feature utilities, shared API client primitives, and framework adapters only; no UI and no feature-owned product behavior.
 - `frontend/src/contexts/` - app-wide React providers only (authentication, permissions, theming, and similarly global concerns).
@@ -46,7 +46,7 @@ These are reject-on-sight examples. They live in the owning feature subtree (for
 - Studio: do not put studio generators, studio job/progress hooks, studio output renderers, or studio-only contexts in the shell.
 - Settings: do not put settings panels, settings form hooks, API-key management helpers, or settings-only contexts in the shell.
 
-The legacy exception is `frontend/src/components/hooks/` (see Legacy Markers); that path is frozen and no new files may land there regardless of owner.
+The repo-root `STRUCTURE.md` frozen list (which the `NBB-103` CI guardrail enforces) is the authoritative no-new-files set; the legacy `frontend/src/components/hooks/` directory was removed by `NBB-602` and remains in that list as a guardrail marker. See Legacy Markers below.
 
 ## Feature-Local Placement
 
@@ -54,11 +54,58 @@ Feature-owned code lives beside the feature. A feature subtree is the unit of ow
 
 - A feature's components, hooks, helpers, local contexts, and tests live inside its subtree (for example under `frontend/src/components/<feature>/`), not in the shell buckets above.
 - Only the feature's top-level shell mount (the component the app renders from a route or parent screen) is referenced from outside the feature subtree.
-- Moving a file from the shell into a feature subtree because it turned out to be feature-specific is a later ticket's job, not this one's. This document only sets the rule new files must follow.
+
+## Domain Subtree Patterns
+
+Feature subtrees use one of two shapes. Both are valid; pick the one that matches the feature's internal cardinality. Do not invent a third shape or introduce mechanism-named buckets such as `hooks/`, `helpers/`, `utils/`, `types/` inside a subtree.
+
+### Flat single-feature subtree
+
+Used when a feature has one cohesive surface and a small, fixed set of components, hooks, and helpers. Files sit directly under the subtree root with PascalCase component names and `use*`-prefixed hook names. Today this matches `components/chat/` and `components/sources/`. The barrel `index.ts` re-exports the shell mount and any other components consumed from outside the subtree.
+
+```
+components/chat/
+  ChatPanel.tsx              <- shell mount, exported via index.ts
+  ChatHeader.tsx
+  ChatMessages.tsx
+  ChatInput.tsx
+  ...
+  useVoiceRecording.ts       <- feature-local hook
+  exportChatMarkdown.ts      <- feature-local helper
+  index.ts
+```
+
+### Per-item subtree group
+
+Used when a feature is a registry of N independent items that follow the same shape. Each item gets its own directory with the same five-file pattern; cross-item glue (a shell mount, a section list, a router) lives in a sibling directory. Today this matches `components/studio/`, where each studio item (`audio`, `blog`, `mindmap`, `presentations`, ...) is a sibling subtree under `studio/`, and `studio/sections/` contains the per-item section components that wire them into the studio panel.
+
+```
+components/studio/
+  StudioPanel.tsx            <- shell mount
+  sections/                  <- per-item Section wrappers + StudioSections.tsx
+  audio/
+    AudioListItem.tsx
+    AudioProgressIndicator.tsx
+    useAudioGeneration.ts
+    index.ts
+  blog/
+    BlogListItem.tsx
+    BlogProgressIndicator.tsx
+    BlogViewerModal.tsx
+    useBlogGeneration.ts
+    index.ts
+  ...
+```
+
+Per-item directories follow `{Item}ListItem.tsx`, `{Item}ProgressIndicator.tsx`, optionally `{Item}ViewerModal.tsx` and `{Item}Viewer.tsx`, `use{Item}Generation.ts`, and `index.ts`. New studio items adopt this exact shape; review rejects an item subtree that diverges without a documented reason.
+
+### Choosing between shapes
+
+A feature uses the flat shape until it has 3+ independent items that all repeat the same component/hook quintet. At that point it converts to a per-item group. The conversion is a structural ticket, not an in-place refactor, and the `NBB-501A`/`NBB-501B` taxonomy + registry decisions guide it for studio. Outside studio, no feature has reached the per-item threshold today.
 
 ## Legacy Markers
 
-- `frontend/src/components/hooks/` is legacy. New files must not land there. Existing files remain until a later ticket (see `NBB-602`) migrates them to their owning feature subtree. The repo-root `STRUCTURE.md` lists this path in its frozen destinations; the guardrail owned by `NBB-103` enforces it in CI.
+- `frontend/src/components/hooks/` was the legacy app-level hook bucket. `NBB-602` deleted the directory and re-homed each file under its owning feature subtree (for example `useVoiceRecording` now lives at `frontend/src/components/chat/`, `useAuth` at `frontend/src/components/auth/`). The path remains in the repo-root `STRUCTURE.md` frozen list and the `NBB-103` CI guardrail as a no-new-files marker; `NBB-706` retires the guardrail entry once the migration completes.
 
 ## Placement Checklist
 
@@ -67,7 +114,7 @@ Reviewers and authors run this checklist for every new frontend file. If any row
 1. **Ownership is identifiable.** The file has exactly one feature owner, or it is genuinely cross-feature (used by 2+ features today). "General frontend code" is not an owner.
 2. **Feature-local code lives in the feature subtree.** If the file is feature-specific, it lands under the owning feature subtree - not in `frontend/src/components/`, `hooks/`, `lib/`, or `contexts/` at the shell level.
 3. **Shell buckets keep their strict meaning.** `components/ui/` is shared UI primitives only; `hooks/`, `lib/`, and `contexts/` hold only cross-feature members with no feature-specific behavior.
-4. **Not in a frozen destination.** The file is not added to `frontend/src/components/hooks/` or any other path listed as frozen in the repo-root `STRUCTURE.md`.
+4. **Not in a frozen destination.** The file is not added to any path listed as frozen in the repo-root `STRUCTURE.md`. (`frontend/src/components/hooks/` was removed by `NBB-602` and stays in the frozen list as a no-new-files CI marker.)
 5. **Path reflects the concept, not the mechanism.** Name directories after the feature or capability (`chat`, `sources`, `studio`), not after the artifact type (`utils`, `helpers`, `services`).
 
 If the answer to any row is "I am not sure," stop and check the owning ticket in `docs/tickets/epics/*.md` instead of guessing a path.

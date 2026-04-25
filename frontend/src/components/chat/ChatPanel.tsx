@@ -15,7 +15,7 @@ import { usersAPI, type UserUsage } from '@/lib/api/settings';
 import { sourcesAPI, type Source } from '@/lib/api/sources';
 import { ToastContainer } from '../ui/toast';
 import { useToast } from '../ui/use-toast';
-import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import { useVoiceRecording } from './useVoiceRecording';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessages } from './ChatMessages';
 import { ChatInput } from './ChatInput';

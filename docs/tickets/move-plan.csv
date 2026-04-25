@@ -226,3 +226,5 @@ NBB-505,python,backend/app/services/studio_services/infographic_service.py,,,,te
 NBB-505,python,backend/app/services/ai_agents/marketing_strategy_agent_service.py,,,,text_reference_check,string_ref_scan.py
 NBB-505,python,backend/app/services/tool_executors/marketing_strategy_tool_executor.py,,,,text_reference_check,string_ref_scan.py
 NBB-505,python,backend/app/services/studio_services/social_posts_service.py,,,,text_reference_check,string_ref_scan.py
+NBB-602,typescript,frontend/src/components/hooks/useVoiceRecording.ts,frontend/src/components/chat/useVoiceRecording.ts,,,module,refactory:move_module
+NBB-602,typescript,frontend/src/hooks/useAuth.tsx,frontend/src/components/auth/useAuth.tsx,,,module,refactory:move_module

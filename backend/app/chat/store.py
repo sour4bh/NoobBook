@@ -506,3 +506,11 @@ class ChatStore:
 
 # Singleton instance for easy import
 chat_service = ChatStore()
+
+
+# NBB-301: re-export `MessageStore` so the chat public surface exposes
+# `from app.chat.store import ChatStore, MessageStore` as the spec requires.
+# `MessageStore` is implemented in `app.chat.message.store`; this is just a
+# name re-export, not a relocation.
+from app.chat.message.store import MessageStore  # noqa: E402,F401
+

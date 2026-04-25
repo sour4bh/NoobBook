@@ -2,7 +2,7 @@
 
 This doc is agent-targeted setup for the `docs/tickets/` migration program. It documents how to enable the **refactory** Claude Code plugin so movement tickets share one codemod backend, plus the safety rules agents must follow.
 
-Refactory exposes four MCP tools — `move_module`, `move_symbol`, `rename_symbol`, `validate_imports` — backed by rope (Python) and ts-morph (TypeScript). NBB-103 wires it into NoobBook; movement tickets call refactory tools directly. The safety contract is refactory dry-run, apply, `validate_imports`, string-reference scan, pyright on touched packages, and the relevant ticket tests.
+Refactory exposes four MCP tools — `move_module`, `move_symbol`, `rename_symbol`, `validate_imports` — backed by rope (Python) and ts-morph (TypeScript). NBB-103 wires it into NoobBook; movement tickets call refactory tools directly. The safety contract is refactory preview, apply with `expected_git_root`, `validate_imports`, string-reference scan, pyright on touched packages, and the relevant ticket tests.
 
 ## When you need this
 
@@ -49,8 +49,10 @@ Either namespace is fine — the agent specs allowlist both. If neither surfaces
 
 ## Safety rules
 
-- **Dry-run first.** Refactory's MCP schema defaults `dry_run` to `false`, so the dry-run discipline is agent policy, not tool-enforced. Call every tool with `dry_run=true`, review the diff, then call again with `dry_run=false` to apply.
-- **`move_symbol` needs the target file to exist.** Refactory's Python `move_symbol` dry-run fails if the target module is not on disk. `touch backend/app/<new_path>` before the first dry-run.
+- **Preview first; mutation needs `apply: true`.** Refactory's MCP schema defaults `apply` to `false`, so any call without `apply: true` returns a preview only and the response carries the explicit `Preview only.` message. Review the preview, then call the same tool again with `apply: true` to mutate.
+- **`expected_git_root` is mandatory on every move/rename call.** Pass `expected_git_root=<your worktree root>` (the `pwd` recorded by the worker on entering its worktree). Refactory refuses the operation when `project_root` resolves into a different git worktree, blocking accidental writes to the main checkout. `validate_imports` is read-only and does not accept `expected_git_root`.
+- **Hazard pre-flight fails closed.** Refactory refuses two patterns with actionable errors instead of silent corruption: lazy in-function imports of the source module (Cat A) and a top-level binding whose name equals the source module stem (Cat B). On either error, workers BLOCK and the dispatcher decides whether to re-dispatch under a bounded one-ticket manual exception.
+- **`move_symbol` needs the target file to exist.** Refactory's Python `move_symbol` preview fails if the target module is not on disk. `touch backend/app/<new_path>` before the first preview.
 - **Append to `move-plan.csv` after every move.** One row per operation, ticket id in the first column.
 - **Run `string_ref_scan.py` for the old path.** Refactory's `validate_imports` only sees import statements — string references (monkeypatch targets, `importlib` strings, doc mentions) need a separate pass.
 - **`validate_imports` stdlib noise.** Rope cannot resolve Python stdlib names (`datetime`, `decimal`, `concurrent.futures`, etc.) against NoobBook's `backend/` without venv wiring. Running `validate_imports` at `project_root=backend/` returns a baseline of 100+ false-positive `unresolved_import_name` errors on current `main`. Scope each run narrowly to the moved files (pass a `project_root` pointing at the moved package when possible), compare the error set against the pre-move baseline, and treat only *new* errors as merge-blocking. Record the delta in the worker's `NOTES`.

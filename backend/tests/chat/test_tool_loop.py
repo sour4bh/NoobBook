@@ -595,6 +595,14 @@ def test_select_tools_synthesizes_mcp_capability_before_exposing(
     from app.chat.tool import policy as chat_tool_policy_mod
 
     tool_capability_policy.ensure_capabilities_loaded()
+    # Snapshot+restore the registry so the synthesized MCP entry does not
+    # bleed into sibling test files (notably `tests/auth/` which parametrizes
+    # over `tool_capability_policy.all_names()`).
+    monkeypatch.setattr(
+        tool_capability_policy,
+        "_entries",
+        dict(tool_capability_policy._entries),
+    )
 
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_jira_tools",

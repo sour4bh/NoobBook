@@ -21,9 +21,12 @@ Public surface (NBB-301):
 - `chat.schemas` — `ChatResponse`, `ChatEvent`, and chat contract shapes
   traced to NBB-205.
 
-Migration source: `backend/app/services/chat_services/` is removed as of
-NBB-302. `backend/app/services/tool_executors/` still feeds chat-invoked
-tools until `NBB-303` reassigns them to their owning domains.
+Migration source: `backend/app/services/chat_services/` was removed by
+NBB-302. NBB-303 reassigned the chat-invoked tool executors to their
+owning domains (`chat/memory/store`, `studio/signal`, `sources/search`,
+`sources/link/run`); the remaining `services/tool_executors/__init__.py`
+re-exports only `studio_audio_executor` and `email_agent_executor`,
+both NBB-706 cleanup targets.
 """
 from typing import Iterator, Optional
 

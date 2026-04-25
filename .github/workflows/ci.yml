@@ -8,6 +8,17 @@
 #                           checks from NBB-104 and NBB-206, plus post-migration
 #                           chat publics-only and independent-roots checks (see
 #                           docs/tickets/epics/NBB-007.md#nbb-704a and #nbb-704b).
+#   - pyright             : type-check backend/app/ with the checked-in
+#                           pyrightconfig.json and pinned pyright@1.1.409 (see
+#                           docs/tickets/epics/NBB-007.md#nbb-704c).
+#   - verify-project-id-coverage
+#                         : AST scan that every claude_service.send_message /
+#                           stream_message call passes project_id (NBB-109,
+#                           wired in NBB-704C).
+#   - verify-no-stateless-singletons
+#                         : AST scan that blocks new stateless *Service /
+#                           *Executor classes paired with module-level
+#                           singletons (see docs/tickets/epics/NBB-007.md#nbb-704c).
 #   - backend-tests       : pytest suite at HEAD (NBB-106/107 extend coverage).
 
 name: ci
@@ -58,6 +69,54 @@ jobs:
 
       - name: Verify architecture checks (NBB-704A + NBB-704B)
         run: python backend/scripts/verify_architecture.py
+
+  pyright:
+    name: pyright
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable pnpm via corepack
+        run: corepack enable
+
+      - name: Run pyright (pinned, NBB-704C)
+        run: pnpm dlx pyright@1.1.409 --project pyrightconfig.json
+
+  verify-project-id-coverage:
+    name: verify-project-id-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify project_id coverage (NBB-109, wired in NBB-704C)
+        run: python backend/scripts/verify_project_id_coverage.py
+
+  verify-no-stateless-singletons:
+    name: verify-no-stateless-singletons
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify no stateless singletons (NBB-704C)
+        run: python backend/scripts/verify_no_stateless_singletons.py
 
   backend-tests:
     name: backend-tests

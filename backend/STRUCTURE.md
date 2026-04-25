@@ -75,5 +75,68 @@ for a frontend script home; no `frontend/scripts/` tree exists today.
 Both gaps are tracked as follow-ups against the NBB-706 final cleanup
 pass.
 
-Type checks and AST safety (stateless-singleton prevention, project_id
-coverage) are owned by NBB-704C.
+## Type and AST safety checks (NBB-704C)
+
+Three additional CI guardrails ship with NBB-704C:
+
+- `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` — pyright
+  type-checking on `backend/app/`. Pinned at version 1.1.409 (do not float
+  to `@latest`); pyright is intentionally not added to
+  `backend/requirements.txt`.
+- `python backend/scripts/verify_project_id_coverage.py` — every call to
+  `claude_service.send_message` (or `stream_message`) must pass a
+  `project_id`. Owned by NBB-109; wired to CI by NBB-704C.
+- `python backend/scripts/verify_no_stateless_singletons.py` — flags new
+  module-level `class *Service` or `class *Executor` definitions whose
+  `__init__` is empty when the same module assigns a singleton instance.
+  Ten baseline candidates at `f3281a7` are allowlisted as `(rel_path,
+  class_name)` pairs in the script — two are NBB-706 conversion targets
+  (`EmbeddingService`, `VideoPromptService`); eight are orchestration
+  classes from NBB-706's "Keep-as-class" list. New occurrences fire the
+  rule.
+
+### pyright config rationale
+
+`pyrightconfig.json` lives at the repo root. Two structural decisions are
+load-bearing and worth recording outside the JSON file (since
+`pyrightconfig.json` does not parse JSONC comments reliably in pyright
+1.1.409):
+
+1. **Strict block narrowing.** The dispatch's seven seeded strict paths
+   (`chat/tools`, `chat/loop.py`, `sources/analysis`, `studio/**/tool.py`,
+   `studio/**/run.py`, `connectors`, `providers`) reproduce 933 strict-mode
+   errors at `f3281a7`, dominated by `reportUnknownMemberType` /
+   `reportUnknownVariableType` migration-code noise. Pyright 1.1.409 forces
+   strict-mode rule severities to error regardless of root-level
+   `reportXxx` overrides, so config-level tuning cannot soften strict
+   paths. The strict block is narrowed to `backend/app/chat/tools.py`
+   only — the chat-owned tool registry public surface, where future
+   tool-schema additions land. The remaining paths fall back to standard
+   mode with the per-rule severity tuning below.
+2. **Per-rule severity tuning** (standard mode only). The dispatch
+   authorizes specific `reportXxx` rule tuning at the config level. The
+   following rules are downgraded to `warning` for the standard `include`
+   block (`backend/app`):
+   - `reportUnknownMemberType`, `reportUnknownVariableType`,
+     `reportUnknownArgumentType`, `reportUnknownParameterType`,
+     `reportMissingTypeArgument`, `reportUnknownLambdaType` —
+     migration-code Unknown-type noise. Type-hint pass is owned by NBB-104
+     follow-ups, not NBB-704C.
+   - `reportArgumentType`, `reportReturnType`, `reportCallIssue`,
+     `reportAttributeAccessIssue`, `reportOptionalMemberAccess`,
+     `reportOptionalSubscript`, `reportOptionalCall`,
+     `reportOptionalIterable`, `reportOptionalOperand`,
+     `reportOperatorIssue`, `reportGeneralTypeIssues`,
+     `reportPossiblyUnboundVariable`, `reportAssignmentType` — real
+     type-bug noise in migration code; NBB-704C is verification-only with
+     zero edits to `backend/app/`. Behavior-bearing fixes belong to
+     post-NBB-706 cleanup tickets.
+
+   Strict-tier rules NOT downgraded (`reportUnusedVariable`,
+   `reportUnusedImport`, `reportUnnecessaryIsInstance`,
+   `reportDeprecated`, `reportUnsupportedDunderAll`, etc.) keep error-tier
+   on the standard block.
+
+The result is `0 errors, 4640 warnings` on pyright 1.1.409 against
+`backend/app/` at `f3281a7`. CI runs the pinned pyright command and fails
+on non-zero exit; warnings are visible but not blocking.

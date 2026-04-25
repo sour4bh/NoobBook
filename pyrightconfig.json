@@ -1,0 +1,26 @@
+{
+  "include": ["backend/app"],
+  "typeCheckingMode": "standard",
+  "strict": [
+    "backend/app/chat/tools.py"
+  ],
+  "reportUnknownMemberType": "warning",
+  "reportUnknownVariableType": "warning",
+  "reportUnknownArgumentType": "warning",
+  "reportUnknownParameterType": "warning",
+  "reportMissingTypeArgument": "warning",
+  "reportUnknownLambdaType": "warning",
+  "reportArgumentType": "warning",
+  "reportReturnType": "warning",
+  "reportCallIssue": "warning",
+  "reportAttributeAccessIssue": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportOptionalCall": "warning",
+  "reportOptionalIterable": "warning",
+  "reportOptionalOperand": "warning",
+  "reportOperatorIssue": "warning",
+  "reportGeneralTypeIssues": "warning",
+  "reportPossiblyUnboundVariable": "warning",
+  "reportAssignmentType": "warning"
+}

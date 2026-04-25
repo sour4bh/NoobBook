@@ -15,7 +15,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from difflib import SequenceMatcher
 
-from app.services.integrations.openai import openai_service
+from app.services.integrations.openai import openai as openai_embeddings
 from app.services.integrations.pinecone import pinecone_service
 from app.services.integrations.supabase import storage_service
 from app.sources.catalog import source_service
@@ -314,7 +314,7 @@ class SourceSearchExecutor:
                 return []
 
             # Create query embedding
-            query_vector = openai_service.create_embedding(query)
+            query_vector = openai_embeddings.create_embedding(query)
 
             # Search Pinecone with source_id filter
             results = pinecone_service.search(

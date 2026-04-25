@@ -27,7 +27,7 @@ from app.utils.text import (
     parse_extracted_text,
     chunks_to_pinecone_format,
 )
-from app.services.integrations.openai import openai_service
+from app.services.integrations.openai import openai as openai_embeddings
 from app.services.integrations.pinecone import pinecone_service
 from app.services.integrations.supabase import storage_service
 
@@ -141,7 +141,7 @@ class EmbeddingService:
             # Step 5: Create embeddings for all chunks
             # Educational Note: chunk.text is already cleaned by chunking_service
             chunk_texts = [chunk.text for chunk in chunks]
-            embeddings = openai_service.create_embeddings_batch(chunk_texts)
+            embeddings = openai_embeddings.create_embeddings_batch(chunk_texts)
             logger.info("Created %d embeddings", len(embeddings))
 
             # Step 6: Convert to Pinecone format and upsert
@@ -244,7 +244,7 @@ class EmbeddingService:
 
         try:
             # Create embedding for query
-            query_embedding = openai_service.create_embedding(query_text)
+            query_embedding = openai_embeddings.create_embedding(query_text)
 
             # Build filter if source specified
             pinecone_filter = None

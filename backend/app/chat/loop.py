@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 from flask import has_request_context
 
 from app.auth.identity import RequestIdentity
-from app.background.tasks import task_service
 from app.chat import memory as chat_memory
 from app.chat.context import build_system_prompt
 from app.chat.message.store import message_service

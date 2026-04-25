@@ -224,7 +224,7 @@ following `tool_result` — breaks the next Claude call and is therefore the obs
 failure mode.
 
 **Test plan:**
-- Extend `backend/tests/test_response_parser.py` (new or existing; maps to `app.providers.anthropic.response_parser`) to unit-cover
+- Extend `backend/tests/test_claude_parsing_utils.py` (existing; maps to `app.providers.anthropic.response_parser`) to unit-cover
   each of the six block types through `serialize_content_blocks` and
   `build_tool_result_content`.
 - Integration case in the NBB-106 test app: send a mocked `tool_use` response, verify

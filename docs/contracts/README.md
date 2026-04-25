@@ -27,7 +27,7 @@ Each contract below carries seven fields:
 
 **Backend owner:**
 - Transport: `backend/app/api/messages/routes.py::stream_message` (framing via `_format_sse`)
-- Event producer: `backend/app/services/chat_services/main_chat_service.py::MainChatService._run_message_flow` and `::stream_message`
+- Event producer: `app.chat.loop.ChatLoop._run_message_flow` and streaming bridge `app.chat.streaming.iter_chat_events` / `app.chat.streaming.call_claude`; emit machinery `app.chat.persistence.emit_event`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` (SSE reader used by the chat view)
 
@@ -89,7 +89,7 @@ reader as the validator.
   assert the event sequence always begins with `user_message` and terminates with
   either `assistant_done` or `error`.
 - Piggyback on `backend/tests/conftest.py` Claude mock fixture used by
-  NBB-106 route smokes and NBB-109 cost tests; mock `main_chat_service._call_claude`
+  NBB-106 route smokes and NBB-109 cost tests; mock `app.chat.loop.ChatLoop._call_claude`
   to emit known deltas.
 
 ---
@@ -218,13 +218,13 @@ realistic multi-block conversation snippet.
 **Invalid example:** `build_tool_result_content` coerces non-string `result` values via
 `str(result)`, so a bad payload is not hard-rejected; however, the Anthropic API will
 400 on an orphaned `tool_use` without a matching `tool_result`. The message_service
-error path in `main_chat_service._run_message_flow` (lines 519-550) always writes a
+error path in `app.chat.loop.ChatLoop._run_message_flow` always writes a
 `tool_result` even on tool failure. An invalid sequence — `tool_use` stored without a
 following `tool_result` — breaks the next Claude call and is therefore the observed
 failure mode.
 
 **Test plan:**
-- Extend `backend/tests/test_claude_parsing_utils.py` (new or existing) to unit-cover
+- Extend `backend/tests/test_response_parser.py` (new or existing; maps to `app.providers.anthropic.response_parser`) to unit-cover
   each of the six block types through `serialize_content_blocks` and
   `build_tool_result_content`.
 - Integration case in the NBB-106 test app: send a mocked `tool_use` response, verify
@@ -582,7 +582,7 @@ Role is `"user" | "assistant"`. `tool_result` blocks are stored on `user`-role r
 
 **Invalid example:** No runtime validator on the JSONB field; validation is implicit
 via `build_api_messages` replay -- an orphaned `tool_use` with no matching `tool_result`
-causes Anthropic to return 400 on the next call. The `main_chat_service` loop writes
+causes Anthropic to return 400 on the next call. The `app.chat.loop.ChatLoop` loop writes
 `tool_result` even on tool exceptions to prevent orphaned `tool_use`.
 
 **Test plan:**
@@ -927,8 +927,7 @@ names NBB-205 as its shape owner.
 - Column: `backend/supabase/migrations/00013_chat_selected_sources.sql`
 - Write path: `backend/app/services/data_services/chat_service.py::update_chat`
   (allowed_fields includes `selected_source_ids`, line 344)
-- Read path: `backend/app/services/chat_services/main_chat_service.py::_run_message_flow`
-  (line 430) + `context_loader.get_active_sources`
+- Read path: `app.chat.loop.ChatLoop._run_message_flow` + `context_loader.get_active_sources`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` plus the chat-view source
 picker. Updates via `PUT /api/v1/projects/<id>/chats/<chat_id>`.
@@ -960,11 +959,11 @@ non-list + non-null as a bug and will raise. In practice the upstream writers
 
 **Test plan:**
 - `backend/tests/test_selected_source_ids_contract.py` (new). Three cases:
-  (a) `NULL` stored -> `_run_message_flow` reads all `ready + active` sources;
+  (a) `NULL` stored -> `app.chat.loop.ChatLoop._run_message_flow` reads all `ready + active` sources;
   (b) `[]` stored -> zero sources in context;
   (c) `["<id>"]` stored -> exactly that subset reaches `context_loader`.
   Reuse the NBB-106 route-smoke test app + a mock for
-  `main_chat_service._call_claude`.
+  `app.chat.loop.ChatLoop._call_claude`.
 
 ---
 

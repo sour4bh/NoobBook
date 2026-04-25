@@ -386,7 +386,7 @@ Types: PDF, TEXT, DOCX, PPTX, AUDIO, IMAGE, LINK, YOUTUBE
 
 ### Source Types & AI Patterns
 
-Paths in the table below describe current module locations during the structure migration. These modules are migrating per `STRUCTURE.md`; the bucket names (`ai_services/`, `ai_agents/`, `tool_executors/`, `utils/`) are legacy/migration sources, not preferred homes for new work.
+At sprint close, those buckets are migration-source not preferred homes. Some legacy paths remain by exception (services/source_services/source_upload/, services/source_services/source_processing/, services/ai_agents/web_agent_service, services/studio_services/studio_index_service, services/integrations/, services/app_settings/).
 
 | Type | Service | AI Method | Pages |
 |------|---------|-----------|-------|
@@ -421,7 +421,7 @@ Token counting uses **tiktoken** (local) for speed, with Claude API available fo
 **Why tiktoken?** Chunking calls `count_tokens()` thousands of times (per page, per sentence, per word for long sentences). API calls would take minutes due to network latency. tiktoken is local and instant.
 
 ```python
-# embedding_utils.py
+# app.sources.tokens
 count_tokens(text)      # Uses tiktoken (fast, local) - for chunking operations
 count_tokens_api(text)  # Uses Claude API (accurate, slower) - for billing/quota
 ```
@@ -513,12 +513,12 @@ Debug logging for API calls is available during development for troubleshooting 
 
 ## Claude API Response Parsing
 
-Centralized parsing via `utils/claude_parsing_utils.py`. Clean separation of concerns:
+Centralized parsing via `app.providers.anthropic.response_parser`. Clean separation of concerns:
 
 ```
 claude_service.py (API call) → returns raw {content_blocks, stop_reason, usage, model}
          ↓
-claude_parsing_utils.py (parse response)
+app.providers.anthropic.response_parser (parse response)
    - is_tool_use(response) / is_end_turn(response)
    - extract_text(response)
    - extract_tool_use_blocks(response)
@@ -583,7 +583,7 @@ This section describes the Claude-API integration pattern NoobBook uses: configu
        )
 
 4. RESPONSE PARSING
-   └── claude_parsing_utils.*                           # Centralized parsing utilities
+   └── app.providers.anthropic.response_parser.*       # Centralized parsing utilities
        ├── is_tool_use(response)                        # Check if tool was called
        ├── is_end_turn(response)                        # Check if conversation ended
        ├── extract_text(response)                       # Get text content
@@ -596,8 +596,8 @@ This section describes the Claude-API integration pattern NoobBook uses: configu
 
 ```
 FOR BATCHED PROCESSING (PDF, PPTX):
-├── batching_utils.create_batches(items, DEFAULT_BATCH_SIZE)
-├── batching_utils.get_batch_info(items, batch_size)
+├── app.sources.extract.batching.create_batches(items, DEFAULT_BATCH_SIZE)
+├── app.sources.extract.batching.get_batch_info(items, batch_size)
 └── DEFAULT_BATCH_SIZE = 5                              # Standard batch size
 
 FOR RATE-LIMITED APIs:
@@ -613,7 +613,7 @@ FOR BINARY DATA:
 └── encoding_utils.encode_bytes_to_base64(data)         # Base64 encoding for API
 
 FOR FILE-TYPE SPECIFIC:
-├── pdf_utils.get_page_count(), get_all_page_bytes()    # PDF operations
+├── app.sources.pdf.ops.get_page_count(), get_all_page_bytes()    # PDF operations
 ├── docx_utils.extract_text()                           # DOCX extraction
 └── pptx_utils.convert_to_pdf()                         # PPTX to PDF conversion
 ```
@@ -626,10 +626,10 @@ Service Name - Brief description of what this service does.
 """
 from app.config import prompt_loader, tool_loader, get_anthropic_config
 from app.services.integrations.claude import claude_service
-from app.utils import claude_parsing_utils
+from app.providers.anthropic import response_parser
 from app.utils.path_utils import get_processed_dir
 from app.utils.rate_limit_utils import RateLimiter  # If rate limiting needed
-from app.utils.batching_utils import create_batches, DEFAULT_BATCH_SIZE  # If batching needed
+from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE  # If batching needed
 from app.services.data_services import message_service # if message storage required
 
 
@@ -667,7 +667,7 @@ class ServiceName:
         )
 
         # 5. Parse response
-        tool_inputs = claude_parsing_utils.extract_tool_inputs(response, "tool_name")
+        tool_inputs = response_parser.extract_tool_inputs(response, "tool_name")
 
         return {"success": True, "data": tool_inputs}
 
@@ -680,7 +680,7 @@ service_name = ServiceName()
 
 - **Never** duplicate configuration loading logic - use `prompt_loader`, `tool_loader`, `tier_loader`
 - **Never** hardcode paths - use `path_utils` functions
-- **Never** parse Claude responses manually - use `claude_parsing_utils`
+- **Never** parse Claude responses manually - use `app.providers.anthropic.response_parser`
 - **Never** implement custom rate limiting - use `RateLimiter` class
 - **Never** implement custom batching - use `create_batches()` utility
 - **Never** skip `project_id` in API calls - needed for cost tracking

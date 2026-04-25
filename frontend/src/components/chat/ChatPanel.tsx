@@ -22,7 +22,7 @@ import { ChatInput } from './ChatInput';
 import { ChatList } from './ChatList';
 import { ChatEmptyState } from './ChatEmptyState';
 import { RawMessageView } from './RawMessageView';
-import { exportChatAsPdf } from '@/lib/exportChatPdf';
+import { exportChatAsPdf } from './exportChatPdf';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('chat-panel');

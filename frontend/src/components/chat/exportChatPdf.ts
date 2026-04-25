@@ -14,9 +14,9 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Marked } from 'marked';
-import { parseCitations } from './citations';
-import { sourcesAPI, type ChunkContent } from './api/sources';
-import type { Chat } from './api/chats';
+import { parseCitations } from '../../lib/citations';
+import { sourcesAPI, type ChunkContent } from '../../lib/api/sources';
+import type { Chat } from '../../lib/api/chats';
 
 // Isolated marked instance — raw HTML rendering disabled to prevent XSS.
 const pdfMarked = new Marked({

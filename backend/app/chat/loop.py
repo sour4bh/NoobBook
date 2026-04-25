@@ -21,7 +21,7 @@ from app.chat.persistence import emit_event
 from app.chat.naming import submit_naming_task
 from app.chat.schemas import ChatEvent, ChatResponse
 from app.chat.store import chat_service
-from app.chat.stream import ClaudeStreamError, call_claude, iter_chat_events
+from app.chat.streaming import ClaudeStreamError, call_claude, iter_chat_events
 from app.chat.tool.policy import chat_tool_policy
 from app.config.prompt_loader import prompt_loader
 from app.config import context_loader

@@ -227,18 +227,15 @@ def _patch_loop_boundaries(
 
     Patches `app.chat.loop` references (the loop holds module-local imports,
     so patching at the original module would not catch it). The Claude calls
-    are intercepted at `app.chat.stream.claude_service`, which both `send_*`
-    and `stream_*` go through.
+    are intercepted at `app.chat.streaming.claude_service`, which both
+    `send_*` and `stream_*` go through.
 
-    `app.chat.__init__` defines a public `stream(...)` function that shadows
-    the `app.chat.stream` submodule attribute on the package. `importlib`
-    bypasses the shadow and returns the real module so `monkeypatch.setattr`
-    has something to bind against.
+    NBB-706 renamed the streaming submodule to `streaming.py` to remove the
+    shadow with `app.chat.stream` (the public function). The previous
+    `importlib.import_module` workaround is no longer needed.
     """
-    import importlib
-
     from app.chat import loop as chat_loop_mod
-    chat_stream_mod = importlib.import_module("app.chat.stream")
+    from app.chat import streaming as chat_stream_mod
 
     monkeypatch.setattr(chat_loop_mod, "message_service", fake_store)
     monkeypatch.setattr(

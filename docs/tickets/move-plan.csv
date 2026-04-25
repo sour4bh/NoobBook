@@ -367,3 +367,5 @@ NBB-303,python,backend/app/services/tool_executors/memory_executor.py,backend/ap
 NBB-303,python,backend/app/services/tool_executors/studio_signal_executor.py,backend/app/studio/signal.py,,,python_module_move,manual
 NBB-303,python,backend/app/services/tool_executors/source_search_executor.py,backend/app/sources/search.py,,,python_module_move,manual
 NBB-303,python,backend/app/services/tool_executors/web_agent_executor.py,backend/app/sources/link/run.py,,,python_module_move,manual
+NBB-706,python,backend/app/chat/stream.py,backend/app/chat/streaming.py,,,python_module_move,manual
+NBB-706,python,backend/app/chat/memory/store.py,backend/app/chat/memory/run.py,,,python_module_move,manual

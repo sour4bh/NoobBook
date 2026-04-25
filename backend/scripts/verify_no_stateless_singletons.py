@@ -90,7 +90,7 @@ ALLOWLIST: frozenset[Tuple[str, str]] = frozenset({
     # The allowlist entry stays unless a future ticket names a specific
     # stateless conversion.
     # Chat orchestration (memory_executor lives inside the chat domain).
-    ("backend/app/chat/memory/store.py", "MemoryExecutor"),
+    ("backend/app/chat/memory/run.py", "MemoryExecutor"),
     # Integration orchestration (Freshdesk sync lifecycle).
     ("backend/app/services/integrations/freshdesk/freshdesk_sync_service.py", "FreshdeskSyncService"),
     # Integration orchestration (MCP tool registry/lifecycle).

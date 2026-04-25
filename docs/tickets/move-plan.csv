@@ -299,3 +299,19 @@ NBB-507,python,backend/app/services/studio_services/jobs/audio_jobs.py,,,,text_r
 NBB-507,python,backend/app/services/studio_services/jobs/video_jobs.py,,,,text_reference_check,string_ref_scan.py
 NBB-507,python,backend/app/services/tool_executors/studio_audio_executor.py,,,,text_reference_check,string_ref_scan.py
 NBB-507,python,backend/app/services/tool_executors/video_executor.py,,,,text_reference_check,string_ref_scan.py
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/context.py,_build_system_prompt,build_system_prompt,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/tool/policy.py,_get_tools,ChatToolPolicy.select_tools,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/stream.py,ClaudeStreamError,ClaudeStreamError,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/stream.py,_call_claude,call_claude,python_symbol_extract,manual
+NBB-302,python,backend/app/chat/loop.py,backend/app/chat/stream.py,run_stream,iter_chat_events,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/persistence.py,_emit_event,emit_event,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/memory/__init__.py,store_memory branch,store,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/naming.py,_generate_and_update_chat_title,_generate_and_update_chat_title,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/loop.py,MainChatService._run_message_flow,ChatLoop._run_message_flow,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,backend/app/chat/loop.py,MainChatService._execute_tool,ChatLoop._execute_tool,python_symbol_extract,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,,MainChatService,,python_symbol_remove,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,,main_chat_service,,python_symbol_remove,manual
+NBB-302,python,backend/app/services/chat_services/main_chat_service.py,,,,python_module_remove,manual
+NBB-302,python,backend/app/services/chat_services/__init__.py,,,,python_module_remove,manual
+NBB-302,python,app.services.chat_services,,,,text_reference_check,string_ref_scan.py
+NBB-302,python,main_chat_service,,,,text_reference_check,string_ref_scan.py

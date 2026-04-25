@@ -22,7 +22,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 
-from app.utils.embedding_utils import needs_embedding
+from app.sources.tokens import needs_embedding
 from app.utils.text import (
     parse_extracted_text,
     chunks_to_pinecone_format,

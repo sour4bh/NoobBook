@@ -20,7 +20,7 @@ from app.config import tool_loader, prompt_loader, get_anthropic_config
 from app.providers.anthropic.media import encode_file_to_base64, get_media_type
 from app.providers.anthropic.rate import RateLimiter
 from app.utils.text import build_processed_output
-from app.utils.embedding_utils import count_tokens
+from app.sources.tokens import count_tokens
 from app.background.tasks import task_service
 import app.providers.anthropic.response_parser
 

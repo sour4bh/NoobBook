@@ -10,7 +10,7 @@ import pytest
 import time
 from unittest.mock import patch
 
-from app.utils.batching_utils import create_batches, get_batch_info, DEFAULT_BATCH_SIZE
+from app.sources.extract.batching import create_batches, get_batch_info, DEFAULT_BATCH_SIZE
 from app.providers.anthropic.rate import RateLimiter
 
 

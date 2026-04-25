@@ -358,3 +358,8 @@ NBB-403,python,backend/app/services/tools/analysis_agent,,,,text_reference_check
 NBB-403,python,backend/app/services/tools/csv_tool,,,,text_reference_check,string_ref_scan.py
 NBB-403,python,backend/app/services/tools/database_agent,,,,text_reference_check,string_ref_scan.py
 NBB-403,python,backend/app/services/tools/freshdesk_agent,,,,text_reference_check,string_ref_scan.py
+NBB-705B,python,backend/app/utils/embedding_utils.py,backend/app/sources/tokens.py,,,python_module_move,refactory:move_module
+NBB-705B,python,backend/app/utils/pdf_utils.py,backend/app/sources/pdf/ops.py,,,python_module_move,refactory:move_module
+NBB-705B,python,backend/app/utils/pptx_utils.py,backend/app/sources/pptx/ops.py,,,python_module_move,refactory:move_module
+NBB-705B,python,backend/app/utils/docx_utils.py,backend/app/sources/docx/ops.py,,,python_module_move,refactory:move_module
+NBB-705B,python,backend/app/utils/batching_utils.py,backend/app/sources/extract/batching.py,,,python_module_move,refactory:move_module

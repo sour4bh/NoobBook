@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from app.utils.text import build_processed_output
-from app.utils.embedding_utils import needs_embedding, count_tokens
+from app.sources.tokens import needs_embedding, count_tokens
 from app.services.integrations.supabase import storage_service
 from app.services.ai_services.embedding_service import embedding_service
 from app.services.ai_services.summary_service import summary_service

@@ -167,7 +167,7 @@ GET /api/v1/projects/p1/citations/abc_chunk_2
 ## Contract 3 - Chat tool invocation/result wire format
 
 **Backend owner:**
-- Serialization: `backend/app/utils/claude_parsing_utils.py::serialize_content_blocks` and
+- Serialization: `backend/app/providers/anthropic/content.py::serialize_content_blocks` and
   `::build_tool_result_content`
 - Schema loading: `backend/app/config/tool_loader.py`
 
@@ -483,7 +483,7 @@ never written. An all-invalid input returns
 ## Contract 8 - `projects.costs` JSONB shape
 
 **Backend owner:**
-- Writer: `backend/app/utils/cost_tracking.py::_apply_usage` and `::update_project_costs`
+- Writer: `backend/app/providers/anthropic/cost.py::_apply_usage` and `::update_project_costs`
 - Default/ensure: `::_get_default_costs`, `::_ensure_cost_structure`
 - Read endpoint: `backend/app/api/projects/costs.py::get_project_costs_endpoint`
 
@@ -538,7 +538,7 @@ produce an invalid persisted shape is to write outside `_apply_usage`; the
 
 **Backend owner:**
 - Writer: `backend/app/services/data_services/message_service.py` (via
-  `claude_parsing_utils.serialize_content_blocks` and `build_tool_result_content`)
+  `app.providers.anthropic.content.serialize_content_blocks` and `build_tool_result_content`)
 - Reader: `backend/app/services/data_services/message_service.py::build_api_messages`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts`; the chat renderer parses

@@ -17,12 +17,12 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.config import tool_loader, prompt_loader, get_anthropic_config
-from app.utils import claude_parsing_utils
-from app.utils.encoding_utils import encode_file_to_base64, get_media_type
-from app.utils.rate_limit_utils import RateLimiter
+from app.providers.anthropic.media import encode_file_to_base64, get_media_type
+from app.providers.anthropic.rate import RateLimiter
 from app.utils.text import build_processed_output
 from app.utils.embedding_utils import count_tokens
 from app.background.tasks import task_service
+import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class ImageService:
         Educational Note: Uses claude_parsing_utils for generic tool parsing,
         then extracts image-specific fields.
         """
-        tool_inputs = claude_parsing_utils.extract_tool_inputs(response, "submit_image_extraction")
+        tool_inputs = app.providers.anthropic.response_parser.extract_tool_inputs(response, "submit_image_extraction")
 
         if not tool_inputs:
             return {

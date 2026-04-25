@@ -24,9 +24,10 @@ from app.services.integrations.elevenlabs import tts_service
 from app.services.studio_services import studio_index_service
 from app.services.tool_executors.studio_audio_executor import studio_audio_executor
 from app.config import prompt_loader, tool_loader
-from app.utils import claude_parsing_utils
 from app.services.integrations.supabase import storage_service
 from app.sources import index
+import app.providers.anthropic.response_parser
+import app.providers.anthropic.content
 
 
 logger = logging.getLogger(__name__)
@@ -340,7 +341,7 @@ class AudioOverviewService:
 
             # Add assistant response to messages
             content_blocks = response.get("content_blocks", [])
-            serialized_content = claude_parsing_utils.serialize_content_blocks(content_blocks)
+            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
             messages.append({"role": "assistant", "content": serialized_content})
 
             # Process tool calls
@@ -412,7 +413,7 @@ class AudioOverviewService:
                     }
 
             # Check for end_turn without tool use (shouldn't happen, but handle it)
-            if claude_parsing_utils.is_end_turn(response) and not tool_results:
+            if app.providers.anthropic.response_parser.is_end_turn(response) and not tool_results:
                 logger.warning("Unexpected end_turn at iteration %s", iteration)
                 # Try to use whatever script was written
                 if storage_service.download_studio_file(project_id, "audio", job_id, "script.txt"):

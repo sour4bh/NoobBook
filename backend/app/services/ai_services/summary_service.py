@@ -20,7 +20,7 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.services.integrations.supabase import storage_service
 from app.config import prompt_loader
-from app.utils import claude_parsing_utils
+import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +279,7 @@ class SummaryService:
             )
 
             # Use claude_parsing_utils to extract text from content_blocks
-            summary_text = claude_parsing_utils.extract_text(response).strip()
+            summary_text = app.providers.anthropic.response_parser.extract_text(response).strip()
 
             if not summary_text:
                 logger.warning("Empty summary returned for source %s", source_id[:8])

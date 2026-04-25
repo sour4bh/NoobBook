@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional
 from app.services.integrations.claude import claude_service
 from app.services.integrations.supabase import storage_service
 from app.config import prompt_loader
-from app.utils import claude_parsing_utils
+import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ Generate a clear, vivid video prompt (2-4 sentences) that describes what should 
             )
 
             # Extract text response
-            prompt_text = claude_parsing_utils.extract_text(response)
+            prompt_text = app.providers.anthropic.response_parser.extract_text(response)
 
             if not prompt_text:
                 return {

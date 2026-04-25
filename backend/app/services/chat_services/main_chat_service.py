@@ -30,11 +30,12 @@ from app.services.ai_services.chat_naming_service import chat_naming_service
 from flask import has_request_context
 from app.services.auth.rbac import get_request_identity
 from app.projects.store import DEFAULT_USER_ID
-from app.utils import claude_parsing_utils
 from app.auth.permissions import user_has_permission
 from app.background.tasks import task_service
 from app.chat.store import chat_service
 from app.chat.message.store import message_service
+import app.providers.anthropic.response_parser
+import app.providers.anthropic.content
 
 
 logger = logging.getLogger(__name__)
@@ -379,7 +380,7 @@ class MainChatService:
         """
         if not stream_text:
             response = claude_service.send_message(**kwargs)
-            return response, claude_parsing_utils.extract_text(response)
+            return response, app.providers.anthropic.response_parser.extract_text(response)
 
         streamed_parts: List[str] = []
 
@@ -493,11 +494,11 @@ class MainChatService:
             # We accumulate text from all responses so we don't lose it.
             iteration = 0
 
-            while claude_parsing_utils.is_tool_use(response) and iteration < self.MAX_TOOL_ITERATIONS:
+            while app.providers.anthropic.response_parser.is_tool_use(response) and iteration < self.MAX_TOOL_ITERATIONS:
                 iteration += 1
 
                 # Get tool_use blocks from response (can be multiple for parallel tool calls)
-                tool_use_blocks = claude_parsing_utils.extract_tool_use_blocks(response)
+                tool_use_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
 
                 if not tool_use_blocks:
                     break
@@ -506,7 +507,7 @@ class MainChatService:
                 # Educational Note: The message chain must be:
                 # user -> assistant (tool_use[]) -> user (tool_result[]) -> assistant
                 # We must store the tool_use response before the tool_result
-                serialized_content = claude_parsing_utils.serialize_content_blocks(
+                serialized_content = app.providers.anthropic.content.serialize_content_blocks(
                     response.get("content_blocks", [])
                 )
                 message_service.add_message(

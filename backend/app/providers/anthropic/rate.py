@@ -10,7 +10,7 @@ This utility is designed to work with tier_loader.py which provides
 rate limit configurations based on API tier (free, paid, enterprise).
 
 Usage:
-    from app.utils.rate_limit_utils import RateLimiter
+    from app.providers.anthropic.rate import RateLimiter
     from app.config import get_anthropic_config
 
     # Create limiter with tier config

@@ -9,7 +9,7 @@ Covers:
 """
 import pytest
 
-from app.utils.cost_tracking import (
+from app.providers.anthropic.cost import (
     _get_model_key,
     _calculate_cost,
     _get_default_costs,

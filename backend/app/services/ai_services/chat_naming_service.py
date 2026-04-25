@@ -15,7 +15,7 @@ from typing import Optional
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader
-from app.utils import claude_parsing_utils
+import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class ChatNamingService:
             )
 
             # Use claude_parsing_utils to extract text from response
-            title = claude_parsing_utils.extract_text(response).strip()
+            title = app.providers.anthropic.response_parser.extract_text(response).strip()
 
             if not title:
                 return None

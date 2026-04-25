@@ -21,7 +21,8 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
 from app.services.tool_executors.csv_tool_executor import csv_tool_executor
-from app.utils import claude_parsing_utils
+import app.providers.anthropic.response_parser
+import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)
 
@@ -114,15 +115,15 @@ class CSVService:
 
             # Serialize and add assistant response
             content_blocks = response.get("content_blocks", [])
-            serialized_content = claude_parsing_utils.serialize_content_blocks(content_blocks)
+            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
             messages.append({"role": "assistant", "content": serialized_content})
 
             # Extract tool use blocks using parsing utils
-            tool_blocks = claude_parsing_utils.extract_tool_use_blocks(response)
+            tool_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
 
             if not tool_blocks:
                 # No tool calls - check if end_turn
-                if claude_parsing_utils.is_end_turn(response):
+                if app.providers.anthropic.response_parser.is_end_turn(response):
                     logger.warning("End turn without summary tool - unexpected")
                 continue
 
@@ -158,7 +159,7 @@ class CSVService:
 
             # Build and add tool results using parsing utils
             if tool_results_data:
-                tool_results_content = claude_parsing_utils.build_tool_result_content(tool_results_data)
+                tool_results_content = app.providers.anthropic.content.build_tool_result_content(tool_results_data)
                 messages.append({"role": "user", "content": tool_results_content})
 
         # Max iterations reached without summary

@@ -30,7 +30,8 @@ from app.services.ai_services.chat_naming_service import chat_naming_service
 from flask import has_request_context
 from app.services.auth.rbac import get_request_identity
 from app.projects.store import DEFAULT_USER_ID
-from app.auth.permissions import user_has_permission
+from app.auth.tool_capabilities import mcp_capability_for
+from app.auth.tool_policy import tool_capability_policy
 from app.background.tasks import task_service
 from app.chat.store import chat_service
 from app.chat.message.store import message_service
@@ -144,46 +145,80 @@ class MainChatService:
         Returns:
             Tuple of (tool definitions list, MCP tool registry dict)
         """
-        # Include memory and studio_signal tools only if the user has permission
+        # Capability-aware tool selection. Every Claude-visible tool
+        # is gated by ``ToolCapabilityPolicy.is_exposable_for``, which
+        # both enforces NBB-202A fail-closed semantics for missing
+        # ``user_id`` and refuses to expose any tool without a
+        # capability entry. The previous ``not user_id or ...``
+        # short-circuits silently allowed unknown identities; routing
+        # the decision through the policy closes that gap and means
+        # NBB-202B's AC#2 is enforced at this single call site.
+        tool_capability_policy.ensure_capabilities_loaded()
+
+        def _exposable(tool_name: str) -> bool:
+            return tool_capability_policy.is_exposable_for(user_id, tool_name)
+
         tools = []
 
-        if not user_id or user_has_permission(user_id, "chat_features", "memory"):
+        if _exposable("store_memory"):
             tools.append(self._get_memory_tool())
 
-        if not user_id or user_has_permission(user_id, "studio"):
+        if _exposable("studio_signal"):
             tools.append(self._get_studio_signal_tool())
 
-        if has_active_sources:
+        if has_active_sources and _exposable("search_sources"):
             tools.append(self._get_search_tool())
 
-        if has_csv_sources and (not user_id or user_has_permission(user_id, "data_sources", "csv")):
+        if has_csv_sources and _exposable("analyze_csv_agent"):
             tools.append(self._get_csv_analyzer_tool())
 
-        if has_database_sources and (not user_id or user_has_permission(user_id, "data_sources", "database")):
+        if has_database_sources and _exposable("analyze_database_agent"):
             tools.append(self._get_database_analyzer_tool())
 
-        if has_freshdesk_sources and (not user_id or user_has_permission(user_id, "data_sources", "freshdesk")):
+        if has_freshdesk_sources and _exposable("analyze_freshdesk_agent"):
             tools.append(self._get_freshdesk_analyzer_tool())
 
-        # Add Jira tools only when the project has a .jira source (project-scoped)
-        if has_jira_sources and (not user_id or user_has_permission(user_id, "data_sources", "jira")):
-            tools.extend(knowledge_base_service.get_jira_tools())
+        # Add Jira tools only when the project has a .jira source (project-scoped).
+        # Each tool is filtered through the policy individually so a stale
+        # KnowledgeBaseService cache cannot expose a tool the policy denies.
+        if has_jira_sources:
+            for jira_tool in knowledge_base_service.get_jira_tools():
+                if _exposable(jira_tool["name"]):
+                    tools.append(jira_tool)
 
         # Add Mixpanel tools only when the project has a .mixpanel source (project-scoped)
-        if has_mixpanel_sources and (not user_id or user_has_permission(user_id, "data_sources", "mixpanel")):
-            tools.extend(knowledge_base_service.get_mixpanel_tools())
+        if has_mixpanel_sources:
+            for mp_tool in knowledge_base_service.get_mixpanel_tools():
+                if _exposable(mp_tool["name"]):
+                    tools.append(mp_tool)
 
-        # Add non-Jira knowledge base tools (Notion, GitHub, etc.) — always global
-        tools.extend(knowledge_base_service.get_available_tools())
+        # Non-Jira knowledge base tools (Notion, GitHub, etc.) — always global
+        for kb_tool in knowledge_base_service.get_available_tools():
+            if _exposable(kb_tool["name"]):
+                tools.append(kb_tool)
 
-        # Add MCP tools if user has tool-enabled connections
+        # Add MCP tools if user has tool-enabled connections. Per-server
+        # tool names are dynamic; register a synthesized capability
+        # entry for each one before checking exposure so the policy
+        # decision still runs through ``is_exposable_for``.
         mcp_registry: Dict = {}
         if user_id:
             try:
                 mcp_tools, mcp_registry = mcp_tool_service.get_available_tools(user_id=user_id)
-                if mcp_tools:
-                    tools.extend(mcp_tools)
-                    logger.info("Added %d MCP tools for user %s", len(mcp_tools), user_id)
+                exposed_mcp_tools = []
+                for mcp_tool in mcp_tools:
+                    name = mcp_tool["name"]
+                    if not tool_capability_policy.has(name):
+                        tool_capability_policy.register(mcp_capability_for(name))
+                    if _exposable(name):
+                        exposed_mcp_tools.append(mcp_tool)
+                if exposed_mcp_tools:
+                    tools.extend(exposed_mcp_tools)
+                    logger.info(
+                        "Added %d MCP tools for user %s",
+                        len(exposed_mcp_tools),
+                        user_id,
+                    )
             except Exception as e:
                 logger.error("Failed to load MCP tools for user %s: %s", user_id, e)
 

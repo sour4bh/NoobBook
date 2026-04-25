@@ -226,3 +226,5 @@ NBB-505,python,backend/app/services/studio_services/infographic_service.py,,,,te
 NBB-505,python,backend/app/services/ai_agents/marketing_strategy_agent_service.py,,,,text_reference_check,string_ref_scan.py
 NBB-505,python,backend/app/services/tool_executors/marketing_strategy_tool_executor.py,,,,text_reference_check,string_ref_scan.py
 NBB-505,python,backend/app/services/studio_services/social_posts_service.py,,,,text_reference_check,string_ref_scan.py
+NBB-705A,python,backend/app/utils/auth_middleware.py,,,,text_reference_check,string_ref_scan.py
+NBB-705A,python,backend/app/utils/password_utils.py,,,,text_reference_check,string_ref_scan.py

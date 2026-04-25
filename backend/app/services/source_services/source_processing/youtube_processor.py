@@ -22,7 +22,7 @@ from app.utils.text import build_processed_output
 from app.sources.tokens import needs_embedding, count_tokens
 from app.services.integrations.supabase import storage_service
 from app.services.ai_services import embedding_service
-from app.services.ai_services.summary_service import summary_service
+from app.services.ai_services import summary_service
 
 logger = logging.getLogger(__name__)
 

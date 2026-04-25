@@ -10,6 +10,8 @@ When main chat calls analyze_csv_agent tool, this executor:
 
 from typing import Any, Dict, Optional
 
+from app.sources.analysis.csv.agent import csv_analyzer_agent
+
 
 def execute(
     project_id: str,
@@ -43,12 +45,6 @@ def execute(
             "success": False,
             "error": "query is required"
         }
-
-    # Lazy import: this entry module is loaded by app.chat.loop, and
-    # app.sources.analysis.csv.agent imports app.chat.message.store at top
-    # level. A top-level import here would create a circular dependency
-    # during chat package initialization. Loading at call time is safe.
-    from app.sources.analysis.csv.agent import csv_analyzer_agent
 
     result = csv_analyzer_agent.run(
         project_id=project_id,

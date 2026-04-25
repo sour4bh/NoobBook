@@ -1,3 +1,4 @@
+# mode values: python_module_move, python_symbol_rename, python_symbol_move, json_asset_move, text_reference_check; post-NBB-302 accepted additions: python_symbol_extract, python_symbol_remove, python_module_remove
 ticket,language,old_path,new_path,old_symbol,new_symbol,mode,tool
 NBB-209D,python,backend/app/services/data_services/brand_asset_service.py,backend/app/brand/asset/store.py,,,module,refactory:move_module
 NBB-209D,python,backend/app/brand/asset/store.py,backend/app/brand/asset/store.py,BrandAssetService,BrandAssetStore,symbol,refactory:rename_symbol
@@ -367,3 +368,6 @@ NBB-303,python,backend/app/services/tool_executors/memory_executor.py,backend/ap
 NBB-303,python,backend/app/services/tool_executors/studio_signal_executor.py,backend/app/studio/signal.py,,,python_module_move,manual
 NBB-303,python,backend/app/services/tool_executors/source_search_executor.py,backend/app/sources/search.py,,,python_module_move,manual
 NBB-303,python,backend/app/services/tool_executors/web_agent_executor.py,backend/app/sources/link/run.py,,,python_module_move,manual
+NBB-706,python,backend/app/studio/signal.py,backend/app/studio/signal.py,execute,emit,python_symbol_rename,manual
+NBB-706,python,backend/app/sources/search.py,backend/app/sources/search.py,execute,search,python_symbol_rename,manual
+NBB-706,python,backend/app/sources/link/run.py,backend/app/sources/link/run.py,execute_tool,dispatch,python_symbol_rename,manual

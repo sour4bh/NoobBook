@@ -3,7 +3,7 @@ PPTX Service - Manages PowerPoint presentation processing using LibreOffice and 
 
 Educational Note: This service processes PPTX files in three stages:
 1. Convert PPTX to PDF using LibreOffice headless mode (via pptx_utils)
-2. Extract PDF pages as base64 (reusing existing pdf_utils)
+2. Extract PDF pages as base64 (reusing existing `app.sources.pdf.ops`)
 3. Send to Claude vision for slide analysis
 
 The conversion approach allows us to leverage the existing PDF infrastructure

@@ -6,16 +6,14 @@ Educational Note: This executor bridges main_chat_service and database_analyzer_
 
 from typing import Any, Dict, Optional
 
+from app.sources.analysis.database.agent import database_analyzer_agent
+
 
 def execute(project_id: str, source_id: str, query: str, chat_id: Optional[str] = None, user_id: Optional[str] = None) -> Dict[str, Any]:
     if not source_id:
         return {"success": False, "error": "source_id is required"}
     if not query:
         return {"success": False, "error": "query is required"}
-
-    # Lazy import: see app/sources/analysis/csv/entry.py for the same pattern
-    # and rationale (avoids circular import during chat package init).
-    from app.sources.analysis.database.agent import database_analyzer_agent
 
     result = database_analyzer_agent.run(project_id=project_id, source_id=source_id, query=query, chat_id=chat_id, user_id=user_id)
 

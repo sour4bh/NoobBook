@@ -208,6 +208,11 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
     "infographic": "studio/marketing/infographic/prompts",
     "marketing_strategy_agent": "studio/marketing/strategy/prompts",
     "social_posts": "studio/marketing/social_post/prompts",
+    "flash_cards": "studio/learning/flash_card/prompts",
+    "mind_map": "studio/learning/mind_map/prompts",
+    "quiz": "studio/learning/quiz/prompts",
+    "audio_script": "studio/media/audio/prompts",
+    "video": "studio/media/video/prompts",
 }
 
 
@@ -248,6 +253,11 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
 _PRODUCTION_TOOL_FILE_PATHS: Dict[Tuple[str, str], str] = {
     ("studio_tools", "flow_diagram_tool"): "studio/design/flow_diagram/tools",
     ("studio_tools", "wireframe_tool"): "studio/design/wireframe/tools",
+    ("studio_tools", "flash_cards_tool"): "studio/learning/flash_card/tools",
+    ("studio_tools", "mind_map_tool"): "studio/learning/mind_map/tools",
+    ("studio_tools", "quiz_tool"): "studio/learning/quiz/tools",
+    ("studio_tools", "read_source_content"): "studio/media/audio/tools",
+    ("studio_tools", "write_script_section"): "studio/media/audio/tools",
 }
 
 

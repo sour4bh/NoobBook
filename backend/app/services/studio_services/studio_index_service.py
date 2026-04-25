@@ -294,7 +294,7 @@ def delete_job(
 # `create_job`/`update_job`/etc from this module, so `studio_index_service` must
 # define those generic CRUD helpers before the per-item modules load.
 
-from app.services.studio_services.jobs.audio_jobs import (
+from app.studio.media.audio.job import (
     create_audio_job,
     update_audio_job,
     get_audio_job,
@@ -302,7 +302,7 @@ from app.services.studio_services.jobs.audio_jobs import (
     delete_audio_job,
 )
 
-from app.services.studio_services.jobs.video_jobs import (
+from app.studio.media.video.job import (
     create_video_job,
     update_video_job,
     get_video_job,
@@ -318,7 +318,7 @@ from app.studio.marketing.ad.job import (
     delete_ad_job,
 )
 
-from app.services.studio_services.jobs.flash_card_jobs import (
+from app.studio.learning.flash_card.job import (
     create_flash_card_job,
     update_flash_card_job,
     get_flash_card_job,
@@ -326,7 +326,7 @@ from app.services.studio_services.jobs.flash_card_jobs import (
     delete_flash_card_job,
 )
 
-from app.services.studio_services.jobs.mind_map_jobs import (
+from app.studio.learning.mind_map.job import (
     create_mind_map_job,
     update_mind_map_job,
     get_mind_map_job,
@@ -334,7 +334,7 @@ from app.services.studio_services.jobs.mind_map_jobs import (
     delete_mind_map_job,
 )
 
-from app.services.studio_services.jobs.quiz_jobs import (
+from app.studio.learning.quiz.job import (
     create_quiz_job,
     update_quiz_job,
     get_quiz_job,

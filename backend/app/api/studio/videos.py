@@ -56,7 +56,7 @@ def generate_video(project_id: str):
         - message: Status message
     """
     try:
-        from app.services.tool_executors.video_executor import video_executor
+        from app.studio.media.video.tool import video_executor
 
         data = request.get_json()
         source_id = data.get("source_id")
@@ -123,7 +123,7 @@ def generate_video(project_id: str):
             }), 400
 
         # Execute video generation
-        result = video_executor.execute(
+        result = video_executor.dispatch(
             project_id=project_id,
             source_id=source_id,
             direction=direction,

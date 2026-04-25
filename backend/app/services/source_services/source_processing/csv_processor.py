@@ -18,7 +18,7 @@ from typing import Dict, Any
 
 from app.config import prompt_loader
 from app.services.integrations.supabase import storage_service
-from app.services.ai_services.csv_service import csv_service
+from app.sources.analysis.csv.summarize import csv_service
 
 logger = logging.getLogger(__name__)
 

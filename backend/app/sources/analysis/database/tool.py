@@ -124,7 +124,7 @@ class DatabaseExecutor:
         self._conn_cache.clear()
         self._conn_type_cache.clear()
 
-    def execute_tool(
+    def query(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],

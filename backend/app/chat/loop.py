@@ -34,13 +34,10 @@ from app.providers.anthropic.response_parser import (
 from app.services.auth.rbac import get_request_identity
 from app.services.integrations.knowledge_bases import knowledge_base_service
 from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
-from app.services.tool_executors import (
-    csv_analyzer_agent_executor,
-    database_analyzer_agent_executor,
-    freshdesk_analyzer_agent_executor,
-    source_search_executor,
-    studio_signal_executor,
-)
+from app.services.tool_executors import source_search_executor, studio_signal_executor
+from app.sources.analysis.csv import entry as csv_entry
+from app.sources.analysis.database import entry as database_entry
+from app.sources.analysis.freshdesk import entry as freshdesk_entry
 
 
 logger = logging.getLogger(__name__)
@@ -395,7 +392,7 @@ class ChatLoop:
 
         if tool_name == "analyze_csv_agent":
             # CSV analyzer agent for answering questions about CSV data
-            result = csv_analyzer_agent_executor.execute(
+            result = csv_entry.execute(
                 project_id=project_id,
                 source_id=tool_input.get("source_id", ""),
                 query=tool_input.get("query", ""),
@@ -415,7 +412,7 @@ class ChatLoop:
 
         if tool_name == "analyze_database_agent":
             # Database analyzer agent for answering questions using live SQL
-            result = database_analyzer_agent_executor.execute(
+            result = database_entry.execute(
                 project_id=project_id,
                 source_id=tool_input.get("source_id", ""),
                 query=tool_input.get("query", ""),
@@ -428,7 +425,7 @@ class ChatLoop:
 
         if tool_name == "analyze_freshdesk_agent":
             # Freshdesk analyzer agent for answering questions about ticket data
-            result = freshdesk_analyzer_agent_executor.execute(
+            result = freshdesk_entry.execute(
                 project_id=project_id,
                 source_id=tool_input.get("source_id", ""),
                 query=tool_input.get("query", ""),

@@ -8,7 +8,7 @@ Covers:
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.services.ai_agents.deep_research_agent import DeepResearchAgent
+from app.sources.analysis.research.agent import DeepResearchAgent
 
 
 @pytest.fixture
@@ -39,8 +39,8 @@ class TestOutputPathRequired:
                 output_path="",
             )
 
-    @patch("app.services.ai_agents.deep_research_agent.message_service")
-    @patch("app.services.ai_agents.deep_research_agent.claude_service")
+    @patch("app.sources.analysis.research.agent.message_service")
+    @patch("app.sources.analysis.research.agent.claude_service")
     def test_works_with_output_path(self, mock_claude, mock_msg, agent):
         """Smoke test: valid output_path proceeds to Claude API call."""
         # Mock config loading

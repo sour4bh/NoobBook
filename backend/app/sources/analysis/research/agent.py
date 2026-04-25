@@ -17,7 +17,7 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.services.tool_executors import deep_research_executor
+from app.sources.analysis.research.tool import deep_research_executor
 from app.chat.message.store import message_service
 import app.providers.anthropic.content
 
@@ -153,7 +153,7 @@ class DeepResearchAgent:
                         segments_written += 1
 
                     # Execute via executor
-                    result_message, is_termination = deep_research_executor.execute_tool(
+                    result_message, is_termination = deep_research_executor.research(
                         tool_name=tool_name,
                         tool_input=tool_input,
                         output_path=output_path

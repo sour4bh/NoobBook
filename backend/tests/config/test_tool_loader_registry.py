@@ -53,6 +53,34 @@ MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
         ["tavily_search_advance", "write_research_to_file"],
         ["tavily_search_advance", "web_search", "write_research_to_file"],
     ),
+    # NBB-403: csv/database/freshdesk analysis JSONs land under
+    # sources/analysis/<feature>/tools. analysis_agent (raw-code analyzer
+    # tools) and csv_tool (summary tools) keep distinct directories
+    # because each has its own loader category and tool-name set.
+    (
+        "analysis_agent",
+        "sources/analysis/csv/raw_tools",
+        ["return_analysis", "run_analysis"],
+        ["return_analysis", "run_analysis"],
+    ),
+    (
+        "csv_tool",
+        "sources/analysis/csv/tools",
+        ["csv_analyser", "return_csv_summary"],
+        ["csv_analyser", "return_csv_summary"],
+    ),
+    (
+        "database_agent",
+        "sources/analysis/database/tools",
+        ["query_runner", "return_database_result", "schema_fetcher"],
+        ["query_runner", "return_database_result", "schema_fetcher"],
+    ),
+    (
+        "freshdesk_agent",
+        "sources/analysis/freshdesk/tools",
+        ["query_runner", "return_ticket_analysis", "schema_info"],
+        ["query_runner", "return_ticket_analysis", "schema_info"],
+    ),
 ]
 
 
@@ -66,10 +94,9 @@ LEGACY_TOOL_CATEGORIES: List[str] = [
     # read_source_content/write_script_section + flow_diagram/wireframe in
     # NBB-506) migrated to studio domain via _PRODUCTION_TOOL_FILE_PATHS.
     # Legacy dir is now empty (NBB-507).
-    "analysis_agent",
-    "csv_tool",
-    "database_agent",
-    "freshdesk_agent",
+    # analysis_agent / csv_tool / database_agent / freshdesk_agent removed:
+    # all JSONs migrated to sources/analysis/<feature>/tools via
+    # _PRODUCTION_TOOL_PATHS. Legacy dirs removed (NBB-403).
 ]
 
 

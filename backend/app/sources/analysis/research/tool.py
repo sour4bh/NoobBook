@@ -34,7 +34,7 @@ class DeepResearchExecutor:
         """Initialize the executor."""
         pass
 
-    def execute_tool(
+    def research(
         self,
         tool_name: str,
         tool_input: Dict[str, Any],

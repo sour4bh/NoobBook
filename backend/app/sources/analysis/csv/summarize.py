@@ -20,7 +20,7 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.config import prompt_loader, tool_loader
-from app.services.tool_executors.csv_tool_executor import csv_tool_executor
+from app.sources.analysis.csv.tool import csv_tool_executor
 import app.providers.anthropic.response_parser
 import app.providers.anthropic.content
 
@@ -147,7 +147,7 @@ class CSVService:
 
                 # csv_analyzer: Execute and return results
                 elif tool_name == "csv_analyzer":
-                    result, _ = csv_tool_executor.execute_tool(
+                    result, _ = csv_tool_executor.analyze(
                         tool_input, project_id, source_id, csv_file_path=csv_file_path
                     )
                     # Format result as readable string for Claude

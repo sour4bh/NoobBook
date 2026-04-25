@@ -72,7 +72,7 @@ def process_research(
     try:
         # Run the deep research agent
         # Agent writes directly to temp file via executor
-        from app.services.ai_agents.deep_research_agent import deep_research_agent
+        from app.sources.analysis.research.agent import deep_research_agent
 
         research_result = deep_research_agent.research(
             project_id=project_id,

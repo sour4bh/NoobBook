@@ -106,7 +106,7 @@ class FreshdeskExecutor:
             logger.error("Freshdesk executor: DB connection failed: %s", e)
             return False
 
-    def execute_tool(
+    def fetch(
         self, tool_name: str, tool_input: Dict[str, Any],
         project_id: str, source_id: str,
     ) -> Tuple[Dict[str, Any], bool]:

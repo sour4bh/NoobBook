@@ -54,7 +54,7 @@ class CSVToolExecutor:
     # Main Entry Point
     # =========================================================================
 
-    def execute_tool(
+    def analyze(
         self,
         tool_input: Dict[str, Any],
         project_id: str,

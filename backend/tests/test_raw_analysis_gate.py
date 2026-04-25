@@ -41,13 +41,13 @@ from app.services.integrations.supabase import supabase_client as _supabase_clie
 _supabase_client.SupabaseClient._instance = MagicMock()
 _supabase_client.SupabaseClient._initialized = True
 
-from app.services.tool_executors import analysis_executor as analysis_executor_module  # noqa: E402
-from app.services.tool_executors.analysis_executor import (  # noqa: E402
+from app.sources.analysis.csv import run as analysis_executor_module  # noqa: E402
+from app.sources.analysis.csv.run import (  # noqa: E402
     analysis_executor,
     raw_analysis_enabled,
     RAW_ANALYSIS_DISABLED_MESSAGE,
 )
-from app.services.ai_agents.csv_analyzer_agent import csv_analyzer_agent  # noqa: E402
+from app.sources.analysis.csv.agent import csv_analyzer_agent  # noqa: E402
 
 
 AUTH_ENV = "NOOBBOOK_AUTH_REQUIRED"
@@ -114,11 +114,11 @@ def test_allow_raw_truthy_variants_enable(raw_analysis_clear_env, value):
 
 
 # ---------------------------------------------------------------------------
-# analysis_executor.execute_tool('run_analysis', ...) gate
+# analysis_executor.dispatch('run_analysis', ...) gate
 # ---------------------------------------------------------------------------
 
 def test_execute_tool_run_analysis_blocked_when_disabled(raw_analysis_clear_env):
-    result, is_termination = analysis_executor.execute_tool(
+    result, is_termination = analysis_executor.dispatch(
         "run_analysis",
         {"code": "result = 1 + 1"},
         "proj-1",
@@ -135,7 +135,7 @@ def test_execute_tool_run_analysis_blocked_when_disabled(raw_analysis_clear_env)
 def test_execute_tool_run_analysis_blocked_in_auth_required_mode(raw_analysis_clear_env):
     raw_analysis_clear_env.setenv(AUTH_ENV, "true")
     raw_analysis_clear_env.setenv(ALLOW_ENV, "true")
-    result, _ = analysis_executor.execute_tool(
+    result, _ = analysis_executor.dispatch(
         "run_analysis",
         {"code": "result = 42"},
         "proj-1",
@@ -148,7 +148,7 @@ def test_execute_tool_run_analysis_blocked_in_auth_required_mode(raw_analysis_cl
 def test_execute_tool_does_not_reach_exec_when_disabled(raw_analysis_clear_env):
     # Prove the gate fires BEFORE _run_analysis runs.
     with patch.object(analysis_executor, "_run_analysis") as inner:
-        result, _ = analysis_executor.execute_tool(
+        result, _ = analysis_executor.dispatch(
             "run_analysis",
             {"code": "result = 1"},
             "proj-1",
@@ -162,7 +162,7 @@ def test_return_analysis_tool_unaffected_by_gate(raw_analysis_clear_env):
     # return_analysis is the termination tool; it only echoes input. The gate
     # must NOT block it — otherwise the agent couldn't return a refusal or a
     # legitimate no-op result.
-    result, is_termination = analysis_executor.execute_tool(
+    result, is_termination = analysis_executor.dispatch(
         "return_analysis",
         {"summary": "done", "data": {}, "image_paths": []},
         "proj-1",
@@ -182,7 +182,7 @@ def test_execute_tool_run_analysis_runs_when_enabled(raw_analysis_enabled_env):
         "_load_dataframe",
         return_value=pd.DataFrame({"x": [1, 2, 3]}),
     ):
-        result, is_termination = analysis_executor.execute_tool(
+        result, is_termination = analysis_executor.dispatch(
             "run_analysis",
             {"code": "result = int(df['x'].sum())"},
             "proj-1",
@@ -204,7 +204,7 @@ def test_csv_analyzer_agent_refuses_when_disabled_without_calling_claude(
     # Load-bearing assertion: Claude API is NEVER called when the gate is
     # closed, so production never burns cost trying to reach a blocked exec.
     with patch(
-        "app.services.ai_agents.csv_analyzer_agent.claude_service.send_message"
+        "app.sources.analysis.csv.agent.claude_service.send_message"
     ) as send_message:
         result = csv_analyzer_agent.run(
             project_id="proj-1",
@@ -224,7 +224,7 @@ def test_csv_analyzer_agent_refuses_in_auth_required_mode_even_with_allow_true(
     raw_analysis_clear_env.setenv(AUTH_ENV, "true")
     raw_analysis_clear_env.setenv(ALLOW_ENV, "true")
     with patch(
-        "app.services.ai_agents.csv_analyzer_agent.claude_service.send_message"
+        "app.sources.analysis.csv.agent.claude_service.send_message"
     ) as send_message:
         result = csv_analyzer_agent.run(
             project_id="proj-1",
@@ -240,7 +240,7 @@ def test_csv_analyzer_agent_refuses_when_allow_missing(raw_analysis_clear_env):
     raw_analysis_clear_env.setenv(AUTH_ENV, "false")
     # ALLOW intentionally unset
     with patch(
-        "app.services.ai_agents.csv_analyzer_agent.claude_service.send_message"
+        "app.sources.analysis.csv.agent.claude_service.send_message"
     ) as send_message:
         result = csv_analyzer_agent.run(
             project_id="proj-1",

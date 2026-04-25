@@ -201,7 +201,7 @@ The project is migrating from a mechanism-first backend layout to a domain-first
 - `backend/app/services/studio_services/jobs/`
 - `backend/app/services/studio_services/studio_processing/`
 - `backend/data/prompts/`
-- `frontend/src/components/hooks/`
+- `frontend/src/components/hooks/` (directory removed by `NBB-602`; entry retained for the `NBB-103` legacy-files guardrail until `NBB-706` retires it)
 
 Older guidance in `AGENTS.md`, `CLAUDE.md`, and `REFACTORING.md` that describes those bucket names as current or preferred architecture is superseded by `STRUCTURE.md` until the migration completes.
 

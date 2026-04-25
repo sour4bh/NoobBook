@@ -57,7 +57,7 @@ Disposition values:
 
 | Path | Class | Disposition | Rationale |
 |---|---|---|---|
-| backend/app/chat/memory/run.py | MemoryExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: chat memory orchestration. (Module renamed from `chat/memory/store.py` per §3 chat shadow fix.) |
+| backend/app/chat/memory/run.py | MemoryExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: chat memory orchestration. Module renamed from `chat/memory/store.py` to `chat/memory/run.py` in NBB-706 §3 (chat shadow fix); the AST allowlist tuple was updated in the same commit. |
 | backend/app/sources/analysis/csv/run.py | AnalysisExecutor | KEEP | Stateful: agentic loop orchestration; lazy tool/prompt config; iteration cap. Source orchestration class kept per NBB-706 Keep-as-class list. |
 | backend/app/sources/analysis/csv/tool.py | CSVToolExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: CSV analysis tool runtime. |
 | backend/app/sources/analysis/database/tool.py | DatabaseExecutor | KEEP | Stateful: connection resolver and lazy schema introspection. Source orchestration class kept per NBB-706 Keep-as-class list. |

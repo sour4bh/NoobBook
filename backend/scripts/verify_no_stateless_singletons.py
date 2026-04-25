@@ -83,8 +83,7 @@ REPO_ROOT = BACKEND_DIR.parent
 ALLOWLIST: frozenset[Tuple[str, str]] = frozenset({
     # CONVERSION-TARGETS — NBB-706 will delete these classes and replace with
     # module-level functions; remove the allowlist entry when that lands.
-    # NBB-706 ticket body row 3: EmbeddingService -> module-level functions.
-    ("backend/app/services/ai_services/embedding_service.py", "EmbeddingService"),
+    # EmbeddingService entry removed in NBB-706 conversion 3 (class deleted).
     # NBB-706 ticket body row 7: VideoPromptService -> module-level functions.
     ("backend/app/services/ai_services/video_prompt_service.py", "VideoPromptService"),
 

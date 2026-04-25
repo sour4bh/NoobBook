@@ -220,7 +220,7 @@ class SourceCatalog:
         # Delete embeddings and chunk files from Supabase Storage (if any)
         if source.get("embedding_info", {}).get("is_embedded"):
             try:
-                from app.services.ai_services.embedding_service import embedding_service
+                from app.services.ai_services import embedding_service
                 embedding_service.delete_embeddings(
                     project_id=project_id,
                     source_id=source_id

@@ -18,7 +18,7 @@ from app.services.studio_services import studio_index_service
 from app.services.integrations.supabase import storage_service
 
 
-class VideoService:
+class VideoGenerator:
     """
     Simple video generation service.
 
@@ -155,4 +155,4 @@ class VideoService:
 
 
 # Singleton instance
-video_service = VideoService()
+video_service = VideoGenerator()

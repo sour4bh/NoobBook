@@ -27,7 +27,7 @@ import app.providers.anthropic.response_parser
 logger = logging.getLogger(__name__)
 
 
-class MindMapService:
+class MindMapBuilder:
     """
     Service for generating mind maps from source content.
 
@@ -282,4 +282,4 @@ class MindMapService:
 
 
 # Singleton instance
-mind_map_service = MindMapService()
+mind_map_service = MindMapBuilder()

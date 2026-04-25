@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 
-class VideoExecutor:
+class VideoDispatcher:
     """
     Executor for video generation via studio signals.
 
@@ -24,7 +24,7 @@ class VideoExecutor:
     5. Service runs and updates job status
     """
 
-    def execute(
+    def dispatch(
         self,
         project_id: str,
         source_id: str,
@@ -55,7 +55,7 @@ class VideoExecutor:
         """
         from app.services.studio_services import studio_index_service
         from app.background.tasks import task_service
-        from app.services.studio_services.video_service import video_service
+        from app.studio.media.video.generate import video_service
         from app.services.source_services import source_service
 
         # Get source info
@@ -125,4 +125,4 @@ class VideoExecutor:
 
 
 # Singleton instance
-video_executor = VideoExecutor()
+video_executor = VideoDispatcher()

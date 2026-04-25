@@ -22,7 +22,7 @@ from datetime import datetime
 from app.services.integrations.claude import claude_service
 from app.services.integrations.elevenlabs import tts_service
 from app.services.studio_services import studio_index_service
-from app.services.tool_executors.studio_audio_executor import studio_audio_executor
+from app.studio.media.audio.tool import studio_audio_executor
 from app.config import prompt_loader, tool_loader
 from app.services.integrations.supabase import storage_service
 from app.sources import index
@@ -33,7 +33,7 @@ import app.providers.anthropic.content
 logger = logging.getLogger(__name__)
 
 
-class AudioOverviewService:
+class AudioGenerator:
     """
     Service for generating audio overviews from source content.
 
@@ -59,7 +59,13 @@ class AudioOverviewService:
     def _load_tools(self) -> List[Dict[str, Any]]:
         """Load tools for the audio agent."""
         if self._tools is None:
-            self._tools = tool_loader.load_tools_from_category("studio_tools")
+            # Audio uses two tools: read_source_content (sources public surface)
+            # and write_script_section (audio-owned). Loaded by name so the
+            # legacy `studio_tools/` category dir can disappear after NBB-507.
+            self._tools = [
+                tool_loader.load_tool("studio_tools", "read_source_content"),
+                tool_loader.load_tool("studio_tools", "write_script_section"),
+            ]
         return self._tools
 
     # =========================================================================
@@ -357,7 +363,7 @@ class AudioOverviewService:
                     tool_id = getattr(block, "id", "") if hasattr(block, "id") else block.get("id", "")
 
                     # Execute the tool
-                    result, completed = studio_audio_executor.execute(
+                    result, completed = studio_audio_executor.dispatch(
                         tool_name=tool_name,
                         tool_input=tool_input,
                         project_id=project_id,
@@ -454,4 +460,4 @@ class AudioOverviewService:
 
 
 # Singleton instance
-audio_overview_service = AudioOverviewService()
+audio_overview_service = AudioGenerator()

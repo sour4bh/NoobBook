@@ -26,7 +26,7 @@ import app.providers.anthropic.response_parser
 logger = logging.getLogger(__name__)
 
 
-class FlashCardsService:
+class FlashCardCreator:
     """
     Service for generating flash cards from source content.
 
@@ -249,4 +249,4 @@ class FlashCardsService:
 
 
 # Singleton instance
-flash_cards_service = FlashCardsService()
+flash_cards_service = FlashCardCreator()

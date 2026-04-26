@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any, List
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index
 

@@ -2,7 +2,7 @@
 Fixtures for source citation/ingestion/analysis-boundary tests (NBB-702).
 
 The sources domain reaches into Supabase clients at import time:
-``app.services.integrations.supabase.__init__`` constructs ``AuthService()``,
+``app.providers.supabase.__init__`` constructs ``AuthService()``,
 which needs ``SUPABASE_URL`` / ``SUPABASE_SERVICE_KEY`` to validate.
 ``app.sources.index._get_client`` fails closed without those env vars too.
 
@@ -37,7 +37,7 @@ os.environ.setdefault("NOOBBOOK_AUTH_REQUIRED", "false")
 # Replace the Supabase singleton before any app import. The startup hook in
 # `task_service._cleanup_stale_tasks` (see `backend/app/background/tasks.py`)
 # otherwise attempts a real network call to Supabase during `create_app`.
-from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
+from app.providers.supabase import supabase_client as _supabase_client  # noqa: E402
 
 _supabase_client._client = MagicMock()
 _supabase_client._initialized = True

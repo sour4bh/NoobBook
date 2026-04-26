@@ -18,7 +18,7 @@ from urllib.parse import urlparse, urlunparse
 import psycopg2
 import pymysql
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase import get_supabase, is_supabase_enabled
 
 logger = logging.getLogger(__name__)
 

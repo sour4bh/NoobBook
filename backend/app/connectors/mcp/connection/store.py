@@ -20,7 +20,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase import get_supabase, is_supabase_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +392,7 @@ class McpConnectionStore:
         if not connection:
             raise ValueError("MCP connection not found")
 
-        from app.services.integrations.mcp.mcp_client import list_tools
+        from app.providers.mcp.client import list_tools
 
         tools = list_tools(
             server_url=connection.get("server_url") or "",
@@ -475,7 +475,7 @@ class McpConnectionStore:
         Validate an MCP server connection by attempting to initialize a session.
         Supports both SSE and stdio transports.
         """
-        from app.services.integrations.mcp.mcp_client import validate_connection as mcp_validate
+        from app.providers.mcp.client import validate_connection as mcp_validate
 
         if transport not in VALID_TRANSPORTS:
             return {"valid": False, "message": f"transport must be one of {VALID_TRANSPORTS}"}

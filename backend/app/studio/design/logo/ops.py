@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 from flask import g
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 
 logger = logging.getLogger(__name__)
 

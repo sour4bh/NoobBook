@@ -21,7 +21,7 @@ from flask import jsonify, request, current_app, send_file
 
 from app.api.studio import studio_bp
 import app.studio.jobs.store as studio_index_service
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.auth.guards import require_permission
 from app.studio.marketing.strategy.plan import marketing_strategy_agent_service
 

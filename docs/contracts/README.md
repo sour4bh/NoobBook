@@ -240,7 +240,7 @@ This heading covers two linked contracts: **identity** (`/auth/me`) and **sessio
 **Backend owner:**
 - Identity: `backend/app/api/auth/routes.py::me` + `backend/app/services/auth/rbac.py::get_request_identity`
 - Session: `backend/app/api/auth/routes.py::signup|signin|refresh|signout` +
-  `backend/app/services/integrations/supabase/auth_service.py::AuthService._serialize_user` and
+  `backend/app/providers/supabase/auth.py::AuthService._serialize_user` and
   `::_serialize_session`
 
 **Frontend consumer:** `frontend/src/lib/api/auth.ts`

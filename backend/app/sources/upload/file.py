@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from werkzeug.datastructures import FileStorage
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources.file_contract import (
     ALLOWED_EXTENSIONS,
     is_allowed_file,

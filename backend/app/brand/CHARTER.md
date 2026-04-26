@@ -19,7 +19,7 @@
 |---|---|---|---|
 | `brand-assets` | `{user_id}/brand/{asset_id}/{filename}` | `GET /api/v1/brand/...` routes in `backend/app/api/brand/routes.py` return signed URLs via `storage_service.get_brand_asset_url` | This is the only bucket where runtime path + migration helper (`generate_brand_asset_path` in 00010) agree with the `auth.uid()::text == folder[1]` storage policy. Storage RLS is primary in hosted mode. |
 
-Path builder: `backend/app/services/integrations/supabase/storage_service.py::_build_brand_path`. Do not introduce new path builders for this bucket elsewhere.
+Path builder: `backend/app/providers/supabase/storage.py::_build_brand_path`. Do not introduce new path builders for this bucket elsewhere.
 
 ## JSONB contracts owned here (shape lives in NBB-205)
 

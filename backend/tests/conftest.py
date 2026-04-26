@@ -42,10 +42,10 @@ def patch_storage_client(mock_supabase):
     """
     mock_client, mock_bucket = mock_supabase
     with patch(
-        "app.services.integrations.supabase.storage_service._get_client",
+        "app.providers.supabase.storage._get_client",
         return_value=mock_client,
     ), patch(
-        "app.services.integrations.supabase.storage_service.is_supabase_enabled",
+        "app.providers.supabase.storage.is_supabase_enabled",
         return_value=True,
     ):
         yield mock_client, mock_bucket

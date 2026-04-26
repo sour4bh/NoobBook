@@ -176,7 +176,7 @@ def _fallback_allow() -> bool:
 
 def _get_supabase():
     """Lazy import to avoid circular dependencies."""
-    from app.services.integrations.supabase import get_supabase
+    from app.providers.supabase import get_supabase
     return get_supabase()
 
 

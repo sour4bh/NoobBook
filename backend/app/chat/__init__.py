@@ -25,9 +25,8 @@ Public surface (NBB-301):
 Migration source: `backend/app/services/chat_services/` was removed by
 NBB-302. NBB-303 reassigned the chat-invoked tool executors to their
 owning domains (`chat/memory/run`, `studio/signal`, `sources/search`,
-`sources/link/run`); the remaining `services/tool_executors/__init__.py`
-re-exports only `studio_audio_executor` and `email_agent_executor`,
-both NBB-706 cleanup targets.
+`sources/link/run`). NBB-706 removed the remaining `services/tool_executors`
+residue.
 """
 from typing import Iterator, Optional
 

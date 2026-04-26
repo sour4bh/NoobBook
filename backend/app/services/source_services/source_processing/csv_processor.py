@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from app.config.prompt_loader import prompt_loader
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources.analysis.csv.summarize import csv_service
 
 logger = logging.getLogger(__name__)

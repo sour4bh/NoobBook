@@ -20,7 +20,7 @@ from collections import Counter
 from datetime import datetime
 import statistics
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 
 
 class CSVToolExecutor:

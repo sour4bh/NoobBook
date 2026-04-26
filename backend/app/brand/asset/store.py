@@ -8,8 +8,8 @@ consistent branding across all projects' generated content.
 import uuid
 from typing import Optional, Dict, List, Any
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase import storage_service
 
 
 class BrandAssetStore:

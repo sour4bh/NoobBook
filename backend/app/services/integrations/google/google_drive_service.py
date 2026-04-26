@@ -35,7 +35,7 @@ from datetime import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
-from app.services.integrations.google.google_auth_service import google_auth_service
+from app.providers.google.auth import google_auth_service
 
 logger = logging.getLogger(__name__)
 

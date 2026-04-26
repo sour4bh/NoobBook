@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 
-from app.services.integrations.supabase import get_supabase
+from app.providers.supabase import get_supabase
 
 
 class GoogleAuthService:

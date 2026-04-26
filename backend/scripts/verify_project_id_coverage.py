@@ -12,10 +12,10 @@ and prints each offending call when any omission is found.
 Coverage rules:
 - Import aliasing is resolved at AST level. All of the following point at the
   singleton and count:
-    from app.services.integrations.claude import claude_service
-    from app.services.integrations.claude import claude_service as X
-    from app.services.integrations.claude.claude_service import claude_service
-    import app.services.integrations.claude as X  (X.claude_service.send_message)
+    from app.providers.anthropic import claude_service
+    from app.providers.anthropic import claude_service as X
+    from app.providers.anthropic.messages import claude_service
+    import app.providers.anthropic as X  (X.claude_service.send_message)
 - ``claude_service.send_message(**kwargs)`` is treated as forwarding and passes
   so long as a ``**kwargs`` double-star is present. The verifier assumes the
   caller forwards ``project_id`` through that kwargs map — this is the pattern
@@ -32,8 +32,8 @@ from typing import List, Set, Tuple
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = BACKEND_DIR / "app"
 
-CLAUDE_MODULE = "app.services.integrations.claude"
-CLAUDE_SUBMODULE = "app.services.integrations.claude.claude_service"
+CLAUDE_MODULE = "app.providers.anthropic"
+CLAUDE_SUBMODULE = "app.providers.anthropic.messages"
 SINGLETON_NAME = "claude_service"
 TARGET_METHODS = frozenset({"send_message", "stream_message"})
 
@@ -73,7 +73,7 @@ def _module_aliases(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
         singleton_names: identifiers bound directly to the ``claude_service``
             singleton (e.g. ``claude_service``, ``cs``).
         module_names: identifiers bound to the containing module (e.g.
-            ``import app.services.integrations.claude as cm``). Attribute
+            ``import app.providers.anthropic as cm``). Attribute
             access ``cm.claude_service.send_message(...)`` resolves through
             these.
     """

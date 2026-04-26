@@ -14,7 +14,7 @@ Source status flow: uploaded → processing → [embedding] → ready
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase import get_supabase, is_supabase_enabled
 
 
 # Initialize Supabase client

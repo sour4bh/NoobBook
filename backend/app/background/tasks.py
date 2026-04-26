@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def _get_supabase():
     """Get Supabase client (lazy import to avoid circular imports)."""
-    from app.services.integrations.supabase.supabase_client import get_supabase
+    from app.providers.supabase.client import get_supabase
     return get_supabase()
 
 

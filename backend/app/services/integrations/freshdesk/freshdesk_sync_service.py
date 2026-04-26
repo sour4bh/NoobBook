@@ -22,7 +22,7 @@ from app.services.integrations.freshdesk.freshdesk_service import (
     PRIORITY_MAP,
     SOURCE_MAP,
 )
-from app.services.integrations.supabase import get_supabase
+from app.providers.supabase import get_supabase
 
 logger = logging.getLogger(__name__)
 

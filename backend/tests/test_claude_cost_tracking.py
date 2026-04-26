@@ -21,12 +21,12 @@ from unittest.mock import patch
 import pytest
 import sys
 
-from app.services.integrations.claude.claude_service import ClaudeService
+from app.providers.anthropic.messages import ClaudeService
 
 # The package ``__init__`` re-exports the singleton under the name
 # ``claude_service``, which shadows the module binding on the parent package.
 # Pull the underlying module out of ``sys.modules`` to reach its logger.
-_CLAUDE_MODULE = sys.modules["app.services.integrations.claude.claude_service"]
+_CLAUDE_MODULE = sys.modules["app.providers.anthropic.messages"]
 _CLAUDE_LOGGER_NAME = _CLAUDE_MODULE.logger.name
 
 
@@ -50,7 +50,7 @@ def isolated_service():
     )
 
     with patch.object(service, "_get_client", return_value=fake_client), patch(
-        "app.services.integrations.claude.claude_service.check_user_spending_limit",
+        "app.providers.anthropic.messages.check_user_spending_limit",
         return_value=None,
     ):
         yield service
@@ -59,7 +59,7 @@ def isolated_service():
 def test_send_message_without_project_id_logs_warning(isolated_service, caplog):
     """Missing project_id must produce a WARNING record mentioning project_id."""
     with caplog.at_level(logging.WARNING, logger=_CLAUDE_LOGGER_NAME), patch(
-        "app.services.integrations.claude.claude_service.add_cost_usage"
+        "app.providers.anthropic.messages.add_cost_usage"
     ) as mock_add_cost:
         isolated_service.send_message(
             messages=[{"role": "user", "content": "hi"}],
@@ -77,7 +77,7 @@ def test_send_message_without_project_id_logs_warning(isolated_service, caplog):
 def test_send_message_with_project_id_records_cost(isolated_service, caplog):
     """When project_id is passed, no warning fires and costs are recorded."""
     with caplog.at_level(logging.WARNING, logger=_CLAUDE_LOGGER_NAME), patch(
-        "app.services.integrations.claude.claude_service.add_cost_usage"
+        "app.providers.anthropic.messages.add_cost_usage"
     ) as mock_add_cost:
         isolated_service.send_message(
             messages=[{"role": "user", "content": "hi"}],

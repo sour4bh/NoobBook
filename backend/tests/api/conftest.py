@@ -17,7 +17,7 @@ from unittest.mock import MagicMock
 import pytest
 
 # Supabase env vars must be set before `app` is imported anywhere, because
-# `app/services/integrations/supabase/__init__.py` instantiates
+# `app/providers/supabase/__init__.py` instantiates
 # `AuthService()` at module load, which triggers
 # `get_supabase()`.
 os.environ.setdefault("SUPABASE_URL", "http://localhost:54321")
@@ -41,7 +41,7 @@ os.environ.setdefault("NOOBBOOK_AUTH_REQUIRED", "false")
 # Replace the Supabase singleton before any app import. The startup hook in
 # `task_service._cleanup_stale_tasks` (see `backend/app/background/tasks.py`)
 # otherwise attempts a real network call to Supabase during `create_app`.
-from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
+from app.providers.supabase import supabase_client as _supabase_client  # noqa: E402
 
 _supabase_client._client = MagicMock()
 _supabase_client._initialized = True

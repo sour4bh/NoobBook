@@ -29,9 +29,21 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from app.sources.tokens import count_tokens
+import tiktoken
 
 logger = logging.getLogger(__name__)
+
+_encoder = tiktoken.get_encoding("cl100k_base")
+
+
+def _count_tokens(text: str) -> int:
+    if not text:
+        return 0
+    try:
+        return len(_encoder.encode(text))
+    except Exception as e:
+        logger.warning("tiktoken encoding failed, using estimation: %s", e)
+        return len(text) // 4
 
 
 # Supported language codes for ElevenLabs Speech-to-Text
@@ -195,7 +207,7 @@ class AudioService:
             )
 
             # Calculate token count
-            token_count = count_tokens(processed_content)
+            token_count = _count_tokens(processed_content)
 
             logger.info("Transcript generated: %s chars, %s tokens", len(transcript_text), token_count)
 
@@ -355,7 +367,7 @@ class AudioService:
             language = f"{detected_language_name} ({detected_language_code})" if detected_language_name else detected_language_code
 
         # Calculate token count for the full transcript
-        token_count = count_tokens(transcript_text)
+        token_count = _count_tokens(transcript_text)
 
         # Build metadata dict with all keys audio service can provide
         # Educational Note: duration is not available from ElevenLabs transcription API

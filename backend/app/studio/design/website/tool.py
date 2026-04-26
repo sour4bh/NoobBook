@@ -9,8 +9,8 @@ import logging
 from typing import Dict, Any, List, Tuple
 from datetime import datetime
 
-from app.services.integrations.google import imagen_service
-from app.services.integrations.supabase import storage_service
+from app.providers.google.imagen import imagen_service
+from app.providers.supabase import storage_service
 import app.studio.jobs.store as studio_index_service
 
 logger = logging.getLogger(__name__)

@@ -33,7 +33,7 @@ from typing import Dict, Any
 import tempfile
 import shutil
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 
 logger = logging.getLogger(__name__)
 

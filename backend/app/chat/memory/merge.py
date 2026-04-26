@@ -7,7 +7,7 @@ from app.config.prompt_loader import prompt_loader
 from app.config.tool_loader import tool_loader
 from app.providers.anthropic import response_parser
 from app.projects.store import DEFAULT_USER_ID, project_service
-from app.services.integrations.claude import claude_service
+from app.providers.anthropic import claude_service
 
 logger = logging.getLogger(__name__)
 

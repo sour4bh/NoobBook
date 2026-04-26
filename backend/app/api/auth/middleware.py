@@ -27,7 +27,7 @@ import threading
 from typing import Optional, Dict, Tuple
 
 from flask import request, jsonify, g
-from app.services.integrations.supabase import get_supabase
+from app.providers.supabase import get_supabase
 from app.auth.access import (  # noqa: F401 — re-export for before_request hooks
     get_current_user_id,
     verify_project_access,

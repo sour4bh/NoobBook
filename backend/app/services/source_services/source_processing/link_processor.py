@@ -20,7 +20,7 @@ from typing import Dict, Any
 
 from app.utils.text import build_processed_output
 from app.sources.tokens import needs_embedding, count_tokens
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary
 

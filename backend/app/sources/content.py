@@ -10,7 +10,7 @@ this module switches the read path to match.
 """
 from typing import Optional
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 
 
 def get_source_content(

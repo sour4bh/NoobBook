@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from app.services.integrations.freshdesk.freshdesk_service import freshdesk_service
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index
 

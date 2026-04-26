@@ -14,7 +14,7 @@ import logging
 from typing import Optional, BinaryIO, List, Dict, Any
 from pathlib import Path
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase.client import get_supabase, is_supabase_enabled
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@
 
 | Bucket | Public? | Size limit | Defined in | Storage policy (hosted) | Storage policy (self-hosted) | Path builder | Owning domain |
 |---|---|---|---|---|---|---|---|
-| `raw-files` | false | 100 MB | `migrations/00002_storage_buckets.sql` | `auth.uid()::text == (storage.foldername(name))[1]` (per-op) | `Allow all on raw-files` (init.sql) | `_build_path(project_id, source_id, filename)` in `backend/app/services/integrations/supabase/storage_service.py` | `sources/` |
+| `raw-files` | false | 100 MB | `migrations/00002_storage_buckets.sql` | `auth.uid()::text == (storage.foldername(name))[1]` (per-op) | `Allow all on raw-files` (init.sql) | `_build_path(project_id, source_id, filename)` in `backend/app/providers/supabase/storage.py` | `sources/` |
 | `processed-files` | false | 100 MB | `migrations/00002_storage_buckets.sql` | Same `auth.uid()` shape as `raw-files` | `Allow all on processed-files` | `_build_path(project_id, source_id, filename)` | `sources/` |
 | `chunks` | false | 10 MB | `migrations/00002_storage_buckets.sql` | Same `auth.uid()` shape | `Allow all on chunks` | `_build_path(project_id, source_id, chunk_id)` (same helper, called with chunk filenames) | `sources/` (indexing slice) |
 | `studio-outputs` | false | 500 MB | `migrations/00002_storage_buckets.sql` | Same `auth.uid()` shape | `Allow all on studio-outputs` | `_build_studio_path(project_id, job_type, job_id, filename)` | `studio/` |
@@ -48,12 +48,12 @@ Facts:
    ```
    which require the first folder of every object name to be the authenticated user's id.
 2. `migrations/00002_storage_buckets.sql` also declares `generate_raw_file_path`, `generate_processed_file_path`, and `generate_studio_output_path` with a leading `{user_id}/` segment. These are helper functions and are **not** called by the Python runtime.
-3. `backend/app/services/integrations/supabase/storage_service.py` builds actual object paths without a leading `{user_id}/` segment:
+3. `backend/app/providers/supabase/storage.py` builds actual object paths without a leading `{user_id}/` segment:
    - `_build_path(project_id, source_id, filename)` -> `{project_id}/{source_id}/{filename}` for `raw-files`, `processed-files`, and `chunks`.
    - `_build_studio_path(project_id, job_type, job_id, filename)` -> `{project_id}/{job_type}/{job_id}/{filename}` for `studio-outputs`.
    - `_build_brand_path(user_id, asset_id, filename)` -> `{user_id}/brand/{asset_id}/{filename}` — the only runtime path that satisfies the `auth.uid()::text == folder[1]` rule.
 4. `backend/supabase/init.sql` (self-hosted Docker bootstrap) replaces the restrictive `storage.objects` policies with `Allow all on <bucket>` for every bucket. In that deployment mode the mismatch is invisible because the storage RLS is effectively off.
-5. The Supabase client (`backend/app/services/integrations/supabase/supabase_client.py`) is built with `SUPABASE_SERVICE_KEY` when set, falling back to `SUPABASE_ANON_KEY`. When the service key is used, storage writes go through the backend with RLS bypassed; the `@before_request` project guard in `backend/app/__init__.py` is what prevents cross-user access today.
+5. The Supabase client (`backend/app/providers/supabase/client.py`) is built with `SUPABASE_SERVICE_KEY` when set, falling back to `SUPABASE_ANON_KEY`. When the service key is used, storage writes go through the backend with RLS bypassed; the `@before_request` project guard in `backend/app/__init__.py` is what prevents cross-user access today.
 
 Consequence for this ticket's inventory:
 
@@ -80,7 +80,7 @@ Any ticket that moves a store or introduces a new storage call must run through 
 - `backend/supabase/migrations/00007_brand_assets.sql`
 - `backend/supabase/migrations/00010_brand_to_user_level.sql`
 - `backend/supabase/init.sql` (self-hosted bootstrap)
-- `backend/app/services/integrations/supabase/storage_service.py`
+- `backend/app/providers/supabase/storage.py`
 - `backend/app/api/sources/routes.py` (`download_source`, `upload_source`)
 - `backend/app/api/brand/routes.py`
 - `backend/app/api/studio/` (category routes)

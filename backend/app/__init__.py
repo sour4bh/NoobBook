@@ -112,7 +112,7 @@ def create_app(config_name='development'):
     app.register_blueprint(api_bp, url_prefix=app.config['API_PREFIX'])
 
     # Bootstrap admin (optional) when env vars are provided
-    from app.services.integrations.supabase import auth_service, is_supabase_enabled
+    from app.providers.supabase import auth_service, is_supabase_enabled
     if is_supabase_enabled():
         auth_service.bootstrap_admin_from_env()
 

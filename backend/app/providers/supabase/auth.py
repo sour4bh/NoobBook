@@ -10,7 +10,7 @@ import logging
 from typing import Dict, Any, Optional, Iterable
 import os
 from supabase import Client
-from .supabase_client import get_supabase
+from app.providers.supabase.client import get_supabase
 
 logger = logging.getLogger(__name__)
 

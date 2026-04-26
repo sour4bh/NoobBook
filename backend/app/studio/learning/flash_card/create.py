@@ -15,8 +15,8 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from app.services.integrations.claude import claude_service
-from app.services.integrations.supabase import storage_service
+from app.providers.anthropic import claude_service
+from app.providers.supabase import storage_service
 import app.studio.jobs.store as studio_index_service
 from app.config.prompt_loader import prompt_loader
 from app.config.tool_loader import tool_loader

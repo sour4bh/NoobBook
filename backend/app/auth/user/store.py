@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from supabase import create_client
 
-from app.services.integrations.supabase import is_supabase_enabled
+from app.providers.supabase import is_supabase_enabled
 from app.auth.password import generate_secure_password
 
 logger = logging.getLogger(__name__)
@@ -166,7 +166,7 @@ class UserStore:
         Educational Note: Each project stores a costs JSONB with total_cost.
         We aggregate across all projects to get the user's total spend.
         """
-        from app.services.integrations.supabase import get_supabase
+        from app.providers.supabase import get_supabase
         client = get_supabase()
         resp = (
             client.table("projects")

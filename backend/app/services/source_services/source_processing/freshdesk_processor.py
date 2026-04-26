@@ -16,7 +16,7 @@ from typing import Any, Dict
 from app.services.integrations.freshdesk.freshdesk_sync_service import (
     freshdesk_sync_service,
 )
-from app.services.integrations.supabase import get_supabase, storage_service
+from app.providers.supabase import get_supabase, storage_service
 from app.sources.summary import generate_summary
 
 logger = logging.getLogger(__name__)

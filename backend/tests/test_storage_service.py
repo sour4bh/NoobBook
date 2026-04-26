@@ -10,8 +10,8 @@ Covers:
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.services.integrations.supabase import storage_service
-from app.services.integrations.supabase.storage_service import _LIST_OPTIONS
+from app.providers.supabase import storage_service
+from app.providers.supabase.storage import _LIST_OPTIONS
 
 
 # ---------------------------------------------------------------------------

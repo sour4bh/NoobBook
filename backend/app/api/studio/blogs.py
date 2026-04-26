@@ -34,7 +34,7 @@ from flask import jsonify, request, current_app, send_file, Response, g
 from app.api.studio import studio_bp
 import app.studio.jobs.store as studio_index_service
 from app.studio.documents.blog.run import run as run_blog
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.studio.design.logo.ops import resolve_logo
 from app.auth.guards import require_permission
 

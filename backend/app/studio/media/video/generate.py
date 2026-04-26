@@ -10,12 +10,12 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from app.services.integrations.google.video_service import google_video_service
+from app.providers.google.veo import google_video_service
 
 logger = logging.getLogger(__name__)
 from app.studio.media.video import prompt as video_prompt
 import app.studio.jobs.store as studio_index_service
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 
 
 class VideoGenerator:

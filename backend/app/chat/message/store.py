@@ -24,7 +24,7 @@ from config import Config
 from app.utils.path_utils import get_web_agent_dir, get_agents_dir
 import logging
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase import get_supabase, is_supabase_enabled
 import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)

@@ -32,8 +32,8 @@ from flask import jsonify, request, current_app, send_file
 from app.api.studio import studio_bp
 import app.studio.jobs.store as studio_index_service
 from app.studio.media.audio.generate import audio_overview_service
-from app.services.integrations.elevenlabs import tts_service
-from app.services.integrations.supabase import storage_service  # For downloading previous scripts during edits
+from app.providers.elevenlabs import tts_service
+from app.providers.supabase import storage_service  # For downloading previous scripts during edits
 from app.background.tasks import task_service
 from app.auth.guards import require_permission
 from app.sources import index

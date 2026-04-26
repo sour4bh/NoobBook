@@ -15,7 +15,7 @@ Runtime settings ownership:
   reloads.
 - `app.settings.validation` owns the API-key validation dispatcher.
 
-The individual provider and connector validator bodies still live under the
-legacy `backend/app/services/app_settings/validation/` package until
-NBB-806/NBB-807 move them to their provider/connector homes.
+Provider validators live under `app.providers`. Connector validator bodies
+remain under the legacy `backend/app/services/app_settings/validation/`
+package until NBB-807 moves them to their connector homes.
 """

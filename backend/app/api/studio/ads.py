@@ -33,8 +33,8 @@ from app.api.studio import studio_bp
 from app.studio.design.logo.ops import resolve_logo
 import app.studio.jobs.store as studio_index_service
 from app.studio.marketing.ad.create import ad_creative_service
-from app.services.integrations.google.imagen_service import imagen_service
-from app.services.integrations.supabase import storage_service
+from app.providers.google.imagen import imagen_service
+from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.auth.guards import require_permission
 

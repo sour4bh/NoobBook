@@ -12,7 +12,7 @@ Gate requires BOTH:
 Any other combination must refuse to execute model-written Python.
 
 Import bootstrap note:
-    ``app.services.integrations.supabase.__init__`` instantiates
+    ``app.providers.supabase.__init__`` instantiates
     ``AuthService()`` at module load, which needs a Supabase client.
     We set dummy env vars and pre-replace the client singleton with a
     MagicMock before touching any ``app.*`` import. This only affects
@@ -36,7 +36,7 @@ os.environ.setdefault(
     "dummy-signature-for-tests",
 )
 
-from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
+from app.providers.supabase import supabase_client as _supabase_client  # noqa: E402
 
 _supabase_client._client = MagicMock()
 _supabase_client._initialized = True

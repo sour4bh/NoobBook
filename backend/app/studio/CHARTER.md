@@ -19,7 +19,7 @@
 |---|---|---|---|
 | `studio-outputs` | `{project_id}/{job_type}/{job_id}/{filename}` (see note) | `GET /api/v1/projects/{project_id}/studio/<category>/...` routes in `backend/app/api/studio/` return signed URLs via `storage_service.get_studio_signed_url` or public URLs via `get_studio_public_url` | Migration-defined helper `generate_studio_output_path` uses `{user_id}/{project_id}/studio/{studio_signal_id}/{filename}`. Runtime builder uses `{project_id}/{job_type}/{job_id}/{filename}`. See "Known inconsistency" in `STORAGE_CONTRACTS.md`. NBB-502/NBB-503 should reconcile when the job layer is locked. |
 
-Path builder: `backend/app/services/integrations/supabase/storage_service.py::_build_studio_path`. Do not introduce new path builders for this bucket elsewhere.
+Path builder: `backend/app/providers/supabase/storage.py::_build_studio_path`. Do not introduce new path builders for this bucket elsewhere.
 
 ## JSONB contracts owned here (shape lives in NBB-205)
 

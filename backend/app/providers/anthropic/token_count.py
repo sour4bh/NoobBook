@@ -8,7 +8,7 @@ which uses tiktoken (fast, local) and is ~10000x faster than this API.
 """
 import logging
 
-from app.services.integrations.claude import claude_service
+from app.providers.anthropic import claude_service
 from app.sources.tokens import count_tokens
 
 logger = logging.getLogger(__name__)

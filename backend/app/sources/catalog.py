@@ -88,7 +88,7 @@ class SourceCatalog:
         Returns:
             Signed URL for the raw file or None if not found
         """
-        from app.services.integrations.supabase import storage_service
+        from app.providers.supabase import storage_service
 
         source = self.get_source(project_id, source_id)
         if not source:
@@ -118,7 +118,7 @@ class SourceCatalog:
         Returns:
             Tuple of (file_data bytes, stored_filename) or None if not found
         """
-        from app.services.integrations.supabase import storage_service
+        from app.providers.supabase import storage_service
 
         source = self.get_source(project_id, source_id)
         if not source:
@@ -238,7 +238,7 @@ class SourceCatalog:
                 logger.error("Error stopping Freshdesk auto-sync for %s: %s", source_id, e)
 
         # Delete all files from Supabase Storage
-        from app.services.integrations.supabase import storage_service
+        from app.providers.supabase import storage_service
 
         # Get stored filename from embedding_info
         embedding_info = source.get("embedding_info", {})

@@ -19,9 +19,9 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from app.services.integrations.openai import openai as openai_embeddings
-from app.services.integrations.pinecone import pinecone_service
-from app.services.integrations.supabase import storage_service
+from app.providers.openai import embeddings as openai_embeddings
+from app.providers.pinecone import pinecone_service
+from app.providers.supabase import storage_service
 from app.sources.tokens import needs_embedding
 from app.utils.text import (
     chunks_to_pinecone_format,

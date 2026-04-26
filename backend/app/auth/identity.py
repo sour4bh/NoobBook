@@ -23,7 +23,7 @@ from typing import Any, Callable, Optional, TypeVar
 
 from flask import request
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase import get_supabase, is_supabase_enabled
 from app.projects.store import DEFAULT_USER_ID
 
 

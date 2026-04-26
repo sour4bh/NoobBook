@@ -15,9 +15,9 @@ import logging
 from typing import Dict, Any, Optional, List
 from difflib import SequenceMatcher
 
-from app.services.integrations.openai import openai as openai_embeddings
-from app.services.integrations.pinecone import pinecone_service
-from app.services.integrations.supabase import storage_service
+from app.providers.openai import embeddings as openai_embeddings
+from app.providers.pinecone import pinecone_service
+from app.providers.supabase import storage_service
 from app.sources.catalog import source_service
 
 logger = logging.getLogger(__name__)

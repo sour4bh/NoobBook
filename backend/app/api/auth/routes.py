@@ -13,7 +13,7 @@ from flask import jsonify, request
 
 from app.api.auth import auth_bp
 from app.auth.identity import get_request_identity, is_auth_required
-from app.services.integrations.supabase.auth_service import auth_service
+from app.providers.supabase.auth import auth_service
 
 
 @auth_bp.route("/auth/me", methods=["GET"])

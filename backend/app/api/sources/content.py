@@ -49,7 +49,7 @@ Routes:
 from flask import jsonify, current_app, Response
 from app.api.sources import sources_bp
 from app.sources.citations import get_chunk_content
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources.catalog import source_service
 
 

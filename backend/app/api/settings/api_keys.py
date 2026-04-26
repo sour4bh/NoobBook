@@ -55,39 +55,38 @@ credentials without a process restart:
    integration caches config. The settings API is the single caller
    responsible for these hooks; integration services do not self-reload.
 
-Validator ↔ reload-hook ownership map (inventory, NBB-208A).
-This table names today's validator-body location and the destination root
-after the providers/connectors split finalizes under `NBB-206`.
+Validator ↔ reload-hook ownership map (inventory, NBB-208A; reconciled by
+NBB-806).
+This table names the current validator-body location and destination root.
+Provider validators moved under `app.providers` in NBB-806; connector
+validators remain in the legacy package until NBB-807.
 
-| key_id(s)                               | validator today                                                        | reload hook today                            | future owner (post-NBB-206) |
+| key_id(s)                               | validator current location                                             | reload hook                                  | owner |
 |-----------------------------------------|------------------------------------------------------------------------|-----------------------------------------------|------------------------------|
-| `ANTHROPIC_API_KEY`                     | `app_settings/validation/anthropic_validator.py`                       | indirect via `claude_service.reload_config()` | `providers/` (raw client)   |
-| `OPENAI_API_KEY`                        | `app_settings/validation/openai_validator.py`                          | none (embedding client is stateless)         | `providers/`                |
-| `ELEVENLABS_API_KEY`                    | `app_settings/validation/elevenlabs_validator.py`                      | none                                          | `providers/`                |
-| `GEMINI_2_5_API_KEY`                    | `app_settings/validation/gemini_validator.py`                          | none                                          | `providers/`                |
-| `NANO_BANANA_API_KEY`                   | `app_settings/validation/nano_banana_validator.py`                     | none                                          | `providers/`                |
-| `VEO_API_KEY`                           | `app_settings/validation/veo_validator.py`                             | none                                          | `providers/`                |
-| `PINECONE_API_KEY` + index/region       | `app_settings/validation/pinecone_validator.py` (auto-saves index+region) | none                                        | `providers/`                |
-| `TAVILY_API_KEY`                        | `app_settings/validation/tavily_validator.py`                          | none                                          | `providers/`                |
+| `ANTHROPIC_API_KEY`                     | `providers/anthropic/validation.py`                                    | indirect via `claude_service.reload_config()` | `providers/` (raw client)   |
+| `OPENAI_API_KEY`                        | `providers/openai/validation.py`                                       | none (embedding client is stateless)         | `providers/`                |
+| `ELEVENLABS_API_KEY`                    | `providers/elevenlabs/validation.py`                                   | none                                          | `providers/`                |
+| `GEMINI_2_5_API_KEY`                    | `providers/google/validation.py`                                       | none                                          | `providers/`                |
+| `NANO_BANANA_API_KEY`                   | `providers/google/validation.py`                                       | none                                          | `providers/`                |
+| `VEO_API_KEY`                           | `providers/google/validation.py`                                       | none                                          | `providers/`                |
+| `PINECONE_API_KEY` + index/region       | `providers/pinecone/validation.py` (auto-saves index+region)           | none                                          | `providers/`                |
+| `TAVILY_API_KEY`                        | `providers/tavily/validation.py`                                       | none                                          | `providers/`                |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | accepted-if-present                                                | none (OAuth flow reads env per request)      | `connectors/` (Google Drive)|
 | `WEBSHARE_API_KEY`                      | accepted-if-present                                                    | none                                          | `providers/`                |
 | `NOTION_API_KEY`                        | `app_settings/validation/notion_validator.py`                          | `notion_service.reload_config()`              | `connectors/`               |
 | `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `app_settings/validation/jira_validator.py` (needs email + cloud_id from env) | `jira_service.reload_config()`        | `connectors/`               |
 | `FRESHDESK_API_KEY` + `FRESHDESK_DOMAIN` | `app_settings/validation/freshdesk_validator.py`                      | `freshdesk_service.reload_config()`           | `connectors/`               |
 | `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `app_settings/validation/mixpanel_validator.py`                  | `mixpanel_service.reload_config()`            | `connectors/`               |
-| `OPIK_*`                                | `app_settings/validation/opik_validator.py` (OPIK_API_KEY only; the rest are accepted-if-present) | `claude_service.reload_config()` (re-wraps client) | `providers/` (observability attached to Claude client) |
+| `OPIK_*`                                | `providers/opik/validation.py` (OPIK_API_KEY only; the rest are accepted-if-present) | `claude_service.reload_config()` (re-wraps client) | `providers/` (observability attached to Claude client) |
 
 Validator-ownership rule (NBB-208A).
 - `settings/` owns the validate endpoint, the `.env` CRUD orchestration, and
   the `app.settings.validation` module that routes key_ids to individual
   validators.
-- `providers/` will own the raw SDK health-check calls (individual
-  `*_validator.py` bodies under `app_settings/validation/`) once the provider
-  charters land in `NBB-206`.
+- `providers/` owns raw SDK health-check calls for provider keys.
 - `connectors/` will own product-capability validation for configured
   product integrations (Notion, Jira, Freshdesk, Mixpanel, Google Drive).
-  These today live next to the raw validators; they move with the
-  connector when `NBB-206` finalizes the boundary.
+  These move with the connector in `NBB-807`.
 - Supporting-field acceptance ("Value accepted" for fields like
   `JIRA_CLOUD_ID`, `MIXPANEL_REGION`) stays inside `settings/` — no SDK call
   is involved.
@@ -428,7 +427,7 @@ def update_api_keys():
                 elif key_id in ('OPIK_API_KEY', 'OPIK_WORKSPACE', 'OPIK_PROJECT_NAME', 'OPIK_URL_OVERRIDE'):
                     # Reset Claude client so it re-initializes with/without Opik wrapping.
                     # NBB-208A: uses the public reload_config() hook to match Notion/Jira/etc.
-                    from app.services.integrations.claude.claude_service import claude_service
+                    from app.providers.anthropic.messages import claude_service
                     claude_service.reload_config()
 
         current_app.logger.info(f"Updated {updated_count} API keys")

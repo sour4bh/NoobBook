@@ -10,7 +10,7 @@ from datetime import datetime
 from flask import jsonify, current_app
 
 from app.api.projects import projects_bp
-from app.services.integrations.supabase import get_supabase
+from app.providers.supabase import get_supabase
 from app.sources.catalog import source_service
 
 

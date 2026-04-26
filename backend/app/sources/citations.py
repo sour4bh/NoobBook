@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources import index
 
 

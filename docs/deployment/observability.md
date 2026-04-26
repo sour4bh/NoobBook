@@ -20,9 +20,9 @@ This inventory names the owner for each observability concern, calls out what lo
 
 | Concern | File | Notes |
 |---|---|---|
-| Opik wrapping of Anthropic client | `backend/app/services/integrations/claude/claude_service.py` (`_get_client`, `_build_opik_kwargs`, `_run_tracked`) | Owned by `providers/` per `backend/app/providers/CHARTER.md`. `track_anthropic` wraps the client when `OPIK_API_KEY` is set; `@opik.track` adds a parent trace with `project_id`, `user_id`, `thread_id`, `tags` metadata. Graceful no-op when the key or package is absent. |
+| Opik wrapping of Anthropic client | `backend/app/providers/anthropic/messages.py` (`_get_client`, `_build_opik_kwargs`, `_run_tracked`) | Owned by `providers/` per `backend/app/providers/CHARTER.md`. `track_anthropic` wraps the client when `OPIK_API_KEY` is set; `@opik.track` adds a parent trace with `project_id`, `user_id`, `thread_id`, `tags` metadata. Graceful no-op when the key or package is absent. |
 | Opik env knobs | `OPIK_API_KEY`, `OPIK_URL_OVERRIDE`, `OPIK_WORKSPACE`, `OPIK_PROJECT_NAME` | Documented in `backend/app/api/settings/api_keys.py`. Reload hook: `claude_service.reload_config()` (added in `NBB-208A`). |
-| Opik key validator | `backend/app/services/app_settings/validation/opik_validator.py` | Attempts `opik.configure(api_key=...)`. Remaining three OPIK\_\* keys are accepted-if-present. |
+| Opik key validator | `backend/app/providers/opik/validation.py` | Attempts `opik.configure(api_key=...)`. Remaining three OPIK\_\* keys are accepted-if-present. |
 | Spending-limit short-circuit log | `backend/app/providers/anthropic/cost.py` via `claude_service.send_message` | Raises before the API call; the warning path for missing `project_id` is emitted here, not in domain code. |
 
 ### Background (task lifecycle)
@@ -31,7 +31,7 @@ This inventory names the owner for each observability concern, calls out what lo
 |---|---|---|
 | Task lifecycle log | `backend/app/background/tasks.py` (`logger.info` on submit/start/complete; `logger.exception` on failure) | Owned by `background/` per `backend/app/background/CHARTER.md`. Persistent truth lives in the Supabase `background_tasks` table; the in-process logger is for operator visibility only. |
 | Worker pool | `ThreadPoolExecutor(max_workers=MAX_WORKERS)` inside `TaskService` | See "Async paths" below for the trace-context gap. |
-| Per-domain background threads | `backend/app/services/tool_executors/memory_executor.py` (memory merge), `backend/app/services/integrations/freshdesk/freshdesk_sync_service.py` (`freshdesk-global-sync` daemon thread), `backend/app/sources/pdf/extract.py` and `backend/app/sources/pptx/extract.py` (page/slide `ThreadPoolExecutor`) | These are domain-owned today. Logging inside each thread goes through the domain's module logger. None currently propagate request identity or a trace ID across the thread boundary. |
+| Per-domain background threads | `backend/app/chat/memory/run.py` (memory merge), `backend/app/services/integrations/freshdesk/freshdesk_sync_service.py` (`freshdesk-global-sync` daemon thread), `backend/app/sources/pdf/extract.py` and `backend/app/sources/pptx/extract.py` (page/slide `ThreadPoolExecutor`) | These are domain-owned today except the Freshdesk connector, which moves in NBB-807. Logging inside each thread goes through the module logger. None currently propagate request identity or a trace ID across the thread boundary. |
 | Stale-task cleanup | `TaskService._cleanup_stale_tasks_on_startup` | Logs a count of stale tasks marked failed at startup. |
 
 ### Chat
@@ -46,7 +46,7 @@ This inventory names the owner for each observability concern, calls out what lo
 
 | Concern | File | Notes |
 |---|---|---|
-| Per-service logger | Every `backend/app/services/**/*.py` module | Uses `logging.getLogger(__name__)`. No domain-specific observability hooks beyond the cross-cutting stdlib logger. |
+| Per-module logger | Backend modules use `logging.getLogger(__name__)`, including the remaining connector services, providers, source processors, and studio modules. | No domain-specific observability hooks beyond the cross-cutting stdlib logger. |
 | Source pipeline progress | Persisted to `sources.status` + `background_tasks.progress` rows | RLS and persistence owned by `NBB-204`; lifecycle owned by `NBB-210`. Not a separate observability channel. |
 | Studio generation logs | `backend/app/studio/**` item modules and `backend/app/studio/jobs/store.py` | Same stdlib pattern; no per-domain hook. |
 | Web-agent execution debug dumps | `data/projects/{id}/agents/web_agent/{execution_id}.json` | Local file artifact only (frozen under `STRUCTURE.md`). Not a deployable observability channel. |
@@ -97,7 +97,7 @@ The ticket body requires naming behavior that local tests cannot cover. These ar
 - **Gunicorn `timeout=300` / `max_requests=5000` recycling.** No test reproduces a worker recycle or a hang beyond 300 s.
 - **Opik end-to-end trace upload.** `_opik_enabled` branches are covered indirectly by unit mocks; the real `track_anthropic` + background batching is not exercised.
 - **Production `_async_mode = 'gevent'`.** Tests default to `FLASK_ENV != production`, so the threading branch is the one under test coverage.
-- **Thread-boundary log context.** Each `ThreadPoolExecutor`/`threading.Thread` (`task_service`, `memory_executor`, `pdf_service`, `pptx_service`, `freshdesk_sync_service`, the SSE worker in `messages/routes.py`) inherits the root logger but does **not** propagate request identity, `project_id`, or any `trace_id`. There is no `trace_id`/`correlation_id`/`request_id` infrastructure in the codebase today (confirmed by full-tree grep). Opik traces carry `project_id`/`user_id`/`chat_id` via `_build_opik_kwargs`, but only at the Claude-client boundary; they are not available to arbitrary logs inside background threads. Adding cross-thread trace context is a future ticket, not an `NBB-208B` deliverable.
+- **Thread-boundary log context.** Each `ThreadPoolExecutor`/`threading.Thread` (`task_service`, `memory_executor`, PDF/PPTX extractors, `freshdesk_sync_service`, the SSE worker in `messages/routes.py`) inherits the root logger but does **not** propagate request identity, `project_id`, or any `trace_id`. There is no `trace_id`/`correlation_id`/`request_id` infrastructure in the codebase today (confirmed by full-tree grep). Opik traces carry `project_id`/`user_id`/`chat_id` via `_build_opik_kwargs`, but only at the Claude-client boundary; they are not available to arbitrary logs inside background threads. Adding cross-thread trace context is a future ticket, not an `NBB-208B` deliverable.
 - **CORS preflight behavior.** `enforce_auth` short-circuits on `OPTIONS`. Browser-driven preflight is covered at contract level only; the actual `Access-Control-Allow-*` values are shaped by `CORS_ALLOWED_ORIGINS` in runtime config.
 
 ## Pointers

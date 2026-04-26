@@ -72,7 +72,7 @@ class WebAgentExecutor:
         Returns:
             Formatted search results as a string for Claude to use
         """
-        from app.services.integrations.tavily import tavily_service
+        from app.providers.tavily import tavily_service
 
         query = tool_input.get("query", "")
         result = tavily_service.search(query=query)

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from app.connectors.mcp.connection.store import mcp_connection_service
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary
 
@@ -168,7 +168,7 @@ def process_mcp(
 
     # Read resources from MCP server
     try:
-        from app.services.integrations.mcp.mcp_client import read_resources
+        from app.providers.mcp.client import read_resources
 
         resources = read_resources(
             server_url=server_url,

@@ -20,8 +20,8 @@ from typing import Any, Dict, List, Optional
 
 import app.providers.anthropic.response_parser
 from app.config.prompt_loader import prompt_loader
-from app.services.integrations.claude import claude_service
-from app.services.integrations.supabase import storage_service
+from app.providers.anthropic import claude_service
+from app.providers.supabase import storage_service
 
 logger = logging.getLogger(__name__)
 

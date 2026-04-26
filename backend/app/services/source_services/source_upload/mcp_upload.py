@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from app.connectors.mcp.connection.store import mcp_connection_service, DEFAULT_USER_ID
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index
 

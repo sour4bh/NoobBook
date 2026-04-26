@@ -20,7 +20,7 @@ import threading
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from app.providers.anthropic.response_parser import extract_text
-from app.services.integrations.claude import claude_service
+from app.providers.anthropic import claude_service
 
 
 logger = logging.getLogger(__name__)

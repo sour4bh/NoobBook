@@ -210,7 +210,7 @@ def list_mcp_resources(connection_id: str):
         if not connection:
             return jsonify({"success": False, "error": "MCP connection not found"}), 404
 
-        from app.services.integrations.mcp.mcp_client import list_resources
+        from app.providers.mcp.client import list_resources
 
         resources = list_resources(
             server_url=connection.get("server_url") or "",

@@ -28,7 +28,7 @@ Provider territory:
 - `providers/` imports nothing from `api/`, any domain (`chat/`, `sources/`, `studio/`, `projects/`, `auth/`, `brand/`, `settings/`, `background/`), or `connectors/`.
 - `connectors/` imports from `providers/` to wrap a raw client into a configured product capability.
 - Domains may import from `providers/` **only** for provider-neutral runtime primitives (HTTP/storage/Anthropic-client/OpenAI-embeddings primitives). Product-specific external capabilities go through `connectors/` instead.
-- Domain-reviewed provider seam: `sources/CHARTER.md` pins `providers/supabase/storage_service.py` (currently `services/integrations/supabase/storage_service.py`) as the single path builder for the `raw-files`, `processed-files`, and `chunks` buckets. Do not introduce sibling path builders; the seam crosses the boundary by design and is reviewed under `NBB-204`.
+- Domain-reviewed provider seam: `sources/CHARTER.md` pins `providers/supabase/storage.py` as the single path builder for the `raw-files`, `processed-files`, and `chunks` buckets. Do not introduce sibling path builders; the seam crosses the boundary by design and is reviewed under `NBB-204`.
 
 Rich import-direction enforcement lands in `NBB-704A` and `NBB-704B`.
 
@@ -48,31 +48,31 @@ NBB-705C reviewer confirmed the `cost.py` imports are byte-identical to the pre-
 
 ## Current-code inventory
 
-Classification of today's `backend/app/services/integrations/` subtree against the providers/connectors split. No code moves in this ticket. Target shape is `backend/app/providers/<name>/`; the actual move plan lives in `NBB-705C` (Anthropic-family utilities) and the per-domain/per-connector tickets that follow.
+Classification of today's provider client modules after `NBB-806`. Connector clients that still live under `backend/app/services/integrations/` are intentionally outside this inventory until `NBB-807`.
 
 | Current path | Classification | Rationale |
 |---|---|---|
-| `services/integrations/claude/claude_service.py` | provider | Raw Anthropic Messages API client; `NBB-705C` drains Claude parsing/cost/rate helpers alongside it into `providers/anthropic/`. |
-| `services/integrations/openai/openai_service.py` | provider | Raw OpenAI embeddings client; stateless, no product orchestration. |
-| `services/integrations/elevenlabs/audio_service.py` | provider | ElevenLabs Scribe v1 transcription SDK call. |
-| `services/integrations/elevenlabs/transcription_service.py` | provider | ElevenLabs streaming-transcription token minting (runtime IO primitive). |
-| `services/integrations/elevenlabs/tts_service.py` | provider | ElevenLabs TTS SDK call. |
-| `services/integrations/pinecone/pinecone_service.py` | provider | Vector DB client + index lifecycle; auto-index creation is a provider concern. |
-| `services/integrations/tavily/tavily_service.py` | provider | Raw Tavily search SDK call. |
-| `services/integrations/supabase/supabase_client.py` | provider | Shared Supabase service-role client factory. |
-| `services/integrations/supabase/auth_service.py` | provider | Supabase auth SDK wrapper (identity primitives). |
-| `services/integrations/supabase/storage_service.py` | provider (domain-reviewed seam) | Bucket path builder and upload/download primitive; `sources/CHARTER.md` names it as the single writer for source buckets. |
-| `services/integrations/google/google_auth_service.py` | provider | Google OAuth 2.0 token exchange and refresh — a protocol primitive separate from any Google product capability. |
-| `services/integrations/google/imagen_service.py` | provider | Raw Gemini Pro Image model client. Matches the `GEMINI_*`/`NANO_BANANA_API_KEY` → `providers/` rows in `NBB-208A`. |
-| `services/integrations/google/video_service.py` | provider | Raw Veo API client. Matches the `VEO_API_KEY` → `providers/` row in `NBB-208A`. |
-| `services/integrations/youtube/youtube_service.py` | provider | Provider-neutral fetch primitive (`youtube-transcript-api`) consumed directly by `sources/`; no product/connector state. |
-| `services/integrations/mcp/mcp_client.py` | provider | SSE/stdio transport wrapper around the MCP SDK; no product-level state. |
+| `providers/anthropic/messages.py` | provider | Raw Anthropic Messages API client; `NBB-705C` drains Claude parsing/cost/rate helpers alongside it into `providers/anthropic/`. |
+| `providers/openai/embeddings.py` | provider | Raw OpenAI embeddings client; stateless, no product orchestration. |
+| `providers/elevenlabs/audio.py` | provider | ElevenLabs Scribe v1 transcription SDK call. |
+| `providers/elevenlabs/transcription.py` | provider | ElevenLabs streaming-transcription token minting (runtime IO primitive). |
+| `providers/elevenlabs/tts.py` | provider | ElevenLabs TTS SDK call. |
+| `providers/pinecone/index.py` | provider | Vector DB client + index lifecycle; auto-index creation is a provider concern. |
+| `providers/tavily/search.py` | provider | Raw Tavily search SDK call. |
+| `providers/supabase/client.py` | provider | Shared Supabase service-role client factory. |
+| `providers/supabase/auth.py` | provider | Supabase auth SDK wrapper (identity primitives). |
+| `providers/supabase/storage.py` | provider (domain-reviewed seam) | Bucket path builder and upload/download primitive; `sources/CHARTER.md` names it as the single writer for source buckets. |
+| `providers/google/auth.py` | provider | Google OAuth 2.0 token exchange and refresh — a protocol primitive separate from any Google product capability. |
+| `providers/google/imagen.py` | provider | Raw Gemini Pro Image model client. Matches the `GEMINI_*`/`NANO_BANANA_API_KEY` → `providers/` rows in `NBB-208A`. |
+| `providers/google/veo.py` | provider | Raw Veo API client. Matches the `VEO_API_KEY` → `providers/` row in `NBB-208A`. |
+| `providers/youtube/transcript.py` | provider | Provider-neutral fetch primitive (`youtube-transcript-api`) consumed directly by `sources/`; no product/connector state. |
+| `providers/mcp/client.py` | provider | SSE/stdio transport wrapper around the MCP SDK; no product-level state. |
 
-Inventory consistency: the `GOOGLE_CLIENT_ID`/`SECRET` pair is validator-less in `NBB-208A`'s map because OAuth credentials are consumed per request by `google_auth_service.py` (provider) and then by `google_drive_service.py` (connector). The Google subtree is intentionally split between both roots; `NBB-705C` and the eventual Google-drive connector ticket land the split physically.
+Inventory consistency: the `GOOGLE_CLIENT_ID`/`SECRET` pair is validator-less in `NBB-208A`'s map because OAuth credentials are consumed per request by `providers/google/auth.py` and then by `google_drive_service.py` (connector). The Google subtree is intentionally split between both roots until the Google Drive connector moves.
 
 ## Validator-ownership cross-reference
 
-`NBB-208A` published the authoritative validator-ownership map in the module header of `backend/app/api/settings/api_keys.py` (see "Validator ↔ reload-hook ownership map"). That map names which API-key validator bodies today live under `backend/app/services/app_settings/validation/` and which move under `providers/` when this charter finalizes. This charter does not duplicate the table; it pins the rule.
+`NBB-208A` published the authoritative validator-ownership map in the module header of `backend/app/api/settings/api_keys.py` (see "Validator ↔ reload-hook ownership map"). `NBB-806` reconciled that map so provider validator bodies now point at their current `providers/` homes. This charter does not duplicate the table; it pins the rule.
 
 Providers-owned rows from that map (by `key_id`): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `GEMINI_2_5_API_KEY`, `NANO_BANANA_API_KEY`, `VEO_API_KEY`, `PINECONE_API_KEY`, `TAVILY_API_KEY`, `WEBSHARE_API_KEY`, and the observability `OPIK_*` pair (attached to the Claude client).
 
@@ -84,12 +84,12 @@ For Anthropic specifically, `claude_service.reload_config()` (added in `NBB-208A
 
 ## Downstream migration tickets
 
-This charter locks the boundary; it does not move code. The mechanical drains live in:
+This charter locks the boundary. The physical provider-client drain landed in `NBB-806`; connector moves remain follow-up work.
 
 - `NBB-705C` — Drain provider and Anthropic utilities. Splits `utils/claude_parsing_utils.py` into `providers/anthropic/{response_parser,content,usage}.py`; moves `utils/cost_tracking.py`, the API half of `utils/embedding_utils.py`, `utils/rate_limit_utils.py`, and `utils/encoding_utils.py` under `providers/anthropic/`.
-- The per-provider migration tickets that follow NBB-705C for OpenAI, ElevenLabs, Google (Imagen/Veo/OAuth half), Pinecone, Tavily, Supabase primitives, YouTube, and the MCP client. None are named here because `NBB-705C` intentionally scopes to the Anthropic family only.
+- `NBB-806` — moved OpenAI, ElevenLabs, Google (Imagen/Veo/OAuth half), Pinecone, Tavily, Supabase primitives, YouTube, MCP transport, and provider-owned validators under `providers/`.
 
-Validator drain for providers-owned API keys (Anthropic, OpenAI, ElevenLabs, Gemini, Veo, Pinecone, Tavily, Webshare, Opik) follows the map in `backend/app/api/settings/api_keys.py` and moves under `providers/` with the validator bodies. `settings/` retains the route and validation dispatcher in `app.settings.validation`.
+Provider-owned API-key validators (Anthropic, OpenAI, ElevenLabs, Gemini, Nano Banana, Veo, Pinecone, Tavily, Opik) live under their matching `providers/` modules. `settings/` retains the route and validation dispatcher in `app.settings.validation`.
 
 ## Cross-reference
 

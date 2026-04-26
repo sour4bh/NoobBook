@@ -22,7 +22,7 @@
 | `processed-files` | `{project_id}/{source_id}/{source_id}.txt` | Internal reads during ingestion/search | Same inconsistency. |
 | `chunks` | `{project_id}/{source_id}/{chunk_id}.txt` | `GET /api/v1/projects/{project_id}/citations/{chunk_id}` returns chunk content for citation tooltips | Same inconsistency. |
 
-Path builder module: `backend/app/services/integrations/supabase/storage_service.py` (`_build_path`). Do not introduce new path builders for these buckets in sibling modules.
+Path builder module: `backend/app/providers/supabase/storage.py` (`_build_path`). Do not introduce new path builders for these buckets in sibling modules.
 
 ## JSONB contracts owned here (shape lives in NBB-205)
 

@@ -28,7 +28,7 @@ Routes:
 from typing import Optional
 from flask import jsonify, request, redirect, current_app
 from app.api.google import google_bp
-from app.services.integrations.google import google_auth_service
+from app.providers.google.auth import google_auth_service
 from app.auth.identity import get_request_identity
 
 

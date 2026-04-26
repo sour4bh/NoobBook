@@ -376,7 +376,7 @@ def _run_freshdesk_sync(project_id: str, source_id: str, mode: str, days_back: i
 
     try:
         if clear_first:
-            from app.services.integrations.supabase import get_supabase
+            from app.providers.supabase import get_supabase
             # Clear ALL global tickets (not scoped to source_id)
             get_supabase().table("freshdesk_tickets").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
 

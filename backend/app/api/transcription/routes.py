@@ -22,7 +22,7 @@ Routes:
 """
 from flask import jsonify, current_app
 from app.api.transcription import transcription_bp
-from app.services.integrations.elevenlabs import TranscriptionService
+from app.providers.elevenlabs import TranscriptionService
 
 # Initialize service (lazy loads API key from env)
 transcription_service = TranscriptionService()

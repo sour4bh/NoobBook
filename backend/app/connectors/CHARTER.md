@@ -9,7 +9,7 @@ Connector territory:
 - Permission-gated tool schemas exposed to Claude (Notion, Jira, Mixpanel, MCP dynamic tools).
 - Chat-invokable adapters that translate Claude tool calls into provider SDK calls.
 - Formatting policies that turn provider responses into a shape the chat/studio domains can present.
-- Per-connector validation that requires a real product call (not just an SDK ping) — these validator bodies today live beside their raw-SDK siblings under `services/app_settings/validation/` and move with the connector.
+- Per-connector validation that requires a real product call (not just an SDK ping) — these validator bodies remain under `services/app_settings/validation/` until `NBB-807` moves them beside their connector clients.
 
 ## Out of scope
 

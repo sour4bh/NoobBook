@@ -124,7 +124,7 @@ class DeepResearchExecutor:
         Returns:
             Formatted search results as JSON string
         """
-        from app.services.integrations.tavily import tavily_service
+        from app.providers.tavily import tavily_service
 
         operation_type = tool_input.get("type", "search")
 

@@ -1,7 +1,8 @@
 """
 API-key validation: unified module-level façade.
 
-Each provider has its own validator function in the legacy validator package.
+Provider validators live under `app.providers.*`; connector validators remain
+in the legacy validator package until NBB-807.
 This module exposes a single `validate(key_name, value, **extras)` dispatcher
 plus the per-provider validator functions for direct call sites.
 
@@ -10,39 +11,27 @@ it into module functions.
 """
 from typing import Any, Tuple
 
-from app.services.app_settings.validation.anthropic_validator import (
-    validate_anthropic_key,
+from app.providers.anthropic.validation import validate_anthropic_key
+from app.providers.elevenlabs.validation import validate_elevenlabs_key
+from app.providers.google.validation import (
+    validate_gemini_2_5_key,
+    validate_nano_banana_key,
+    validate_veo_key,
 )
-from app.services.app_settings.validation.elevenlabs_validator import (
-    validate_elevenlabs_key,
-)
+from app.providers.openai.validation import validate_openai_key
+from app.providers.opik.validation import validate_opik_key
+from app.providers.pinecone.validation import validate_pinecone_key
+from app.providers.tavily.validation import validate_tavily_key
 from app.services.app_settings.validation.freshdesk_validator import (
     validate_freshdesk_key,
-)
-from app.services.app_settings.validation.gemini_validator import (
-    validate_gemini_2_5_key,
 )
 from app.services.app_settings.validation.jira_validator import validate_jira_key
 from app.services.app_settings.validation.mixpanel_validator import (
     validate_mixpanel_key,
 )
-from app.services.app_settings.validation.nano_banana_validator import (
-    validate_nano_banana_key,
-)
 from app.services.app_settings.validation.notion_validator import (
     validate_notion_key,
 )
-from app.services.app_settings.validation.openai_validator import (
-    validate_openai_key,
-)
-from app.services.app_settings.validation.opik_validator import validate_opik_key
-from app.services.app_settings.validation.pinecone_validator import (
-    validate_pinecone_key,
-)
-from app.services.app_settings.validation.tavily_validator import (
-    validate_tavily_key,
-)
-from app.services.app_settings.validation.veo_validator import validate_veo_key
 
 __all__ = [
     "validate",

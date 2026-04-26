@@ -11,7 +11,7 @@ ensuring the script covers all source material even for large sources.
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources import index
 
 

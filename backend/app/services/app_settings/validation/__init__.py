@@ -1,6 +1,6 @@
 """
-API-key validators.
+Legacy connector API-key validators.
 
-Each validator body lives in its own sibling module. The dispatcher moved to
-`app.settings.validation` in NBB-805.
+Provider validators moved to `app.providers` in NBB-806. Connector validators
+remain here until NBB-807 moves them beside their connector clients.
 """

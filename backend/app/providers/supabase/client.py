@@ -12,7 +12,7 @@ class-level. NBB-706 collapses the wrapper.
 Tests that need to inject a fake client should set the module attributes
 directly:
 
-    from app.services.integrations.supabase import supabase_client
+    from app.providers.supabase import supabase_client
     supabase_client._client = MagicMock()
     supabase_client._initialized = True
 """

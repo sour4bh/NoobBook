@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, List, Any
 
-from app.services.integrations.supabase import get_supabase, is_supabase_enabled
+from app.providers.supabase import get_supabase, is_supabase_enabled
 
 logger = logging.getLogger(__name__)
 

@@ -25,7 +25,7 @@ os.environ.setdefault("NOOBBOOK_AUTH_REQUIRED", "false")
 
 # Replace the Supabase singleton before any app import so module-load
 # constructors and the background-task startup hook do not make network calls.
-from app.services.integrations.supabase import supabase_client as _supabase_client  # noqa: E402
+from app.providers.supabase import supabase_client as _supabase_client  # noqa: E402
 
 _supabase_client._client = MagicMock()
 _supabase_client._initialized = True

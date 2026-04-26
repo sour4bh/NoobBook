@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from app.services.integrations.knowledge_bases.jira.jira_service import jira_service
-from app.services.integrations.supabase import storage_service
+from app.providers.supabase import storage_service
 from app.sources.summary import generate_summary
 
 logger = logging.getLogger(__name__)

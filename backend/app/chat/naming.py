@@ -17,7 +17,7 @@ import app.providers.anthropic.response_parser
 from app.background.tasks import task_service
 from app.chat.store import chat_service
 from app.config.prompt_loader import prompt_loader
-from app.services.integrations.claude import claude_service
+from app.providers.anthropic import claude_service
 
 logger = logging.getLogger(__name__)
 

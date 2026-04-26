@@ -150,7 +150,7 @@ class McpToolService:
         )
 
         try:
-            from app.services.integrations.mcp.mcp_client import call_tool
+            from app.providers.mcp.client import call_tool
 
             result = call_tool(
                 tool_name=original_name,

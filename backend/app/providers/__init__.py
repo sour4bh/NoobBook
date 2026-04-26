@@ -13,8 +13,8 @@ Allowed imports:
   primitives). Product-specific integrations must pass through `connectors/`.
 - Providers must not import from `api/`, domains, or `connectors/`.
 
-Migration source: `backend/app/services/integrations/` feeds this root; Claude
-and related provider utilities move under `NBB-705C`.
+Migration source: `backend/app/services/integrations/` fed this root; `NBB-705C`
+and `NBB-806` moved provider utilities and raw provider clients here.
 
 See `CHARTER.md` in this directory for the NBB-206 boundary overlay.
 """

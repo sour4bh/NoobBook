@@ -256,7 +256,7 @@ class ContextLoader:
             return ""
 
         try:
-            from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
+            from app.connectors.mcp.tools import mcp_tool_service
 
             tools, _ = mcp_tool_service.get_available_tools(user_id=user_id)
             if not tools:

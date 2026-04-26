@@ -16,6 +16,10 @@ Disposition values:
   converted to chat-owned module functions by the NBB-008 continuation epic.
 - `MOVED-IN-NBB-805` — kept or converted by NBB-706, then moved to
   `settings/` by the NBB-008 continuation epic.
+- `MOVED-IN-NBB-806` — kept or converted by NBB-706, then moved to
+  `providers/` by the NBB-008 continuation epic.
+- `MOVED-IN-NBB-807` — kept by NBB-706, then moved to `connectors/` by
+  the NBB-008 continuation epic.
 - `HOLDOUT` — should have been converted upstream; if the blast radius is
   small enough this ticket fixes it manually, otherwise the upstream
   owner is named.
@@ -36,26 +40,26 @@ Disposition values:
 | backend/app/services/ai_services/video_prompt_service.py | VideoPromptService | CONVERTED-IN-NBB-706 | Row 7: class deleted; module renamed to `app/studio/media/video/prompt.py` per ticket body in-scope rename; `generate_video_prompt` exposed as module function. AST allowlist entry dropped in same commit. |
 | backend/app/settings/env.py | EnvService | MOVED-IN-NBB-805 | Per NBB-706 Keep-as-class list: mutable `.env` writes and reload behavior. Moved from `services/app_settings` by NBB-805. |
 | backend/app/settings/validation.py | ValidationService | MOVED-IN-NBB-805 | Row 4: class deleted; `validate(key_name, value)` exposed as module function with per-key validator function dispatch. Moved from `services/app_settings/validation/validation_service.py` by NBB-805. |
-| backend/app/services/integrations/claude/claude_service.py | ClaudeService | KEEP | Per NBB-706 Keep-as-class list: provider observability, streaming, retry/backoff, and broad call-site stability. |
-| backend/app/services/integrations/elevenlabs/audio_service.py | AudioService | KEEP | Stateful: API key/cached config; provider lifecycle. |
-| backend/app/services/integrations/elevenlabs/transcription_service.py | TranscriptionService | KEEP | Stateful: API key/cached config; provider lifecycle. |
-| backend/app/services/integrations/elevenlabs/tts_service.py | TTSService | KEEP | Stateful: API key/cached config; provider lifecycle. |
-| backend/app/services/integrations/freshdesk/freshdesk_service.py | FreshdeskService | KEEP | Stateful provider client (cached config, reload_config hook). |
-| backend/app/services/integrations/freshdesk/freshdesk_sync_service.py | FreshdeskSyncService | KEEP | Per NBB-706 Keep-as-class allowlist: integration orchestration (Freshdesk sync lifecycle). |
-| backend/app/services/integrations/google/google_auth_service.py | GoogleAuthService | KEEP | Stateful: OAuth credential lifecycle and token refresh. |
-| backend/app/services/integrations/google/google_drive_service.py | GoogleDriveService | KEEP | Stateful: API client lifecycle. |
-| backend/app/services/integrations/google/imagen_service.py | ImagenService | KEEP | Stateful: API client lifecycle. |
-| backend/app/services/integrations/google/video_service.py | GoogleVideoService | KEEP | Stateful: API client lifecycle. |
-| backend/app/services/integrations/knowledge_bases/jira/jira_service.py | JiraService | KEEP | Stateful provider client (cached config, reload_config hook). |
-| backend/app/services/integrations/knowledge_bases/knowledge_base_service.py | KnowledgeBaseService | KEEP | Tool registry/lifecycle and per-provider routing state. |
-| backend/app/services/integrations/knowledge_bases/mixpanel/mixpanel_service.py | MixpanelService | KEEP | Stateful provider client (cached config, reload_config hook). |
-| backend/app/services/integrations/knowledge_bases/notion/notion_service.py | NotionService | KEEP | Stateful provider client (cached config, reload_config hook). |
-| backend/app/services/integrations/mcp/mcp_tool_service.py | McpToolService | KEEP | Per NBB-706 Keep-as-class allowlist: MCP tool registry/lifecycle. |
-| backend/app/services/integrations/openai/openai_service.py | OpenAIService | CONVERTED-IN-NBB-706 | Row 2: class deleted; module renamed to `integrations/openai/openai.py`; module functions exposed (`create_embedding`, `create_embeddings_batch`, `get_embedding_dimensions`); `_client` preserved as module-private. |
-| backend/app/services/integrations/pinecone/pinecone_service.py | PineconeService | KEEP | Per NBB-706 Keep-as-class list: provider client lifecycle. |
-| backend/app/services/integrations/supabase/auth_service.py | AuthService | KEEP | Stateful: Supabase admin client wrapper, bootstrap hooks. |
-| backend/app/services/integrations/tavily/tavily_service.py | TavilyService | KEEP | Stateful provider client. |
-| backend/app/services/integrations/youtube/youtube_service.py | YouTubeService | KEEP | Stateful provider client (proxy config, transcript fetch lifecycle). |
+| backend/app/providers/anthropic/messages.py | ClaudeService | MOVED-IN-NBB-806 | Per NBB-706 Keep-as-class list: provider observability, streaming, retry/backoff, and broad call-site stability. |
+| backend/app/providers/elevenlabs/audio.py | AudioService | MOVED-IN-NBB-806 | Stateful: API key/cached config; provider lifecycle. |
+| backend/app/providers/elevenlabs/transcription.py | TranscriptionService | MOVED-IN-NBB-806 | Stateful: API key/cached config; provider lifecycle. |
+| backend/app/providers/elevenlabs/tts.py | TTSService | MOVED-IN-NBB-806 | Stateful: API key/cached config; provider lifecycle. |
+| backend/app/connectors/freshdesk/client.py | FreshdeskService | MOVED-IN-NBB-807 | Stateful connector client (cached config, reload_config hook). |
+| backend/app/connectors/freshdesk/sync.py | FreshdeskSyncService | MOVED-IN-NBB-807 | Per NBB-706 Keep-as-class allowlist: connector orchestration (Freshdesk sync lifecycle). |
+| backend/app/providers/google/auth.py | GoogleAuthService | MOVED-IN-NBB-806 | Stateful: OAuth credential lifecycle and token refresh. |
+| backend/app/connectors/google_drive/files.py | GoogleDriveService | MOVED-IN-NBB-807 | Stateful Google Drive connector API client lifecycle. |
+| backend/app/providers/google/imagen.py | ImagenService | MOVED-IN-NBB-806 | Stateful: API client lifecycle. |
+| backend/app/providers/google/veo.py | GoogleVideoService | MOVED-IN-NBB-806 | Stateful: API client lifecycle. |
+| backend/app/connectors/jira/client.py | JiraService | MOVED-IN-NBB-807 | Stateful connector client (cached config, reload_config hook). |
+| backend/app/connectors/knowledge.py | KnowledgeBaseService | MOVED-IN-NBB-807 | Tool registry/lifecycle and per-connector routing state. |
+| backend/app/connectors/mixpanel/client.py | MixpanelService | MOVED-IN-NBB-807 | Stateful connector client (cached config, reload_config hook). |
+| backend/app/connectors/notion/client.py | NotionService | MOVED-IN-NBB-807 | Stateful connector client (cached config, reload_config hook). |
+| backend/app/connectors/mcp/tools.py | McpToolService | MOVED-IN-NBB-807 | Per NBB-706 Keep-as-class allowlist: MCP tool registry/lifecycle. |
+| backend/app/providers/openai/embeddings.py | OpenAIService | MOVED-IN-NBB-806 | Row 2: class deleted; module-level embedding functions preserved after provider move. |
+| backend/app/providers/pinecone/index.py | PineconeService | MOVED-IN-NBB-806 | Per NBB-706 Keep-as-class list: provider client lifecycle. |
+| backend/app/providers/supabase/auth.py | AuthService | MOVED-IN-NBB-806 | Stateful: Supabase admin client wrapper, bootstrap hooks. |
+| backend/app/providers/tavily/search.py | TavilyService | MOVED-IN-NBB-806 | Stateful provider client. |
+| backend/app/providers/youtube/transcript.py | YouTubeService | MOVED-IN-NBB-806 | Stateful provider client (proxy config, transcript fetch lifecycle). |
 | backend/app/sources/analysis/csv/summarize.py | CSVService | KEEP | Stateful: lazy prompt/tools cache; agentic loop orchestration. Source orchestration class kept per NBB-706 Keep-as-class list. |
 
 ## *Executor classes (9)
@@ -75,12 +79,14 @@ Disposition values:
 ## Summary
 
 - Total classes in inventory: 42 (33 *Service + 9 *Executor).
-- KEEP: 31 (22 *Service + 9 *Executor).
+- KEEP: 11 (2 *Service + 9 *Executor).
 - MOVED-IN-NBB-803: 6 *Service rows.
 - MOVED-IN-NBB-804: 1 *Service row.
 - MOVED-IN-NBB-805: 2 *Service rows.
-- CONVERTED-IN-NBB-706 (matched by the *Service grep): 4 — `ChatNamingService`,
-  `ValidationService`, `VideoPromptService`, and `OpenAIService`.
+- MOVED-IN-NBB-806: 12 *Service rows.
+- MOVED-IN-NBB-807: 7 *Service rows.
+- CONVERTED-IN-NBB-706 (matched by the *Service grep): 2 — `ChatNamingService`
+  and `VideoPromptService`.
 - HOLDOUTS: 0.
 - The seventh NBB-706 conversion target (`SupabaseClient`) carries a `Client`
   suffix and is invisible to the inventory greps. It is logged in the
@@ -90,7 +96,7 @@ Disposition values:
 
 | Path | Class | Disposition | Rationale |
 |---|---|---|---|
-| backend/app/services/integrations/supabase/supabase_client.py | SupabaseClient | CONVERTED-IN-NBB-706 | Row 1: class deleted; `get_client()`, `is_configured()`, `reset()` exposed as module functions; `_client`, `_initialized` preserved as module-private state. |
+| backend/app/providers/supabase/client.py | SupabaseClient | MOVED-IN-NBB-806 | Row 1: class deleted; `get_client()`, `is_configured()`, `reset()` exposed as module functions; `_client`, `_initialized` preserved as module-private state after provider move. |
 
 The 42 inventory rows above cover the AC#3 deliverable; SupabaseClient is logged here for completeness because the seventh conversion target uses a `Client` suffix instead of `Service` and would be missed by the inventory greps.
 

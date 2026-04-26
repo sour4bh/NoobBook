@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from app.services.integrations.knowledge_bases.jira.jira_service import jira_service
+from app.connectors.jira.client import jira_service
 from app.providers.supabase import storage_service
 from app.sources.summary import generate_summary
 

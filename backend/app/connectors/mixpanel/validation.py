@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 import requests
 from requests.auth import HTTPBasicAuth
 
-from app.services.integrations.knowledge_bases.mixpanel.mixpanel_service import MixpanelService
+from app.connectors.mixpanel.client import MixpanelService
 
 logger = logging.getLogger(__name__)
 

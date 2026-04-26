@@ -31,8 +31,8 @@ from app.providers.anthropic.response_parser import (
     extract_tool_use_blocks,
     is_tool_use,
 )
-from app.services.integrations.knowledge_bases import knowledge_base_service
-from app.services.integrations.mcp.mcp_tool_service import mcp_tool_service
+from app.connectors.knowledge import knowledge_base_service
+from app.connectors.mcp.tools import mcp_tool_service
 from app.sources.search import source_search_executor
 from app.studio.signal import studio_signal_executor
 from app.sources.analysis.csv import entry as csv_entry

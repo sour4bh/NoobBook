@@ -9,7 +9,7 @@ Connector territory:
 - Permission-gated tool schemas exposed to Claude (Notion, Jira, Mixpanel, MCP dynamic tools).
 - Chat-invokable adapters that translate Claude tool calls into provider SDK calls.
 - Formatting policies that turn provider responses into a shape the chat/studio domains can present.
-- Per-connector validation that requires a real product call (not just an SDK ping) — these validator bodies remain under `services/app_settings/validation/` until `NBB-807` moves them beside their connector clients.
+- Per-connector validation that requires a real product call (not just an SDK ping).
 
 ## Out of scope
 
@@ -31,20 +31,26 @@ Connector territory:
 
 Rich import-direction enforcement lands in `NBB-704A` and `NBB-704B`.
 
+Documented temporary exception: `connectors/freshdesk/sync.py` still has lazy
+progress/cancellation hooks into `background` and `sources` inherited from its
+pre-`NBB-807` service location. The architecture checker allowlists those exact
+lines until the source-processing move can replace them with an explicit
+callback contract.
+
 ## Current-code inventory
 
-Classification of today's `backend/app/services/integrations/` and `backend/app/services/tools/`, plus the former `backend/app/services/data_services/` connector stores, against the providers/connectors split. Target shape is `backend/app/connectors/<name>/`; actual moves land in `NBB-207C` (tool schemas), `NBB-209E` (connector stores), and the per-connector migration tickets that follow.
+Classification of connector-owned modules after `NBB-807`, plus the former `backend/app/services/data_services/` connector stores, against the providers/connectors split. Static tool-schema moves remain governed by `NBB-207C`.
 
 | Current path | Classification | Rationale |
 |---|---|---|
-| `services/integrations/knowledge_bases/notion/notion_service.py` | connector | Product-configured Notion integration with cached config and `reload_config()`; tool-visible via `chat_tools/notion_*.json`. Target: `connectors/notion/`. |
-| `services/integrations/knowledge_bases/jira/jira_service.py` | connector | Product-configured Jira integration with cached config and `reload_config()`; tool-visible via `chat_tools/jira_*.json`. Target: `connectors/jira/`. |
-| `services/integrations/knowledge_bases/mixpanel/mixpanel_service.py` | connector | Product-configured Mixpanel integration with cached config and `reload_config()`; tool-visible via `chat_tools/mixpanel_*.json`. Target: `connectors/mixpanel/`. |
-| `services/integrations/knowledge_bases/knowledge_base_service.py` | connector (facade) | Loads tool definitions for configured knowledge-base integrations only; a connector-composition facade, not a raw client. Target lands with the individual connectors or under a small facade module referenced by chat. |
-| `services/integrations/freshdesk/freshdesk_service.py` | connector | Product-configured Freshdesk integration with `reload_config()`; matches the `FRESHDESK_*` → `connectors/` row in the NBB-208A validator map. Target: `connectors/freshdesk/`. |
-| `services/integrations/freshdesk/freshdesk_sync_service.py` | connector | Freshdesk project-scoped sync behavior; connector-owned. Target: `connectors/freshdesk/`. |
-| `services/integrations/google/google_drive_service.py` | connector | Google Drive is a user/project product capability (OAuth-scoped file listing, download, Workspace export). Target: `connectors/google_drive/`. The `google/` subdir splits across roots — OAuth primitive and raw Gemini/Veo clients go to `providers/`, Drive goes to `connectors/`. |
-| `services/integrations/mcp/mcp_tool_service.py` | connector | Discovers MCP tools from user connections, namespaces them (`mcp_{slug}_*`), and routes Claude tool calls to the right MCP server. Target: `connectors/mcp/`. |
+| `connectors/notion/client.py` | connector | Product-configured Notion integration with cached config and `reload_config()`; tool-visible via `chat_tools/notion_*.json`. |
+| `connectors/jira/client.py` | connector | Product-configured Jira integration with cached config and `reload_config()`; tool-visible via `chat_tools/jira_*.json`. |
+| `connectors/mixpanel/client.py` | connector | Product-configured Mixpanel integration with cached config and `reload_config()`; tool-visible via `chat_tools/mixpanel_*.json`. |
+| `connectors/knowledge.py` | connector (facade) | Loads tool definitions for configured knowledge-base integrations only; a connector-composition facade, not a raw client. |
+| `connectors/freshdesk/client.py` | connector | Product-configured Freshdesk integration with `reload_config()`; matches the `FRESHDESK_*` → `connectors/` row in the NBB-208A validator map. |
+| `connectors/freshdesk/sync.py` | connector | Freshdesk project-scoped sync behavior; connector-owned. |
+| `connectors/google_drive/files.py` | connector | Google Drive is a user/project product capability (OAuth-scoped file listing, download, Workspace export). OAuth primitives stay in `providers/google/`. |
+| `connectors/mcp/tools.py` | connector | Discovers MCP tools from user connections, namespaces them (`mcp_{slug}_*`), and routes Claude tool calls to the right MCP server. |
 | `services/data_services/database_connection_service.py` | connector (store) | Per-user database connection credentials. `NBB-209E` moved it to `connectors/database/connection/store.py` as `DatabaseConnectionStore`; `NBB-802` removed the dead residue. |
 | `services/data_services/mcp_connection_service.py` | connector (store) | Per-user MCP connection config. `NBB-209E` moved it to `connectors/mcp/connection/store.py` as `McpConnectionStore`; `NBB-802` removed the dead residue. |
 
@@ -81,10 +87,10 @@ Schema/RLS implications stay with `NBB-204`; the `*Service → *Store` rename is
 
 | `key_id(s)` | Today's validator | Reload hook | Target |
 |---|---|---|---|
-| `NOTION_API_KEY` | `app_settings/validation/notion_validator.py` | `notion_service.reload_config()` | `connectors/notion/` |
-| `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `app_settings/validation/jira_validator.py` | `jira_service.reload_config()` | `connectors/jira/` |
-| `FRESHDESK_API_KEY` + `FRESHDESK_DOMAIN` | `app_settings/validation/freshdesk_validator.py` | `freshdesk_service.reload_config()` | `connectors/freshdesk/` |
-| `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `app_settings/validation/mixpanel_validator.py` | `mixpanel_service.reload_config()` | `connectors/mixpanel/` |
+| `NOTION_API_KEY` | `connectors/notion/validation.py` | `notion_service.reload_config()` | `connectors/notion/` |
+| `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `connectors/jira/validation.py` | `jira_service.reload_config()` | `connectors/jira/` |
+| `FRESHDESK_API_KEY` + `FRESHDESK_DOMAIN` | `connectors/freshdesk/validation.py` | `freshdesk_service.reload_config()` | `connectors/freshdesk/` |
+| `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `connectors/mixpanel/validation.py` | `mixpanel_service.reload_config()` | `connectors/mixpanel/` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | accepted-if-present | none (OAuth flow reads env per request) | `connectors/google_drive/` (validator split: OAuth primitive stays provider-side) |
 
 Reload sequencing (`env_service.reload_env()` → per-service `reload_config()`) is owned by `settings/` and documented in the api_keys.py module header; connectors implement the `reload_config()` hook but never self-reload. Any new connector with cached config must implement this hook so `update_api_keys` can call it without a process restart.
@@ -96,7 +102,7 @@ This charter locks the boundary; it does not move code. Mechanical moves live in
 - `NBB-209E` — Move connector stores. Moves `database_connection_service.py` and `mcp_connection_service.py`; renames `*Service` → `*Store`.
 - `NBB-207C` — Define tool-schema ownership map. Moves `chat_tools/jira_*.json`, `chat_tools/notion_*.json`, `chat_tools/mixpanel_*.json` under `connectors/<name>/tools/` once `NBB-207A` loader support lands.
 - `NBB-202B` — Create ToolCapabilityPolicy. Classifies MCP, Jira, Notion, Mixpanel, and other connector tools with required permission, capability level, and audit behavior.
-- Per-connector migration tickets that follow (not yet named) for Notion, Jira, Mixpanel, Freshdesk, Google Drive, and MCP connector bodies.
+- `NBB-807` — Move Notion, Jira, Mixpanel, Freshdesk, Google Drive, MCP tool routing, the knowledge-base facade, and connector validators into `connectors/`.
 
 ## Cross-reference
 

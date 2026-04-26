@@ -371,7 +371,7 @@ def _run_freshdesk_sync(project_id: str, source_id: str, mode: str, days_back: i
     Educational Note: Tickets are stored globally — clear_first deletes ALL
     tickets (not just for this source) since there's one shared pool.
     """
-    from app.services.integrations.freshdesk.freshdesk_sync_service import freshdesk_sync_service
+    from app.connectors.freshdesk.sync import freshdesk_sync_service
     from app.sources.catalog import source_service
 
     try:
@@ -409,7 +409,7 @@ def _run_freshdesk_sync(project_id: str, source_id: str, mode: str, days_back: i
 def sync_freshdesk_source(project_id: str, source_id: str):
     """Trigger an incremental sync as a background task (shows progress in ActiveTasksBar)."""
     try:
-        from app.services.integrations.freshdesk.freshdesk_service import freshdesk_service
+        from app.connectors.freshdesk.client import freshdesk_service
         if not freshdesk_service.is_configured():
             return jsonify({'success': False, 'error': 'Freshdesk not configured. Add API key and domain in Settings.'}), 400
 
@@ -439,7 +439,7 @@ def sync_freshdesk_source(project_id: str, source_id: str):
 def backfill_freshdesk_source(project_id: str, source_id: str):
     """Clear all tickets and re-fetch last 30 days as a background task."""
     try:
-        from app.services.integrations.freshdesk.freshdesk_service import freshdesk_service
+        from app.connectors.freshdesk.client import freshdesk_service
         if not freshdesk_service.is_configured():
             return jsonify({'success': False, 'error': 'Freshdesk not configured. Add API key and domain in Settings.'}), 400
 

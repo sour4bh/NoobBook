@@ -143,6 +143,16 @@ INHERITED_PROVIDER_VIOLATIONS: frozenset[Tuple[str, int, str]] = frozenset({
     ("backend/app/providers/anthropic/token_count.py", 12, "sources"),
 })
 
+# NBB-807 moved Freshdesk sync into connectors without changing source
+# processing behavior. These two lazy imports are inherited progress and
+# cancellation hooks used by the existing source-processing callers; changing
+# that callback contract belongs with the source-processing move, not this
+# connector relocation.
+INHERITED_CONNECTOR_VIOLATIONS: frozenset[Tuple[str, int, str]] = frozenset({
+    ("backend/app/connectors/freshdesk/sync.py", 52, "background"),
+    ("backend/app/connectors/freshdesk/sync.py", 74, "sources"),
+})
+
 # NBB-704B rule 4: chat public surface, derived from ``app.chat.__all__``.
 # A non-chat caller must reach chat via these submodules; any deeper path
 # (``app.chat.message.store``, ``app.chat.loop``, ``app.chat.tool.policy``,
@@ -175,6 +185,7 @@ MIGRATED_DOMAINS: Tuple[str, ...] = ("chat", "sources", "studio")
 # pattern, not a regression.
 INDEPENDENT_ROOTS_ALLOWLIST: frozenset[Tuple[str, int, str]] = frozenset({
     ("backend/app/auth/tool_policy.py", 225, "sources"),
+    ("backend/app/connectors/freshdesk/sync.py", 74, "sources"),
 })
 
 
@@ -337,6 +348,7 @@ def check_connectors_imports() -> List[Violation]:
         APP_DIR / "connectors",
         CONNECTORS_FORBIDDEN_PREFIXES,
         "connectors",
+        allowlist=INHERITED_CONNECTOR_VIOLATIONS,
     )
 
 

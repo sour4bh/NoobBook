@@ -48,7 +48,7 @@ NBB-705C reviewer confirmed the `cost.py` imports are byte-identical to the pre-
 
 ## Current-code inventory
 
-Classification of today's provider client modules after `NBB-806`. Connector clients that still live under `backend/app/services/integrations/` are intentionally outside this inventory until `NBB-807`.
+Classification of provider client modules after `NBB-806`. Connector clients moved under `backend/app/connectors/` in `NBB-807` and are intentionally outside this inventory.
 
 | Current path | Classification | Rationale |
 |---|---|---|
@@ -68,7 +68,7 @@ Classification of today's provider client modules after `NBB-806`. Connector cli
 | `providers/youtube/transcript.py` | provider | Provider-neutral fetch primitive (`youtube-transcript-api`) consumed directly by `sources/`; no product/connector state. |
 | `providers/mcp/client.py` | provider | SSE/stdio transport wrapper around the MCP SDK; no product-level state. |
 
-Inventory consistency: the `GOOGLE_CLIENT_ID`/`SECRET` pair is validator-less in `NBB-208A`'s map because OAuth credentials are consumed per request by `providers/google/auth.py` and then by `google_drive_service.py` (connector). The Google subtree is intentionally split between both roots until the Google Drive connector moves.
+Inventory consistency: the `GOOGLE_CLIENT_ID`/`SECRET` pair is validator-less in `NBB-208A`'s map because OAuth credentials are consumed per request by `providers/google/auth.py` and then by `connectors/google_drive/files.py`.
 
 ## Validator-ownership cross-reference
 

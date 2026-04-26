@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Optional
 from flask import jsonify, request, current_app
 from app.api.google import google_bp
-from app.services.integrations.google import google_drive_service
+from app.connectors.google_drive.files import google_drive_service
 from app.auth.identity import get_request_identity
 from app.auth.guards import require_permission
 from app.sources.catalog import source_service

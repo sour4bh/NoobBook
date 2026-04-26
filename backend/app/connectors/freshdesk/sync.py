@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from app.services.integrations.freshdesk.freshdesk_service import (
+from app.connectors.freshdesk.client import (
     freshdesk_service,
     STATUS_MAP,
     PRIORITY_MAP,

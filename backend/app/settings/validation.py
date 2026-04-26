@@ -1,8 +1,8 @@
 """
 API-key validation: unified module-level façade.
 
-Provider validators live under `app.providers.*`; connector validators remain
-in the legacy validator package until NBB-807.
+Provider validators live under `app.providers.*`; connector validators live
+beside their connector clients under `app.connectors.*`.
 This module exposes a single `validate(key_name, value, **extras)` dispatcher
 plus the per-provider validator functions for direct call sites.
 
@@ -22,14 +22,14 @@ from app.providers.openai.validation import validate_openai_key
 from app.providers.opik.validation import validate_opik_key
 from app.providers.pinecone.validation import validate_pinecone_key
 from app.providers.tavily.validation import validate_tavily_key
-from app.services.app_settings.validation.freshdesk_validator import (
+from app.connectors.freshdesk.validation import (
     validate_freshdesk_key,
 )
-from app.services.app_settings.validation.jira_validator import validate_jira_key
-from app.services.app_settings.validation.mixpanel_validator import (
+from app.connectors.jira.validation import validate_jira_key
+from app.connectors.mixpanel.validation import (
     validate_mixpanel_key,
 )
-from app.services.app_settings.validation.notion_validator import (
+from app.connectors.notion.validation import (
     validate_notion_key,
 )
 

@@ -59,7 +59,7 @@ Validator ↔ reload-hook ownership map (inventory, NBB-208A; reconciled by
 NBB-806).
 This table names the current validator-body location and destination root.
 Provider validators moved under `app.providers` in NBB-806; connector
-validators remain in the legacy package until NBB-807.
+validators moved beside their connector clients in NBB-807.
 
 | key_id(s)                               | validator current location                                             | reload hook                                  | owner |
 |-----------------------------------------|------------------------------------------------------------------------|-----------------------------------------------|------------------------------|
@@ -73,10 +73,10 @@ validators remain in the legacy package until NBB-807.
 | `TAVILY_API_KEY`                        | `providers/tavily/validation.py`                                       | none                                          | `providers/`                |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | accepted-if-present                                                | none (OAuth flow reads env per request)      | `connectors/` (Google Drive)|
 | `WEBSHARE_API_KEY`                      | accepted-if-present                                                    | none                                          | `providers/`                |
-| `NOTION_API_KEY`                        | `app_settings/validation/notion_validator.py`                          | `notion_service.reload_config()`              | `connectors/`               |
-| `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `app_settings/validation/jira_validator.py` (needs email + cloud_id from env) | `jira_service.reload_config()`        | `connectors/`               |
-| `FRESHDESK_API_KEY` + `FRESHDESK_DOMAIN` | `app_settings/validation/freshdesk_validator.py`                      | `freshdesk_service.reload_config()`           | `connectors/`               |
-| `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `app_settings/validation/mixpanel_validator.py`                  | `mixpanel_service.reload_config()`            | `connectors/`               |
+| `NOTION_API_KEY`                        | `connectors/notion/validation.py`                                      | `notion_service.reload_config()`              | `connectors/`               |
+| `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `connectors/jira/validation.py` (needs email + cloud_id from env) | `jira_service.reload_config()`        | `connectors/`               |
+| `FRESHDESK_API_KEY` + `FRESHDESK_DOMAIN` | `connectors/freshdesk/validation.py`                                  | `freshdesk_service.reload_config()`           | `connectors/`               |
+| `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `connectors/mixpanel/validation.py`                              | `mixpanel_service.reload_config()`            | `connectors/`               |
 | `OPIK_*`                                | `providers/opik/validation.py` (OPIK_API_KEY only; the rest are accepted-if-present) | `claude_service.reload_config()` (re-wraps client) | `providers/` (observability attached to Claude client) |
 
 Validator-ownership rule (NBB-208A).
@@ -408,13 +408,13 @@ def update_api_keys():
             value = key_data.get('value', '')
             if value and not value.startswith('***'):
                 if key_id == 'NOTION_API_KEY':
-                    from app.services.integrations.knowledge_bases.notion.notion_service import notion_service
+                    from app.connectors.notion.client import notion_service
                     notion_service.reload_config()
                 elif key_id in ('JIRA_API_KEY', 'JIRA_CLOUD_ID', 'JIRA_EMAIL'):
-                    from app.services.integrations.knowledge_bases.jira.jira_service import jira_service
+                    from app.connectors.jira.client import jira_service
                     jira_service.reload_config()
                 elif key_id in ('FRESHDESK_API_KEY', 'FRESHDESK_DOMAIN'):
-                    from app.services.integrations.freshdesk.freshdesk_service import freshdesk_service
+                    from app.connectors.freshdesk.client import freshdesk_service
                     freshdesk_service.reload_config()
                 elif key_id in (
                     'MIXPANEL_SERVICE_ACCOUNT_USERNAME',
@@ -422,7 +422,7 @@ def update_api_keys():
                     'MIXPANEL_PROJECT_ID',
                     'MIXPANEL_REGION',
                 ):
-                    from app.services.integrations.knowledge_bases.mixpanel.mixpanel_service import mixpanel_service
+                    from app.connectors.mixpanel.client import mixpanel_service
                     mixpanel_service.reload_config()
                 elif key_id in ('OPIK_API_KEY', 'OPIK_WORKSPACE', 'OPIK_PROJECT_NAME', 'OPIK_URL_OVERRIDE'):
                     # Reset Claude client so it re-initializes with/without Opik wrapping.

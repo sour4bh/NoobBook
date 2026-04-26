@@ -12,9 +12,9 @@ This keeps main_chat_service.py clean by centralizing all KB integration logic.
 from typing import Dict, Any, List, Callable, Tuple
 
 from app.config.tool_loader import tool_loader
-from app.services.integrations.knowledge_bases.jira import jira_service
-from app.services.integrations.knowledge_bases.mixpanel import mixpanel_service
-from app.services.integrations.knowledge_bases.notion import notion_service
+from app.connectors.jira.client import jira_service
+from app.connectors.mixpanel.client import mixpanel_service
+from app.connectors.notion.client import notion_service
 
 
 class KnowledgeBaseService:

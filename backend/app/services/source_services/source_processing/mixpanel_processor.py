@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from app.services.integrations.knowledge_bases.mixpanel.mixpanel_service import mixpanel_service
+from app.connectors.mixpanel.client import mixpanel_service
 from app.providers.supabase import storage_service
 from app.sources.summary import generate_summary
 

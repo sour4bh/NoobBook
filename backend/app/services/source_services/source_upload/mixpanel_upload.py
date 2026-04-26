@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.services.integrations.knowledge_bases.mixpanel.mixpanel_service import mixpanel_service
+from app.connectors.mixpanel.client import mixpanel_service
 from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index

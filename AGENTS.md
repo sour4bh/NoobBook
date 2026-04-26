@@ -312,9 +312,9 @@ All API keys are stored in `backend/.env` (not database) and managed via the Set
 
 **Adding a new API key:**
 1. Add entry to `API_KEYS_CONFIG` with `id`, `name`, `description`, `category`
-2. Create validator in `backend/app/services/app_settings/validation/` (make minimal API call to verify)
-3. Register validator in `ValidationService` class
-4. Add routing case in `_validate_key()` function
+2. Create validator beside the owning provider or connector (make minimal API call to verify)
+3. Add routing case in `app.settings.validation.validate(...)`
+4. Add any cached-client reload hook in `update_api_keys()`
 5. Frontend auto-renders from config — only update `ApiKeysSection.tsx` if adding a new category to the type union
 
 **Key patterns:**
@@ -627,7 +627,7 @@ Service Name - Brief description of what this service does.
 from app.config import get_anthropic_config
 from app.config.prompt_loader import prompt_loader
 from app.config.tool_loader import tool_loader
-from app.services.integrations.claude import claude_service
+from app.providers.anthropic.messages import claude_service
 from app.providers.anthropic import response_parser
 from app.providers.anthropic.content import build_tool_result_content
 from app.utils.path_utils import get_processed_dir

@@ -232,7 +232,7 @@ class SourceCatalog:
         file_ext = (source.get("embedding_info") or {}).get("file_extension", "")
         if file_ext == ".freshdesk":
             try:
-                from app.services.integrations.freshdesk.freshdesk_sync_service import freshdesk_sync_service
+                from app.connectors.freshdesk.sync import freshdesk_sync_service
                 freshdesk_sync_service.stop_auto_sync()
             except Exception as e:
                 logger.error("Error stopping Freshdesk auto-sync for %s: %s", source_id, e)

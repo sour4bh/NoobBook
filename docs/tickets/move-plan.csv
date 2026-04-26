@@ -407,3 +407,15 @@ NBB-806,python,backend/app/services/app_settings/validation/veo_validator.py,bac
 NBB-806,python,backend/app/services/app_settings/validation/pinecone_validator.py,backend/app/providers/pinecone/validation.py,,,python_module_move,manual
 NBB-806,python,backend/app/services/app_settings/validation/tavily_validator.py,backend/app/providers/tavily/validation.py,,,python_module_move,manual
 NBB-806,python,backend/app/services/app_settings/validation/opik_validator.py,backend/app/providers/opik/validation.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/freshdesk/freshdesk_service.py,backend/app/connectors/freshdesk/client.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/freshdesk/freshdesk_sync_service.py,backend/app/connectors/freshdesk/sync.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/google/google_drive_service.py,backend/app/connectors/google_drive/files.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/knowledge_bases/jira/jira_service.py,backend/app/connectors/jira/client.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/knowledge_bases/mixpanel/mixpanel_service.py,backend/app/connectors/mixpanel/client.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/knowledge_bases/notion/notion_service.py,backend/app/connectors/notion/client.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/knowledge_bases/knowledge_base_service.py,backend/app/connectors/knowledge.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/integrations/mcp/mcp_tool_service.py,backend/app/connectors/mcp/tools.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/app_settings/validation/freshdesk_validator.py,backend/app/connectors/freshdesk/validation.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/app_settings/validation/jira_validator.py,backend/app/connectors/jira/validation.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/app_settings/validation/mixpanel_validator.py,backend/app/connectors/mixpanel/validation.py,,,python_module_move,manual
+NBB-807,python,backend/app/services/app_settings/validation/notion_validator.py,backend/app/connectors/notion/validation.py,,,python_module_move,manual

@@ -400,7 +400,7 @@ There are two layered contracts here: the **tool input** Claude produces, and th
 **row shape** persisted in Supabase.
 
 **Backend owner:**
-- Tool input + row writer: `backend/app/studio/signal.py::StudioSignalExecutor.emit` and `::_store_signals`
+- Tool input + row writer: `backend/app/studio/signal/__init__.py::StudioSignalExecutor.emit` and `::_store_signals`
 - Table: `studio_signals` in `backend/supabase/migrations/` (owned by the chat charter as a cross-table write)
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` (the chat detail response
@@ -655,7 +655,8 @@ three required envelope keys.
 
 **Backend owner:**
 - Loader: `backend/app/config/tool_loader.py` (NBB-207A)
-- Registered asset paths: `backend/app/services/tools/<category>/<tool>.json`
+- Registered asset paths: domain-owned `tools/` directories mapped by
+  `backend/app/config/asset_registry.py`
 
 **Frontend consumer:** None directly. Tool schemas are consumed by Claude; the
 frontend sees their effects through `tool_use` / `tool_result` blocks (Contract 3).
@@ -684,9 +685,12 @@ during migration.
 }
 ```
 
-**Realistic current-production example:** 21 tool directories under
-`backend/app/services/tools/` including `chat_tools/`, `web_agent/`, `pdf_tools/`,
-`pptx_tools/`, `image_tools/`, `memory_tools/`, `studio_tools/`, and per-agent folders.
+**Realistic current-production example:** tool JSON files live beside their
+owning domains, such as `backend/app/chat/tools/source_search_tool.json`,
+`backend/app/chat/memory/tools/memory_tool.json`,
+`backend/app/connectors/jira/tools/jira_search_issues.json`, and
+`backend/app/studio/signal/tools/studio_signal_tool.json`. Legacy loader
+category keys are preserved by registry mappings, not by directory layout.
 
 **Invalid example (runtime validation exists):** The Anthropic API rejects any request
 whose `tools[]` array fails JSON-schema validation against its `input_schema`. A
@@ -695,8 +699,8 @@ call that includes the tool; our loader does not currently pre-validate shape.
 
 **Test plan:**
 - Extend `backend/tests/test_tool_loader.py` (owned by NBB-207A) with a per-file
-  structural check: every `*.json` under `backend/app/services/tools/` must parse as
-  JSON and carry `name`, `description`, and `input_schema.type == "object"`. Place
+  structural check: every registered tool `*.json` must parse as JSON and carry
+  `name`, `description`, and `input_schema.type == "object"`. Place
   the NBB-205-owned assertion in `backend/tests/test_tool_schema_contract.py` (new) so
   ownership is clear.
 

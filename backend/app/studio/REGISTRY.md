@@ -22,7 +22,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt ownership | Prompt JSON decision map | `docs/tickets/epics/NBB-002.md#nbb-207b` |
 | Tool JSON ownership | Tool JSON decision map | `docs/tickets/epics/NBB-002.md#nbb-207c` |
 
-**Prompt/tool JSON status note (post NBB-504 through NBB-507):** Item-owned studio prompts and tool JSON now live under each item's `prompts/` and `tools/` directories. The only studio-level schema still outside an item row is `backend/app/services/tools/chat_tools/studio_signal_tool.json`, which belongs to the studio signal surface rather than any single item.
+**Prompt/tool JSON status note (post NBB-810):** Item-owned studio prompts and tool JSON live under each item's `prompts/` and `tools/` directories. The studio-level signal schema lives at `backend/app/studio/signal/tools/studio_signal_tool.json`, which belongs to the studio signal surface rather than any single item.
 
 **Tests status note:** No item-specific studio tests exist at base commit. The studio blueprint is covered generically by `backend/tests/api/test_blueprint_registration.py` and `backend/tests/api/test_blueprint_smoke.py` (a single `GET /api/v1/studio/gemini/status` route smoke). Item rows record `none` for item-specific tests and rely on the blueprint-level coverage. The one dedicated executor test is `backend/tests/test_website_tool_executor.py`, which is attached to the `design/website/` row only.
 
@@ -375,9 +375,9 @@ These modules live in the studio domain but are not item-owned. They stay as stu
 | `backend/app/studio/jobs/store.py` | Generic CRUD for the `studio_jobs` table (per-item create/update/get/list/delete wrappers). | Studio-level job store. Consumers import `app.studio.jobs.store` directly. |
 | Removed `studio_processing/` package | Empty package deleted during cleanup. | No runtime surface. |
 | Per-item job modules | Per-item `job.py` wiring lives in each item directory listed above. | No forwarding legacy jobs package remains. |
-| `backend/app/studio/signal.py` | Chat-side emitter that writes `studio_signals` rows and routes to item-specific executors. | `emit(...)` (NBB-502 decision); studio-level, not item-owned. |
+| `backend/app/studio/signal/__init__.py` | Chat-side emitter that writes `studio_signals` rows and routes to item-specific executors. | `emit(...)` (NBB-502 decision); studio-level, not item-owned. |
 
-Studio-level tool JSON (from NBB-207C): `backend/app/services/tools/chat_tools/studio_signal_tool.json` → `studio/signal/tools/` (studio-level, not item-owned).
+Studio-level tool JSON (from NBB-207C): `backend/app/studio/signal/tools/studio_signal_tool.json` (studio-level, not item-owned).
 
 ## Decision anchor
 

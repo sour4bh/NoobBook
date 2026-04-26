@@ -62,7 +62,7 @@ Tool-schema rows pulled from the NBB-207C decision map that resolve to connector
 | `chat_tools/notion_*.json` | `connectors/notion/tools/` |
 | `chat_tools/mixpanel_*.json` | `connectors/mixpanel/tools/` |
 
-All other families under `services/tools/` resolve to domain roots (`chat/`, `sources/`, `studio/`) per `NBB-207C`; MCP-sourced tools are registered dynamically at runtime and keep their MCP registration path.
+All tool-schema families resolve to domain roots (`chat/`, `sources/`, `studio/`, `connectors/`) through the asset registry; MCP-sourced tools are registered dynamically at runtime and keep their MCP registration path.
 
 ## Tool-schema mapping cross-reference
 

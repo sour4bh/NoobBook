@@ -1,10 +1,9 @@
 """
 Tests for NBB-207C tool-schema ownership and tool-loader compatibility.
 
-These assert that the registered domain-owned tool paths landed by this
-ticket resolve end-to-end, tools still in `backend/app/services/tools/` keep
-resolving from the legacy dir, and both `load_tool` and `load_tools_for_agent`
-see the registered paths via the production singleton.
+These assert that registered domain-owned tool paths resolve end-to-end and
+both `load_tool` and `load_tools_for_agent` see the registered paths via the
+production singleton. Tool schemas are registry-only after NBB-810.
 
 The sibling `test_asset_registry.py` autouse fixture resets the registry
 before and after each test; these tests explicitly re-invoke
@@ -28,6 +27,56 @@ from app.config.tool_loader import ToolLoader, tool_loader
 # `input_schema` and therefore cannot be loaded via the validating
 # `load_tool`).
 MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
+    (
+        "chat_tools",
+        "mixed domain-owned paths",
+        [
+            "source_search_tool",
+            "memory_tool",
+            "studio_signal_tool",
+            "analyze_csv_agent_tool",
+            "analyze_database_agent_tool",
+            "analyze_freshdesk_agent_tool",
+            "jira_get_issue",
+            "jira_get_project",
+            "jira_list_projects",
+            "jira_search_issues",
+            "notion_get_database_schema",
+            "notion_query_database",
+            "notion_read_page",
+            "notion_search",
+            "mixpanel_jql",
+            "mixpanel_list_events",
+            "mixpanel_list_funnels",
+            "mixpanel_query_events",
+            "mixpanel_query_funnel",
+            "mixpanel_retention",
+            "mixpanel_segmentation",
+        ],
+        [
+            "source_search_tool",
+            "memory_tool",
+            "studio_signal_tool",
+            "analyze_csv_agent_tool",
+            "analyze_database_agent_tool",
+            "analyze_freshdesk_agent_tool",
+            "jira_get_issue",
+            "jira_get_project",
+            "jira_list_projects",
+            "jira_search_issues",
+            "notion_get_database_schema",
+            "notion_query_database",
+            "notion_read_page",
+            "notion_search",
+            "mixpanel_jql",
+            "mixpanel_list_events",
+            "mixpanel_list_funnels",
+            "mixpanel_query_events",
+            "mixpanel_query_funnel",
+            "mixpanel_retention",
+            "mixpanel_segmentation",
+        ],
+    ),
     ("pdf_tools", "sources/pdf/tools", ["pdf_extraction"], ["pdf_extraction"]),
     (
         "pptx_tools",
@@ -63,12 +112,7 @@ MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
         ["return_analysis", "run_analysis"],
         ["return_analysis", "run_analysis"],
     ),
-    (
-        "csv_tool",
-        "sources/analysis/csv/tools",
-        ["csv_analyser", "return_csv_summary"],
-        ["csv_analyser", "return_csv_summary"],
-    ),
+    ("csv_tool", "sources/analysis/csv/tools", ["csv_analyser", "return_csv_summary"], ["csv_analyser", "return_csv_summary"]),
     (
         "database_agent",
         "sources/analysis/database/tools",
@@ -90,21 +134,6 @@ MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
 ]
 
 
-# Categories explicitly left under `backend/app/services/tools/` for downstream
-# tickets. These must still resolve from the legacy dir to prove the registry
-# has not accidentally claimed ownership before the owning skeleton exists.
-LEGACY_TOOL_CATEGORIES: List[str] = [
-    "chat_tools",
-    # studio_tools removed: all 5 JSONs (flash_cards/mind_map/quiz/
-    # read_source_content/write_script_section + flow_diagram/wireframe in
-    # NBB-506) migrated to studio domain via _PRODUCTION_TOOL_FILE_PATHS.
-    # Legacy dir is now empty (NBB-507).
-    # analysis_agent / csv_tool / database_agent / freshdesk_agent removed:
-    # all JSONs migrated to sources/analysis/<feature>/tools via
-    # _PRODUCTION_TOOL_PATHS. Legacy dirs removed (NBB-403).
-]
-
-
 @pytest.fixture(autouse=True)
 def _restore_production_registry():
     """Replay production registrations after the sibling reset fixture runs.
@@ -122,12 +151,7 @@ def _restore_production_registry():
 
 
 def _fresh_loader() -> ToolLoader:
-    """Build a ToolLoader pointed at `backend/app/services/tools/`.
-
-    The production singleton reads the same directory; a fresh instance
-    picks it up via `Path(__file__).parent.parent / "services" / "tools"`
-    in `ToolLoader.__init__`.
-    """
+    """Build a fresh ToolLoader with production registry paths."""
     return ToolLoader()
 
 
@@ -161,9 +185,7 @@ def test_moved_tool_family_resolves_from_registered_domain_path(
             f"registered tool {category}/{tool_stem} did not load"
         )
 
-    # Confirm the resolver actually used the registered dir: the legacy
-    # directory for this family is now empty, so a legacy-only lookup would
-    # miss.
+    # Confirm no same-named legacy category directory is being used.
     legacy_category_dir = loader.tools_dir / category
     if legacy_category_dir.exists():
         remaining = list(legacy_category_dir.glob("*.json"))
@@ -207,39 +229,14 @@ def test_moved_tool_family_enumerates_every_tool(
     )
 
 
-@pytest.mark.parametrize("category", LEGACY_TOOL_CATEGORIES)
-def test_legacy_tool_category_directory_still_resolves(category: str) -> None:
-    """Categories still under `services/tools/` must keep resolving.
-
-    Downstream tickets (chat, studio, analysis slices) will rehome these
-    once their owning-domain skeletons land. Until then the legacy path is
-    the only valid source.
-
-    Existence is the contract: the directory must be discoverable under the
-    legacy tools dir and contain at least one loadable JSON file.
-    """
-    loader = _fresh_loader()
-    legacy_dir = loader.tools_dir / category
-
-    assert legacy_dir.is_dir(), (
-        f"legacy category dir {legacy_dir} missing after NBB-207C"
-    )
-    tool_files = list(legacy_dir.glob("*.json"))
-    assert tool_files, (
-        f"legacy category {category!r} has no JSON files after NBB-207C"
-    )
-    tools = loader.load_tools_from_category(category)
-    assert tools, f"legacy category {category!r} did not load any tools"
-
-
-def test_chat_tools_category_loads_with_compact_tool() -> None:
-    """The compact tool inventory entry must not poison chat category loads."""
+def test_chat_tools_category_excludes_deleted_compact_tool() -> None:
+    """The dormant compact tool was deleted instead of exposed."""
     loader = _fresh_loader()
 
     tools = loader.load_tools_from_category("chat_tools")
     names = {tool["name"] for tool in tools}
 
-    assert "compact" in names
+    assert "compact" not in names
 
 
 def test_singleton_sees_registered_tool_paths() -> None:

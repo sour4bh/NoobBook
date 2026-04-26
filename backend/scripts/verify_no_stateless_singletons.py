@@ -104,7 +104,7 @@ ALLOWLIST: frozenset[Tuple[str, str]] = frozenset({
     # Source orchestration (hybrid keyword+semantic search runtime).
     ("backend/app/sources/search.py", "SourceSearchExecutor"),
     # Studio orchestration (signal emission/ack runtime).
-    ("backend/app/studio/signal.py", "StudioSignalExecutor"),
+    ("backend/app/studio/signal/__init__.py", "StudioSignalExecutor"),
 })
 
 

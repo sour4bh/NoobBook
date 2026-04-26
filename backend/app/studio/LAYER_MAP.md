@@ -26,7 +26,7 @@ Every studio item directory uses these file names when the layer exists. Create 
 |---|---|
 | Multi-tool `<item>/tool.py` router | Export `dispatch(...)`. Do not keep `execute_tool(...)`. |
 | Single-action tool module | Export the domain verb directly (`search`, `store`, `emit`, `analyze`, `fetch`, `research`, etc.). Do not export `execute_tool(...)`. |
-| Studio signal executor | `studio/signal.py::emit(...)`. Studio-level, not item-specific. |
+| Studio signal executor | `studio/signal/__init__.py::emit(...)`. Studio-level, not item-specific. |
 
 ## Core-operation verb table
 
@@ -321,9 +321,9 @@ These modules live in the studio domain but are not item-owned. `REGISTRY.md` en
 | `backend/app/studio/jobs/store.py` | Generic CRUD for the `studio_jobs` table; per-item `create_job`/`update_job`/`get_job`/`list_jobs`/`delete_job` wrappers. Writer of record for Contract 13. | Studio-level job store, not an item directory. `NBB-210` owns `background/tasks.py` and must not be duplicated. |
 | Removed `studio_processing/` package | Empty package deleted during cleanup. | No runtime surface. |
 | Per-item job modules | Per-item `job.py` wiring lives in the item directories listed above. | No forwarding jobs package remains. |
-| `backend/app/studio/signal.py` | Chat-side emitter that writes `studio_signals` rows (Contract 7) and routes to item-specific executors. | `emit(...)` per the executable naming rule. Studio-level, not item-specific. |
+| `backend/app/studio/signal/__init__.py` | Chat-side emitter that writes `studio_signals` rows (Contract 7) and routes to item-specific executors. | `emit(...)` per the executable naming rule. Studio-level, not item-specific. |
 
-Studio-level tool JSON (from NBB-207C, for cross-reference): `backend/app/services/tools/chat_tools/studio_signal_tool.json` → `studio/signal/tools/`.
+Studio-level tool JSON (from NBB-207C, for cross-reference): `backend/app/studio/signal/tools/studio_signal_tool.json`.
 
 ## `studio/export/` charter note
 
@@ -340,7 +340,7 @@ Every per-item row above is tied to these contracts. Shape definitions live in `
 | Contract | Source | Role in the layer map |
 |---|---|---|
 | Contract 13 — Studio job status / progress / result | `docs/contracts/README.md` § Contract 13 | Shape contract for `<item>/schema.py` request/progress/result wire shapes; writer of record is `app.studio.jobs.store.create_job` / `update_job`. |
-| Contract 7 — `studio_signals` / studio event shape | `docs/contracts/README.md` § Contract 7 | Shape for chat→studio routing that lands on a job; `studio/signal.py::emit(...)` is the studio-level entry point for the row writer side. |
+| Contract 7 — `studio_signals` / studio event shape | `docs/contracts/README.md` § Contract 7 | Shape for chat→studio routing that lands on a job; `studio/signal/__init__.py::emit(...)` is the studio-level entry point for the row writer side. |
 | Contract 10 — Background-task polling response | `docs/contracts/README.md` § Contract 10 | Envelope that merges `studio_jobs` (pending + processing) into the project task feed; `job.py` status transitions must preserve the enum (`pending | processing | ready | error | cancelled`) and the human-readable `progress` string. |
 
 Background ownership of record: `backend/app/background/tasks.py` (NBB-210). Studio items must not duplicate lifecycle state inside `<item>/job.py`; they go through `background/tasks.py`.

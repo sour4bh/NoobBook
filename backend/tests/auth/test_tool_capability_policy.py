@@ -210,7 +210,6 @@ def test_register_rejects_conflicting_redefinition():
 # include it in the alias map so the JSON ``name`` test passes for it.
 _TOOL_JSON_GLOBS = (
     "app/**/tools/*.json",
-    "app/services/tools/**/*.json",
 )
 
 
@@ -291,12 +290,6 @@ def test_every_tool_json_name_has_registered_capability(json_name, json_path):
         f"``tool_choice={{type: tool, name: <name>}}`` lands on a real "
         f"capability."
     )
-
-
-def test_compact_tool_has_capability_entry():
-    """The chat-orchestrator compact tool has a policy decision."""
-    tool_capability_policy.ensure_capabilities_loaded()
-    assert tool_capability_policy.has("compact") is True
 
 
 def test_save_memory_capability_entry_exists():

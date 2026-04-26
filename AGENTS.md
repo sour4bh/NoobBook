@@ -257,7 +257,7 @@ All user data is stored in Supabase with Row-Level Security (RLS) for multi-user
 
 #### Local Files (Configuration & Debug Only)
 
-Paths below describe current on-disk locations during the structure migration. `backend/data/prompts/` and `backend/app/services/tools/` are frozen destinations in `STRUCTURE.md`; do not add new prompt or tool JSON here. `NBB-207A` will land loader shims before prompt/tool JSON ownership moves.
+Paths below describe current on-disk locations during the structure migration. `backend/data/prompts/` is a frozen destination in `STRUCTURE.md`; do not add new prompt JSON there. Tool JSON now lives in domain-owned `tools/` directories and resolves through `backend/app/config/asset_registry.py`; do not add a legacy tool directory.
 
 ```
 data/
@@ -269,15 +269,12 @@ data/
 └── projects/{id}/agents/         # Debug logs only (optional)
     └── web_agent/{execution_id}.json
 
-app/services/tools/               # Tool definitions (JSON schemas)
-├── chat_tools/
-│   ├── source_search_tool.json
-│   └── memory_tool.json
-├── pdf_tools/, pptx_tools/, image_tools/
-└── web_agent/
-    ├── web_search.json
-    ├── web_fetch.json
-    └── return_search_result.json
+app/**/tools/                     # Domain-owned tool definitions (JSON schemas)
+├── chat/tools/source_search_tool.json
+├── chat/memory/tools/memory_tool.json
+├── connectors/{jira,notion,mixpanel}/tools/
+├── sources/{pdf,pptx,image,link}/tools/
+└── studio/signal/tools/studio_signal_tool.json
 ```
 
 ### API Endpoints

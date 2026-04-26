@@ -97,7 +97,7 @@ These modules live in studio but do not map to a single item. They stay as studi
 | `studio/jobs/store.py` | Generic CRUD for `studio_jobs`. | Studio-level job store. Consumers import `app.studio.jobs.store` directly. |
 | Removed `studio_processing/` package | Empty package deleted during cleanup. | No runtime surface. |
 | Per-item `job.py` modules | Per-item background job wiring in the item directories listed above. | No forwarding jobs package remains. |
-| `studio/signal.py` | Chat-side studio-signal emitter; listed in `NBB-502` as the one studio-level executor. | `emit(...)` (NBB-502 decision, not item-owned). |
+| `studio/signal/__init__.py` | Chat-side studio-signal emitter; listed in `NBB-502` as the one studio-level executor. | `emit(...)` (NBB-502 decision, not item-owned). |
 
 ## Studio tool schemas (authoritative source: NBB-207C)
 
@@ -119,9 +119,9 @@ These modules live in studio but do not map to a single item. They stay as studi
 | `studio/learning/mind_map/tools/` | `studio/learning/mind_map/tools/` |
 | `studio/learning/quiz/tools/` | `studio/learning/quiz/tools/` |
 | `studio/media/audio/tools/` | `studio/media/audio/tools/` |
-| `services/tools/chat_tools/studio_signal_tool.json` | `studio/signal/tools/` |
+| `studio/signal/tools/studio_signal_tool.json` | `studio/signal/tools/` |
 
-`services/tools/studio_tools/read_source_content.json` is sources-owned (`sources/content/tools/`) per NBB-207C; it is intentionally absent from the studio list above. `NBB-207C` also notes: studio invokes `sources/content/tools/` through the sources public surface; studio does not own source reading.
+`read_source_content.json` is sources-owned (`sources/content/tools/`) per NBB-207C; it is intentionally absent from the studio list above. `NBB-207C` also notes: studio invokes `sources/content/tools/` through the sources public surface; studio does not own source reading.
 
 ## Studio prompts
 

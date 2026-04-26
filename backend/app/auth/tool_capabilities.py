@@ -39,7 +39,7 @@ from app.auth.tool_policy import (
 # when it touches a specific source.
 SEARCH_SOURCES = ToolCapability(
     name="search_sources",
-    owner="sources/search/tools/",
+    owner="chat/tools/",
     required_permission=RequiredPermission(category="document_sources"),
     scope=ToolScope.PROJECT,
     level=CapabilityLevel.READ_ONLY,
@@ -99,22 +99,6 @@ STUDIO_SIGNAL = ToolCapability(
     external_side_effects=False,
     requires_user_confirmation=False,
     audit_log=True,
-)
-
-
-# compact: chat-internal context-compaction trigger. Currently a
-# placeholder JSON (NBB-207C inventory); classified for completeness
-# so the inventory test cannot mark it as a hole. Future implementation
-# may flip this to write-capable.
-COMPACT = ToolCapability(
-    name="compact",
-    owner="chat/tools/",
-    required_permission=RequiredPermission(category="chat_features"),
-    scope=ToolScope.GLOBAL,
-    level=CapabilityLevel.READ_ONLY,
-    external_side_effects=False,
-    requires_user_confirmation=False,
-    audit_log=False,
 )
 
 
@@ -719,7 +703,6 @@ _CENTRAL_CAPABILITIES = (
     STORE_MEMORY,
     SAVE_MEMORY,
     STUDIO_SIGNAL,
-    COMPACT,
     # connectors
     JIRA_LIST_PROJECTS,
     JIRA_SEARCH_ISSUES,

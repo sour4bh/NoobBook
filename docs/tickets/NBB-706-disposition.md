@@ -74,7 +74,7 @@ Disposition values:
 | backend/app/sources/analysis/research/tool.py | DeepResearchExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: deep research agent runtime. |
 | backend/app/sources/link/run.py | WebAgentExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: web agent runtime for link sources. |
 | backend/app/sources/search.py | SourceSearchExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: hybrid keyword+semantic search runtime. |
-| backend/app/studio/signal.py | StudioSignalExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: signal emission/ack runtime. |
+| backend/app/studio/signal/__init__.py | StudioSignalExecutor | KEEP | Per NBB-706 Keep-as-class allowlist: signal emission/ack runtime. Moved from `studio/signal.py` during NBB-810 so the signal tool schema can live under `studio/signal/tools/`. |
 
 ## Summary
 

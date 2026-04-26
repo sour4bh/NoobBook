@@ -2,11 +2,10 @@
 Tests for the prompt/tool asset registry shims (NBB-207A).
 
 These assert that:
-- Existing loader callers still resolve legacy prompt and tool JSON paths
+- Existing prompt loader callers still resolve legacy prompt JSON paths
   unchanged.
-- A registered domain-owned directory resolves before the legacy path.
-- A registered directory whose file does not exist transparently falls back
-  to the legacy path.
+- A registered domain-owned prompt directory resolves before the legacy path.
+- Tool JSON resolves through the registry only after NBB-810.
 - A fully missing asset raises a clear, identifiable error through the
   internal resolvers.
 """
@@ -151,89 +150,61 @@ def test_prompt_missing_everywhere_raises_through_internal_resolver(tmp_path):
 # -- Tool loader -------------------------------------------------------------
 
 
-def test_tool_legacy_category_resolves_unchanged(tmp_path):
-    legacy = tmp_path
-    _write_tool(legacy / "pdf_tools", "pdf_extraction.json", "pdf_extraction")
-    loader = _loader_with_tools_dir(legacy)
-
-    tool = loader.load_tool("pdf_tools", "pdf_extraction")
-
-    assert tool["name"] == "pdf_extraction"
-
-
-def test_tool_registered_per_file_path_wins_over_legacy(tmp_path):
-    legacy = tmp_path
+def test_tool_registered_per_file_path_resolves(tmp_path):
+    registry_root = tmp_path
     owned = tmp_path / "chat" / "memory" / "tools"
-    _write_tool(legacy / "chat_tools", "memory_tool.json", "legacy_memory")
     _write_tool(owned, "memory_tool.json", "owned_memory")
     asset_registry.register_tool_path("chat_tools", "memory_tool", owned)
 
-    loader = _loader_with_tools_dir(legacy)
+    loader = _loader_with_tools_dir(registry_root)
 
     tool = loader.load_tool("chat_tools", "memory_tool")
 
     assert tool["name"] == "owned_memory"
 
 
-def test_tool_registered_per_file_missing_falls_back_to_legacy(tmp_path):
-    legacy = tmp_path
+def test_tool_registered_per_file_missing_raises(tmp_path):
+    registry_root = tmp_path
     owned = tmp_path / "chat" / "memory" / "tools"
     owned.mkdir(parents=True, exist_ok=True)  # dir exists, file does not
-    _write_tool(legacy / "chat_tools", "memory_tool.json", "legacy_memory")
     asset_registry.register_tool_path("chat_tools", "memory_tool", owned)
 
-    loader = _loader_with_tools_dir(legacy)
+    loader = _loader_with_tools_dir(registry_root)
 
-    tool = loader.load_tool("chat_tools", "memory_tool")
+    with pytest.raises(FileNotFoundError):
+        loader.load_tool("chat_tools", "memory_tool")
 
-    assert tool["name"] == "legacy_memory"
 
-
-def test_tool_registered_category_path_wins_over_legacy(tmp_path):
-    legacy = tmp_path
+def test_tool_registered_category_path_resolves(tmp_path):
+    registry_root = tmp_path
     owned = tmp_path / "sources" / "pdf" / "tools"
-    _write_tool(legacy / "pdf_tools", "pdf_extraction.json", "legacy_pdf")
     _write_tool(owned, "pdf_extraction.json", "owned_pdf")
     asset_registry.register_tool_category("pdf_tools", owned)
 
-    loader = _loader_with_tools_dir(legacy)
+    loader = _loader_with_tools_dir(registry_root)
 
     assert loader.load_tool("pdf_tools", "pdf_extraction")["name"] == "owned_pdf"
-    # Category enumeration also prefers the registered directory, and does not
-    # duplicate the legacy file with the same stem.
     names = [t["name"] for t in loader.load_tools_from_category("pdf_tools")]
     assert names == ["owned_pdf"]
 
 
-def test_tool_category_enumeration_unions_registered_and_legacy(tmp_path):
-    """A half-moved category should still enumerate legacy leftovers."""
-    legacy = tmp_path
+def test_tool_category_enumeration_uses_exact_file_registrations(tmp_path):
+    """Mixed-owner directories should not leak unrelated tools into a category."""
+    registry_root = tmp_path
     owned = tmp_path / "chat" / "memory" / "tools"
-    _write_tool(legacy / "chat_tools", "memory_tool.json", "owned_memory")
-    _write_tool(legacy / "chat_tools", "source_search_tool.json", "source_search")
-    # Move only memory_tool to an owned dir; source_search stays legacy.
-    (owned).mkdir(parents=True, exist_ok=True)
-    (owned / "memory_tool.json").write_text(
-        json.dumps(
-            {
-                "name": "owned_memory",
-                "description": "moved",
-                "input_schema": {"type": "object", "properties": {}},
-            }
-        )
-    )
-    asset_registry.register_tool_category("chat_tools", owned)
+    _write_tool(owned, "memory_tool.json", "owned_memory")
+    _write_tool(owned, "manage_memory_tool.json", "save_memory")
+    asset_registry.register_tool_path("chat_tools", "memory_tool", owned)
 
-    loader = _loader_with_tools_dir(legacy)
+    loader = _loader_with_tools_dir(registry_root)
 
     names = sorted(t["name"] for t in loader.load_tools_from_category("chat_tools"))
-    assert names == ["owned_memory", "source_search"]
+    assert names == ["owned_memory"]
 
 
 def test_tool_missing_everywhere_raises_file_not_found(tmp_path):
-    legacy = tmp_path
-    (legacy / "pdf_tools").mkdir(parents=True, exist_ok=True)
-    loader = _loader_with_tools_dir(legacy)
+    registry_root = tmp_path
+    loader = _loader_with_tools_dir(registry_root)
 
     # Public API contract: missing tool raises FileNotFoundError.
     with pytest.raises(FileNotFoundError):
@@ -241,15 +212,15 @@ def test_tool_missing_everywhere_raises_file_not_found(tmp_path):
 
 
 def test_tool_missing_everywhere_raises_clear_error_through_resolver(tmp_path):
-    legacy = tmp_path
-    (legacy / "pdf_tools").mkdir(parents=True, exist_ok=True)
+    registry_root = tmp_path
 
     with pytest.raises(AssetNotFoundError) as err:
-        asset_registry.resolve_tool_path("pdf_tools", "does_not_exist", legacy)
+        asset_registry.resolve_tool_path("pdf_tools", "does_not_exist", registry_root)
 
     msg = str(err.value)
     assert "pdf_tools" in msg
     assert "does_not_exist" in msg
+    assert "registry-only" in msg
 
 
 def test_public_register_helpers_exported_from_package():

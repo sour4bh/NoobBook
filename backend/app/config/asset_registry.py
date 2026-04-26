@@ -3,16 +3,15 @@ Asset registry for prompt JSON and tool JSON search paths.
 
 This module is the single source of truth for where prompt and tool JSON files
 live during the structure migration. Domain tickets (NBB-207B for prompts,
-NBB-207C for tool schemas) register domain-owned destinations here; the
-loaders (`prompt_loader`, `tool_loader`) consult the registry first, then fall
-back to the current legacy locations:
+NBB-207C for tool schemas) register domain-owned destinations here.
+`prompt_loader` consults the registry first, then falls back to the current
+legacy prompt location:
 
     - prompts: `backend/data/prompts/<name>_prompt.json`
-    - tools:   `backend/app/services/tools/<category>/<tool>.json`
 
-The registry does not move JSON assets itself. It only teaches the loaders
-that a registered location should be tried before the legacy location for a
-specific prompt name, tool (category, name) pair, or tool category.
+Tool schemas are registry-only after NBB-810. Category API compatibility is
+preserved by mapping legacy category/name keys to domain-owned files here, not
+by keeping a fallback directory alive.
 """
 import logging
 from pathlib import Path
@@ -90,12 +89,13 @@ def iter_prompt_candidate_paths(
 
 
 def iter_tool_candidate_paths(
-    category: str, tool_name: str, legacy_dir: Path
+    category: str, tool_name: str, _registry_root: Path
 ) -> List[Path]:
     """Return candidate tool JSON file paths in priority order.
 
-    Per-tool registrations win over per-category registrations, both of
-    which win over the legacy `services/tools/<category>/` location.
+    Per-tool registrations win over per-category registrations. Tools do not
+    fall back to the legacy tool directory; every live tool path must be
+    registered.
     """
     filename = f"{tool_name}.json"
     candidates: List[Path] = [
@@ -105,20 +105,38 @@ def iter_tool_candidate_paths(
     candidates.extend(
         directory / filename for directory in _tool_category_dirs.get(category, [])
     )
-    candidates.append(legacy_dir / category / filename)
     return candidates
 
 
-def iter_tool_category_dirs(category: str, legacy_dir: Path) -> List[Path]:
-    """Return candidate directories for a tool category in priority order."""
+def iter_tool_category_dirs(category: str, _registry_root: Path) -> List[Path]:
+    """Return registered directories for a tool category in priority order."""
     dirs: List[Path] = list(_tool_category_dirs.get(category, []))
-    dirs.append(legacy_dir / category)
     return dirs
 
 
 def registered_tool_categories() -> List[str]:
     """Return the tool categories that have any registered domain-owned dir."""
-    return list(_tool_category_dirs.keys())
+    categories: List[str] = []
+    seen: set[str] = set()
+    for category in _tool_category_dirs.keys():
+        categories.append(category)
+        seen.add(category)
+    for category, _tool_name in _tool_file_dirs.keys():
+        if category not in seen:
+            categories.append(category)
+            seen.add(category)
+    return categories
+
+
+def iter_tool_file_candidate_paths(category: str) -> List[Path]:
+    """Return exact per-file registrations for a category in priority order."""
+    candidates: List[Path] = []
+    for (registered_category, tool_name), dirs in _tool_file_dirs.items():
+        if registered_category != category:
+            continue
+        filename = f"{tool_name}.json"
+        candidates.extend(directory / filename for directory in dirs)
+    return candidates
 
 
 def resolve_prompt_path(prompt_name: str, filename: str, legacy_dir: Path) -> Path:
@@ -148,8 +166,8 @@ def resolve_tool_path(category: str, tool_name: str, legacy_dir: Path) -> Path:
             return candidate
     raise AssetNotFoundError(
         f"Tool asset not found: category={category!r}, tool={tool_name!r}. "
-        f"Searched registered per-file, per-category, and legacy directory "
-        f"{legacy_dir / category}."
+        f"Searched registered per-file and per-category paths. Tools are "
+        f"registry-only after NBB-810."
     )
 
 
@@ -233,10 +251,6 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
     "web_agent": "sources/link/tools",
     "deep_research": "sources/analysis/research/tools",
     "analysis_agent": "sources/analysis/csv/raw_tools",
-    "csv_tool": "sources/analysis/csv/tools",
-    "database_agent": "sources/analysis/database/tools",
-    "freshdesk_agent": "sources/analysis/freshdesk/tools",
-    "memory_tools": "chat/memory/tools",
     "website_agent": "studio/design/website/tools",
     "component_agent": "studio/design/component/tools",
     "wireframe_agent": "studio/design/wireframe/tools",
@@ -250,12 +264,54 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
 
 
 # Single tool JSON files (not full categories) that have moved to domain-owned
-# homes (NBB-506). The legacy category stays at `services/tools/<category>/`;
-# only the named tool resolves to the new domain path.
+# homes. Use per-file entries when a directory contains schemas owned by
+# multiple loader categories, so category enumeration stays precise.
 #
 # Key: (category, tool_name) — the arguments to `tool_loader.load_tool`.
 # Value: directory path relative to `backend/app/` for the tool's JSON file.
 _PRODUCTION_TOOL_FILE_PATHS: Dict[Tuple[str, str], str] = {
+    ("chat_tools", "source_search_tool"): "chat/tools",
+    ("chat_tools", "memory_tool"): "chat/memory/tools",
+    ("chat_tools", "analyze_csv_agent_tool"): "sources/analysis/csv/tools",
+    (
+        "chat_tools",
+        "analyze_database_agent_tool",
+    ): "sources/analysis/database/tools",
+    (
+        "chat_tools",
+        "analyze_freshdesk_agent_tool",
+    ): "sources/analysis/freshdesk/tools",
+    ("chat_tools", "studio_signal_tool"): "studio/signal/tools",
+    ("chat_tools", "jira_get_issue"): "connectors/jira/tools",
+    ("chat_tools", "jira_get_project"): "connectors/jira/tools",
+    ("chat_tools", "jira_list_projects"): "connectors/jira/tools",
+    ("chat_tools", "jira_search_issues"): "connectors/jira/tools",
+    ("chat_tools", "notion_get_database_schema"): "connectors/notion/tools",
+    ("chat_tools", "notion_query_database"): "connectors/notion/tools",
+    ("chat_tools", "notion_read_page"): "connectors/notion/tools",
+    ("chat_tools", "notion_search"): "connectors/notion/tools",
+    ("chat_tools", "mixpanel_jql"): "connectors/mixpanel/tools",
+    ("chat_tools", "mixpanel_list_events"): "connectors/mixpanel/tools",
+    ("chat_tools", "mixpanel_list_funnels"): "connectors/mixpanel/tools",
+    ("chat_tools", "mixpanel_query_events"): "connectors/mixpanel/tools",
+    ("chat_tools", "mixpanel_query_funnel"): "connectors/mixpanel/tools",
+    ("chat_tools", "mixpanel_retention"): "connectors/mixpanel/tools",
+    ("chat_tools", "mixpanel_segmentation"): "connectors/mixpanel/tools",
+    ("memory_tools", "manage_memory_tool"): "chat/memory/tools",
+    ("csv_tool", "csv_analyser"): "sources/analysis/csv/tools",
+    ("csv_tool", "return_csv_summary"): "sources/analysis/csv/tools",
+    ("database_agent", "query_runner"): "sources/analysis/database/tools",
+    (
+        "database_agent",
+        "return_database_result",
+    ): "sources/analysis/database/tools",
+    ("database_agent", "schema_fetcher"): "sources/analysis/database/tools",
+    ("freshdesk_agent", "query_runner"): "sources/analysis/freshdesk/tools",
+    (
+        "freshdesk_agent",
+        "return_ticket_analysis",
+    ): "sources/analysis/freshdesk/tools",
+    ("freshdesk_agent", "schema_info"): "sources/analysis/freshdesk/tools",
     ("studio_tools", "flow_diagram_tool"): "studio/design/flow_diagram/tools",
     ("studio_tools", "wireframe_tool"): "studio/design/wireframe/tools",
     ("studio_tools", "flash_cards_tool"): "studio/learning/flash_card/tools",

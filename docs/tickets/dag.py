@@ -40,6 +40,7 @@ MOVE_PLAN_HEADER = (
 )
 MOVE_PLAN_MODES = frozenset({
     "json_asset_move",
+    "json_asset_remove",
     "python_module_move",
     "python_module_remove",
     "python_symbol_extract",
@@ -56,7 +57,7 @@ def required_move_plan_fields(mode):
         return ("old_path", "new_path")
     if mode in {"python_symbol_move", "python_symbol_rename", "python_symbol_extract"}:
         return ("old_path", "new_path", "old_symbol", "new_symbol")
-    if mode in {"python_module_remove", "text_reference_check"}:
+    if mode in {"json_asset_remove", "python_module_remove", "text_reference_check"}:
         return ("old_path",)
     if mode == "python_symbol_remove":
         return ("old_path", "old_symbol")

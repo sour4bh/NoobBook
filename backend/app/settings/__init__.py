@@ -10,7 +10,12 @@ Allowed imports:
   clients) and `auth/` for access checks.
 - This package must not reach into another domain's internals.
 
-Migration source: `backend/app/services/app_settings/` remains the legacy
-location (name mismatch is intentional) until later tickets move behavior
-here.
+Runtime settings ownership:
+- `app.settings.env.EnvService` manages `.env` reads, writes, deletes, and
+  reloads.
+- `app.settings.validation` owns the API-key validation dispatcher.
+
+The individual provider and connector validator bodies still live under the
+legacy `backend/app/services/app_settings/validation/` package until
+NBB-806/NBB-807 move them to their provider/connector homes.
 """

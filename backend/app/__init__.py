@@ -51,7 +51,7 @@ deployment constraints — Gunicorn single-worker, gevent monkey-patch,
 nginx SSE/Socket.IO passthrough — that movement tickets must preserve.
 
 Env/service reload semantics.
-`backend/app/services/app_settings/env_service.EnvService.reload_env()` calls
+`backend/app/settings/env.EnvService.reload_env()` calls
 `load_dotenv(override=True)` after each `.env` write. Integration services
 that cache config (Notion, Jira, Freshdesk, Mixpanel) expose a
 `reload_config()` method; `ClaudeService.reload_config()` resets its cached

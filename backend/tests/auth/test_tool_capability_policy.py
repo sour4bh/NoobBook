@@ -301,7 +301,7 @@ def test_compact_tool_has_capability_entry():
 
 def test_save_memory_capability_entry_exists():
     """``save_memory`` is the JSON ``name`` for ``manage_memory_tool.json``;
-    ``memory_service`` calls it via forced ``tool_choice``. Pin the
+    chat memory merge calls it via forced ``tool_choice``. Pin the
     classification so a regression is caught alongside the disk-derived
     AC#1 test (which already covers it, but a named test makes the
     intent explicit)."""

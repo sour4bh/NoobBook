@@ -31,7 +31,7 @@ class PineconeService:
     - Namespace management (one namespace per project)
     """
 
-    # Index configuration (must match validation_service.py)
+    # Index configuration (must match app.settings.validation)
     INDEX_NAME = "growthxlearn"
 
     def __init__(self):
@@ -62,7 +62,7 @@ class PineconeService:
 
         Educational Note: The index must exist before we can use it.
         It's created automatically when the user validates their API key
-        in AppSettings (via validation_service.validate_pinecone_key).
+        in app.settings (via validation.validate_pinecone_key).
 
         Raises:
             ValueError: If the index doesn't exist

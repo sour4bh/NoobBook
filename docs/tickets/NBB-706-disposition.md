@@ -12,6 +12,10 @@ Disposition values:
   stateless conversion map.
 - `MOVED-IN-NBB-803` — kept or converted by NBB-706, then moved out of
   `services/` by the NBB-008 continuation epic.
+- `MOVED-IN-NBB-804` — kept by NBB-706, then moved out of `services/` and
+  converted to chat-owned module functions by the NBB-008 continuation epic.
+- `MOVED-IN-NBB-805` — kept or converted by NBB-706, then moved to
+  `settings/` by the NBB-008 continuation epic.
 - `HOLDOUT` — should have been converted upstream; if the blast radius is
   small enough this ticket fixes it manually, otherwise the upstream
   owner is named.
@@ -25,13 +29,13 @@ Disposition values:
 | backend/app/services/ai_services/chat_naming_service.py | ChatNamingService | CONVERTED-IN-NBB-706 | Row 6: class deleted; behavior inlined into `app/chat/naming.py` (NBB-302's domain home). |
 | backend/app/sources/embedding.py | EmbeddingService | MOVED-IN-NBB-803 | Row 3: class deleted in NBB-706; module-level functions exposed (`process_embeddings`, `delete_embeddings`, `search_similar`). Moved from `services/ai_services` to source-owned embedding by NBB-803. |
 | backend/app/sources/image/extract.py | ImageService | MOVED-IN-NBB-803 | Stateful: `_tool_definition`, `_prompt_config`, `_tier_config` lazy caches. Kept as a class per NBB-706, then moved to source-owned image extraction by NBB-803. |
-| backend/app/services/ai_services/memory_service.py | MemoryService | KEEP | Per NBB-706 Keep-as-class list: merge behavior and stateful memory policy. |
+| backend/app/chat/memory/merge.py | MemoryService | MOVED-IN-NBB-804 | Per NBB-706 Keep-as-class list: merge behavior and stateful memory policy. NBB-804 moved it to chat-owned memory and exposed module functions. |
 | backend/app/sources/pdf/extract.py | PDFService | MOVED-IN-NBB-803 | Stateful: lazy tool/prompt config, ThreadPoolExecutor, batched extraction state. Kept as a class per NBB-706, then moved to source-owned PDF extraction by NBB-803. |
 | backend/app/sources/pptx/extract.py | PPTXService | MOVED-IN-NBB-803 | Stateful: lazy tool/prompt config, ThreadPoolExecutor, batched extraction state. Kept as a class per NBB-706, then moved to source-owned PPTX extraction by NBB-803. |
 | backend/app/sources/summary.py | SummaryService | MOVED-IN-NBB-803 | Row 5: class deleted in NBB-706; module-level `generate_summary` exposed with `_prompt_config` preserved as module-private lazy cache. Moved from `services/ai_services` to source-owned summaries by NBB-803. |
 | backend/app/services/ai_services/video_prompt_service.py | VideoPromptService | CONVERTED-IN-NBB-706 | Row 7: class deleted; module renamed to `app/studio/media/video/prompt.py` per ticket body in-scope rename; `generate_video_prompt` exposed as module function. AST allowlist entry dropped in same commit. |
-| backend/app/services/app_settings/env_service.py | EnvService | KEEP | Per NBB-706 Keep-as-class list: mutable `.env` writes and reload behavior. |
-| backend/app/services/app_settings/validation/validation_service.py | ValidationService | CONVERTED-IN-NBB-706 | Row 4: class deleted; `validate(key_name, value)` exposed as module function with per-key validator function dispatch. |
+| backend/app/settings/env.py | EnvService | MOVED-IN-NBB-805 | Per NBB-706 Keep-as-class list: mutable `.env` writes and reload behavior. Moved from `services/app_settings` by NBB-805. |
+| backend/app/settings/validation.py | ValidationService | MOVED-IN-NBB-805 | Row 4: class deleted; `validate(key_name, value)` exposed as module function with per-key validator function dispatch. Moved from `services/app_settings/validation/validation_service.py` by NBB-805. |
 | backend/app/services/integrations/claude/claude_service.py | ClaudeService | KEEP | Per NBB-706 Keep-as-class list: provider observability, streaming, retry/backoff, and broad call-site stability. |
 | backend/app/services/integrations/elevenlabs/audio_service.py | AudioService | KEEP | Stateful: API key/cached config; provider lifecycle. |
 | backend/app/services/integrations/elevenlabs/transcription_service.py | TranscriptionService | KEEP | Stateful: API key/cached config; provider lifecycle. |
@@ -71,8 +75,10 @@ Disposition values:
 ## Summary
 
 - Total classes in inventory: 42 (33 *Service + 9 *Executor).
-- KEEP: 32 (23 *Service + 9 *Executor).
+- KEEP: 31 (22 *Service + 9 *Executor).
 - MOVED-IN-NBB-803: 6 *Service rows.
+- MOVED-IN-NBB-804: 1 *Service row.
+- MOVED-IN-NBB-805: 2 *Service rows.
 - CONVERTED-IN-NBB-706 (matched by the *Service grep): 4 — `ChatNamingService`,
   `ValidationService`, `VideoPromptService`, and `OpenAIService`.
 - HOLDOUTS: 0.

@@ -30,7 +30,7 @@ from app.config import (
     get_current_settings,
     get_all_default_models,
 )
-from app.services.app_settings import EnvService
+from app.settings.env import EnvService
 from app.auth.guards import require_admin
 
 env_service = EnvService()

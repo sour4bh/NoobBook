@@ -318,7 +318,7 @@ class PromptLoader:
 
         Educational Note: Loads the complete prompt config including
         model, max_tokens, temperature, system_prompt, and user_message.
-        Used by services like memory_service, summary_service for
+        Used by domains like chat memory and source summaries for
         specialized AI tasks.
 
         Args:

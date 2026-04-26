@@ -89,7 +89,7 @@ This charter locks the boundary; it does not move code. The mechanical drains li
 - `NBB-705C` — Drain provider and Anthropic utilities. Splits `utils/claude_parsing_utils.py` into `providers/anthropic/{response_parser,content,usage}.py`; moves `utils/cost_tracking.py`, the API half of `utils/embedding_utils.py`, `utils/rate_limit_utils.py`, and `utils/encoding_utils.py` under `providers/anthropic/`.
 - The per-provider migration tickets that follow NBB-705C for OpenAI, ElevenLabs, Google (Imagen/Veo/OAuth half), Pinecone, Tavily, Supabase primitives, YouTube, and the MCP client. None are named here because `NBB-705C` intentionally scopes to the Anthropic family only.
 
-Validator drain for providers-owned API keys (Anthropic, OpenAI, ElevenLabs, Gemini, Veo, Pinecone, Tavily, Webshare, Opik) follows the map in `backend/app/api/settings/api_keys.py` and moves under `providers/` with the validator bodies — `settings/` retains the route and ValidationService facade.
+Validator drain for providers-owned API keys (Anthropic, OpenAI, ElevenLabs, Gemini, Veo, Pinecone, Tavily, Webshare, Opik) follows the map in `backend/app/api/settings/api_keys.py` and moves under `providers/` with the validator bodies. `settings/` retains the route and validation dispatcher in `app.settings.validation`.
 
 ## Cross-reference
 

@@ -65,13 +65,13 @@ STORE_MEMORY = ToolCapability(
 )
 
 
-# save_memory: forced tool used by ``memory_service`` to persist the
+# save_memory: forced tool used by chat memory merge to persist the
 # merged memory blob via the Haiku merge step. Same classification as
 # ``store_memory`` — both write to ``users.memory`` / ``projects.memory``,
 # both gate on ``chat_features.memory``. Distinct registry entry because
 # the JSON ``name`` field is ``save_memory`` (the executor calls
 # ``tool_choice={"type": "tool", "name": "save_memory"}``); registering
-# both prevents an inventory hole when ``memory_service`` is exercised.
+# both prevents an inventory hole when the merge path is exercised.
 SAVE_MEMORY = ToolCapability(
     name="save_memory",
     owner="chat/memory/tools/",

@@ -379,3 +379,7 @@ NBB-803,python,backend/app/services/ai_services/pptx_service.py,backend/app/sour
 NBB-803,python,backend/app/services/ai_services/image_service.py,backend/app/sources/image/extract.py,,,python_module_move,manual
 NBB-803,python,backend/app/services/ai_services/embedding_service.py,backend/app/sources/embedding.py,,,python_module_move,manual
 NBB-803,python,backend/app/services/ai_services/summary_service.py,backend/app/sources/summary.py,,,python_module_move,manual
+NBB-804,python,backend/app/services/ai_services/memory_service.py,backend/app/chat/memory/merge.py,,,python_module_move,manual
+NBB-804,json,backend/app/services/tools/memory_tools/manage_memory_tool.json,backend/app/chat/memory/tools/manage_memory_tool.json,,,json_asset_move,manual
+NBB-805,python,backend/app/services/app_settings/env_service.py,backend/app/settings/env.py,,,python_module_move,manual
+NBB-805,python,backend/app/services/app_settings/validation/validation_service.py,backend/app/settings/validation.py,,,python_module_move,manual

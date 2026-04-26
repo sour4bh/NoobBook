@@ -32,10 +32,12 @@ Routes:
 - PUT /projects/<id>/memory - Manually update user and/or project memory
 """
 from datetime import datetime
+
 from flask import jsonify, request
+
 from app.api.projects import projects_bp
-from app.services.ai_services.memory_service import memory_service
 from app.auth.identity import get_request_identity
+from app.chat import memory
 from app.projects.store import project_service
 
 
@@ -77,8 +79,8 @@ def get_project_memory(project_id):
             }), 404
 
         # Get memory data
-        user_memory = memory_service.get_user_memory(user_id=identity.user_id)
-        project_memory = memory_service.get_project_memory(project_id, user_id=identity.user_id)
+        user_memory = memory.get_user_memory(user_id=identity.user_id)
+        project_memory = memory.get_project_memory(project_id, user_id=identity.user_id)
 
         return jsonify({
             "success": True,

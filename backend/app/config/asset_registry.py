@@ -236,6 +236,7 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
     "csv_tool": "sources/analysis/csv/tools",
     "database_agent": "sources/analysis/database/tools",
     "freshdesk_agent": "sources/analysis/freshdesk/tools",
+    "memory_tools": "chat/memory/tools",
     "website_agent": "studio/design/website/tools",
     "component_agent": "studio/design/component/tools",
     "wireframe_agent": "studio/design/wireframe/tools",

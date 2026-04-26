@@ -34,7 +34,7 @@ Routes:
 """
 from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
-from app.services.app_settings import EnvService
+from app.settings.env import EnvService
 from app.config import (
     get_tier,
     get_tier_config,

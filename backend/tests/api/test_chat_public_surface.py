@@ -2,7 +2,7 @@
 Smoke tests for the chat public surface introduced in NBB-301.
 
 The ticket's two acceptance criteria covered here:
-1. `from app.chat import send, stream, tools, store, schemas` resolves and
+1. `from app.chat import send, stream, tools, store, memory, schemas` resolves and
    exposes the committed names.
 2. The `chats` and `messages` blueprints still register and reach their
    401 guard (route file calls `chat.send`/`chat.stream` instead of legacy
@@ -18,13 +18,14 @@ CHAT_ID = "00000000-0000-0000-0000-000000000001"
 def test_chat_public_surface_exports():
     """Spec-required imports must resolve and bind to the right things."""
     from app import chat
-    from app.chat import schemas, store, tools  # noqa: F401
+    from app.chat import memory, schemas, store, tools  # noqa: F401
     from app.chat import send, stream  # noqa: F401
 
     assert callable(chat.send), "chat.send must be callable"
     assert callable(chat.stream), "chat.stream must be callable"
     assert chat.tools is tools, "chat.tools attribute must be the tools module"
     assert chat.store is store, "chat.store attribute must be the store module"
+    assert chat.memory is memory, "chat.memory attribute must be the memory module"
     assert chat.schemas is schemas, "chat.schemas attribute must be the schemas module"
 
 

@@ -29,7 +29,7 @@ class EnvService:
     def __init__(self):
         """Initialize the service and locate the .env file."""
         # Find the .env file in the backend directory
-        self.backend_dir = Path(__file__).parent.parent.parent.parent
+        self.backend_dir = Path(__file__).parent.parent.parent
         self.env_path = self.backend_dir / '.env'
 
         # Create .env file if it doesn't exist

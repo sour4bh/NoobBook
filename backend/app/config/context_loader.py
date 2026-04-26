@@ -218,16 +218,10 @@ class ContextLoader:
         Returns:
             Formatted string to append to system prompt, or empty string if no memory
         """
-        # Lazy import to avoid circular imports:
-        # memory_service -> app.config -> context_loader -> memory_service
-        from app.services.ai_services.memory_service import memory_service
+        from app.chat import memory
 
-        user_memory = memory_service.get_user_memory(user_id=user_id) if user_id else memory_service.get_user_memory()
-        project_memory = (
-            memory_service.get_project_memory(project_id, user_id=user_id)
-            if user_id
-            else memory_service.get_project_memory(project_id)
-        )
+        user_memory = memory.get_user_memory(user_id=user_id)
+        project_memory = memory.get_project_memory(project_id, user_id=user_id)
 
         # Return empty if no memory exists
         if not user_memory and not project_memory:

@@ -81,6 +81,12 @@ MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
         ["query_runner", "return_ticket_analysis", "schema_info"],
         ["query_runner", "return_ticket_analysis", "schema_info"],
     ),
+    (
+        "memory_tools",
+        "chat/memory/tools",
+        ["manage_memory_tool"],
+        ["manage_memory_tool"],
+    ),
 ]
 
 
@@ -89,7 +95,6 @@ MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
 # has not accidentally claimed ownership before the owning skeleton exists.
 LEGACY_TOOL_CATEGORIES: List[str] = [
     "chat_tools",
-    "memory_tools",
     # studio_tools removed: all 5 JSONs (flash_cards/mind_map/quiz/
     # read_source_content/write_script_section + flow_diagram/wireframe in
     # NBB-506) migrated to studio domain via _PRODUCTION_TOOL_FILE_PATHS.

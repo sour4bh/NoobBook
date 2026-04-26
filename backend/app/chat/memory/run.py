@@ -7,7 +7,7 @@ decides to save user or project memory. The execution flow is:
 1. Main chat Claude calls store_memory tool with user_memory/project_memory
 2. This executor immediately returns "memory stored" (non-blocking)
 3. Actual memory merge runs in a background thread (fire-and-forget)
-4. Background thread uses memory_service to merge with AI and save
+4. Background thread uses chat memory merge to merge with AI and save
 
 Why not task_service? Memory updates are fire-and-forget — they don't need
 the task tracking (status, progress, cancellation) that task_service provides.
@@ -15,9 +15,9 @@ Using a simple thread avoids UUID/RLS issues with the background_tasks table.
 """
 import logging
 import threading
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from app.services.ai_services.memory_service import memory_service
+from app.chat.memory import merge
 
 logger = logging.getLogger(__name__)
 
@@ -108,10 +108,10 @@ class MemoryExecutor:
         Background thread to update user memory.
 
         Educational Note: This runs in a daemon thread (fire-and-forget).
-        It calls memory_service which uses AI to merge memories.
+        It calls chat memory merge which uses AI to merge memories.
         """
         try:
-            result = memory_service.update_memory(
+            result = merge.update_memory(
                 memory_type="user",
                 new_memory=new_memory,
                 reason=reason,
@@ -135,10 +135,10 @@ class MemoryExecutor:
         Background thread to update project memory.
 
         Educational Note: This runs in a daemon thread (fire-and-forget).
-        It calls memory_service which uses AI to merge memories.
+        It calls chat memory merge which uses AI to merge memories.
         """
         try:
-            result = memory_service.update_memory(
+            result = merge.update_memory(
                 memory_type="project",
                 new_memory=new_memory,
                 reason=reason,

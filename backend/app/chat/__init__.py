@@ -17,13 +17,14 @@ Public surface (NBB-301):
 - `chat.stream(project_id, chat_id, message, identity) -> Iterator[ChatEvent]`
 - `chat.tools` — registry/public-surface scaffolding for chat-owned tool
   schemas. Capability-aware exposure waits for NBB-303.
+- `chat.memory` — memory invocation and merge surface for chat-owned memory.
 - `chat.store` — re-exports `ChatStore` and `MessageStore`.
 - `chat.schemas` — `ChatResponse`, `ChatEvent`, and chat contract shapes
   traced to NBB-205.
 
 Migration source: `backend/app/services/chat_services/` was removed by
 NBB-302. NBB-303 reassigned the chat-invoked tool executors to their
-owning domains (`chat/memory/store`, `studio/signal`, `sources/search`,
+owning domains (`chat/memory/run`, `studio/signal`, `sources/search`,
 `sources/link/run`); the remaining `services/tool_executors/__init__.py`
 re-exports only `studio_audio_executor` and `email_agent_executor`,
 both NBB-706 cleanup targets.
@@ -31,7 +32,7 @@ both NBB-706 cleanup targets.
 from typing import Iterator, Optional
 
 from app.auth.identity import RequestIdentity
-from app.chat import loop, schemas, store, tools
+from app.chat import loop, memory, schemas, store, tools
 from app.chat.schemas import ChatEvent, ChatResponse
 
 
@@ -42,6 +43,7 @@ __all__ = [
     "send",
     "store",
     "stream",
+    "memory",
     "tools",
 ]
 

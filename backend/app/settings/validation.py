@@ -1,14 +1,14 @@
 """
 API-key validation: unified module-level façade.
 
-Each provider has its own validator function in a sibling module. This
-module exposes a single `validate(key_name, value, **extras)` dispatcher
+Each provider has its own validator function in the legacy validator package.
+This module exposes a single `validate(key_name, value, **extras)` dispatcher
 plus the per-provider validator functions for direct call sites.
 
 The previous `ValidationService` class held no state; NBB-706 collapses
 it into module functions.
 """
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Tuple
 
 from app.services.app_settings.validation.anthropic_validator import (
     validate_anthropic_key,

@@ -56,11 +56,8 @@ credentials without a process restart:
    responsible for these hooks; integration services do not self-reload.
 
 Validator ↔ reload-hook ownership map (inventory, NBB-208A).
-This table names today's location and the destination root after the
-providers/connectors split finalizes under `NBB-206`. No code moves in this
-ticket; the map is the input so `NBB-205` (contracts), `NBB-206`
-(providers/connectors charters), and `NBB-705C` (provider utility drain) can
-act on it.
+This table names today's validator-body location and the destination root
+after the providers/connectors split finalizes under `NBB-206`.
 
 | key_id(s)                               | validator today                                                        | reload hook today                            | future owner (post-NBB-206) |
 |-----------------------------------------|------------------------------------------------------------------------|-----------------------------------------------|------------------------------|
@@ -82,7 +79,8 @@ act on it.
 
 Validator-ownership rule (NBB-208A).
 - `settings/` owns the validate endpoint, the `.env` CRUD orchestration, and
-  the validation_service module that routes key_ids to individual validators.
+  the `app.settings.validation` module that routes key_ids to individual
+  validators.
 - `providers/` will own the raw SDK health-check calls (individual
   `*_validator.py` bodies under `app_settings/validation/`) once the provider
   charters land in `NBB-206`.
@@ -99,9 +97,9 @@ App-factory touch points for this surface (see `backend/app/__init__.py`).
   `app.auth.identity` bootstrapped in the factory; `NBB-107` owns the
   auth test seam.
 - `env_service.reload_env()` relies on `.env` living under
-  `self.backend_dir = Path(__file__).parent.parent.parent.parent`
-  (`backend/.env`), which is stable under the current layout; any migration
-  that moves `app_settings/` must preserve this resolution.
+  `self.backend_dir = Path(__file__).parent.parent.parent` from
+  `app.settings.env` (`backend/.env`); future moves must preserve this
+  resolution.
 
 Stateless-deployment note.
 Runtime `.env` writes assume a persistent container filesystem. On ECS
@@ -110,8 +108,8 @@ docstring.
 """
 from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
-from app.services.app_settings import EnvService
-from app.services.app_settings.validation import validation_service
+from app.settings.env import EnvService
+from app.settings import validation
 from app.auth.guards import require_admin
 
 # Initialize services
@@ -568,29 +566,29 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
     like Pinecone's auto-configuration.
     """
     if key_id == 'ANTHROPIC_API_KEY':
-        return validation_service.validate_anthropic_key(value)
+        return validation.validate_anthropic_key(value)
 
     elif key_id == 'ELEVENLABS_API_KEY':
-        return validation_service.validate_elevenlabs_key(value)
+        return validation.validate_elevenlabs_key(value)
 
     elif key_id == 'OPENAI_API_KEY':
-        return validation_service.validate_openai_key(value)
+        return validation.validate_openai_key(value)
 
     elif key_id == 'GEMINI_2_5_API_KEY':
-        return validation_service.validate_gemini_2_5_key(value)
+        return validation.validate_gemini_2_5_key(value)
 
     elif key_id == 'NANO_BANANA_API_KEY':
-        return validation_service.validate_nano_banana_key(value)
+        return validation.validate_nano_banana_key(value)
 
     elif key_id == 'VEO_API_KEY':
-        return validation_service.validate_veo_key(value)
+        return validation.validate_veo_key(value)
 
     elif key_id == 'TAVILY_API_KEY':
-        return validation_service.validate_tavily_key(value)
+        return validation.validate_tavily_key(value)
 
     elif key_id == 'PINECONE_API_KEY':
         # Pinecone validation also creates/checks index
-        is_valid, message, index_details = validation_service.validate_pinecone_key(value)
+        is_valid, message, index_details = validation.validate_pinecone_key(value)
 
         # Auto-save index details on successful validation
         if is_valid and index_details:
@@ -611,13 +609,13 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
         return is_valid, message
 
     elif key_id == 'NOTION_API_KEY':
-        return validation_service.validate_notion_key(value)
+        return validation.validate_notion_key(value)
 
     elif key_id == 'JIRA_API_KEY':
         # Jira validation needs email + cloud_id from env (must be saved first)
         jira_email = env_service.get_key('JIRA_EMAIL')
         jira_cloud_id = env_service.get_key('JIRA_CLOUD_ID')
-        return validation_service.validate_jira_key(value, jira_email, jira_cloud_id)
+        return validation.validate_jira_key(value, jira_email, jira_cloud_id)
 
     elif key_id in ['JIRA_CLOUD_ID', 'JIRA_EMAIL']:
         # Supporting fields for Jira — just accept them
@@ -627,7 +625,7 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
 
     elif key_id == 'FRESHDESK_API_KEY':
         freshdesk_domain = env_service.get_key('FRESHDESK_DOMAIN')
-        return validation_service.validate_freshdesk_key(value, freshdesk_domain)
+        return validation.validate_freshdesk_key(value, freshdesk_domain)
 
     elif key_id == 'FRESHDESK_DOMAIN':
         # Supporting field — just accept it
@@ -640,7 +638,7 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
         mixpanel_username = env_service.get_key('MIXPANEL_SERVICE_ACCOUNT_USERNAME')
         mixpanel_project_id = env_service.get_key('MIXPANEL_PROJECT_ID')
         mixpanel_region = env_service.get_key('MIXPANEL_REGION') or 'us'
-        return validation_service.validate_mixpanel_key(
+        return validation.validate_mixpanel_key(
             value, mixpanel_username, mixpanel_project_id, mixpanel_region
         )
 
@@ -651,7 +649,7 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
         return is_valid, message
 
     elif key_id == 'OPIK_API_KEY':
-        return validation_service.validate_opik_key(value)
+        return validation.validate_opik_key(value)
 
     elif key_id in ['OPIK_WORKSPACE', 'OPIK_PROJECT_NAME', 'OPIK_URL_OVERRIDE']:
         is_valid = bool(value)

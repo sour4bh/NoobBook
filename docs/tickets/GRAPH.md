@@ -20,6 +20,13 @@ Generated from `docs/tickets/tickets.csv` by `python docs/tickets/dag.py --write
 | 11 | `NBB-705E` |
 | 12 | `NBB-704C` |
 | 13 | `NBB-706` |
+| 14 | `NBB-801` |
+| 15 | `NBB-802` |
+| 16 | `NBB-803`, `NBB-805`, `NBB-809` |
+| 17 | `NBB-804`, `NBB-806`, `NBB-808` |
+| 18 | `NBB-807` |
+| 19 | `NBB-810` |
+| 20 | `NBB-811` |
 
 ## Mermaid Task Dependency DAG
 
@@ -213,6 +220,32 @@ flowchart LR
   NBB704B --> NBB706
   NBB704C --> NBB706
   NBB705E --> NBB706
+  NBB801["NBB-801"]:::p1
+  NBB706 --> NBB801
+  NBB802["NBB-802"]:::p1
+  NBB801 --> NBB802
+  NBB803["NBB-803"]:::p1
+  NBB802 --> NBB803
+  NBB804["NBB-804"]:::p1
+  NBB803 --> NBB804
+  NBB805["NBB-805"]:::p1
+  NBB802 --> NBB805
+  NBB806["NBB-806"]:::p1
+  NBB805 --> NBB806
+  NBB807["NBB-807"]:::p1
+  NBB806 --> NBB807
+  NBB808["NBB-808"]:::p1
+  NBB803 --> NBB808
+  NBB809["NBB-809"]:::p1
+  NBB802 --> NBB809
+  NBB810["NBB-810"]:::p1
+  NBB804 --> NBB810
+  NBB806 --> NBB810
+  NBB807 --> NBB810
+  NBB808 --> NBB810
+  NBB809 --> NBB810
+  NBB811["NBB-811"]:::p1
+  NBB810 --> NBB811
 ```
 
 ## Mermaid Milestone Bar Chart
@@ -288,4 +321,16 @@ gantt
   NBB-705E S :2026-01-12, 1d
   NBB-704C M :2026-01-13, 1d
   NBB-706 L :2026-01-14, 1d
+  section NBB-008
+  NBB-801 S :2026-01-15, 1d
+  NBB-802 S :2026-01-16, 1d
+  NBB-803 L :2026-01-17, 1d
+  NBB-805 M :2026-01-17, 1d
+  NBB-809 M :2026-01-17, 1d
+  NBB-804 M :2026-01-18, 1d
+  NBB-806 L :2026-01-18, 1d
+  NBB-808 L :2026-01-18, 1d
+  NBB-807 L :2026-01-19, 1d
+  NBB-810 L :2026-01-20, 1d
+  NBB-811 M :2026-01-21, 1d
 ```

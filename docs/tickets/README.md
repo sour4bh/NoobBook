@@ -1,6 +1,6 @@
 # NoobBook Structure Migration Backlog
 
-This backlog is organized as seven epics with embedded child tickets. Epic files are the human-readable source of truth. `tickets.csv` is the machine-readable index for planning views and validation scripts.
+This backlog is organized as eight epics with embedded child tickets. Epic files are the human-readable source of truth. `tickets.csv` is the machine-readable index for planning views and validation scripts.
 
 The previous flat ticket set has been archived under `docs/tickets/archive/legacy-flat/` before the new overlapping epic IDs were introduced.
 
@@ -10,7 +10,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 
 | Range | Meaning |
 |---|---|
-| `NBB-001` through `NBB-007` | Epics |
+| `NBB-001` through `NBB-008` | Epics |
 | `NBB-101` through `NBB-109`, including `NBB-108A/B` | Foundation tasks |
 | `NBB-201` through `NBB-210`, including split tasks `NBB-202A/B`, `NBB-207A/B/C`, `NBB-208A/B`, and `NBB-209A-E` | Central policy, safety, and boundary tasks |
 | `NBB-301` through `NBB-304` | Chat migration tasks |
@@ -18,6 +18,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 | `NBB-501A/B` through `NBB-507` | Studio migration tasks |
 | `NBB-601` through `NBB-604` | Frontend tightening tasks |
 | `NBB-701` through `NBB-706`, including split tasks `NBB-704A/B/C` and `NBB-705A-E` | Verification and cleanup tasks |
+| `NBB-801` through `NBB-811` | Post-sprint services eradication and final boundary-enforcement tasks |
 
 ## Core Policies
 
@@ -64,6 +65,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | Epic 005 Studio | Taxonomy starts after `NBB-104` and `NBB-207C`; registry and implementation work wait on exact task deps for route smokes, contracts, provider/connector boundaries, prompt/tool ownership, and background ownership |
 | Epic 006 Frontend | `NBB-105` and `NBB-108A`; `NBB-108B` may run in parallel if frontend tests are chosen |
 | Epic 007 Cleanup | Some split tasks, especially `NBB-704A` and `NBB-705C`, intentionally run early as owner-specific guardrails/drains; `NBB-706` is the final cleanup gate and waits for `NBB-704C` type/AST safety checks |
+| Epic 008 Services eradication | Starts after `NBB-706`; drains every remaining tracked `backend/app/services/` resident and ends with a verifier rule that rejects new `app.services.*` imports or files |
 
 ## Epics
 
@@ -76,6 +78,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | `NBB-005` | Studio Domain Migration | `docs/tickets/epics/NBB-005.md` |
 | `NBB-006` | Frontend Ownership Tightening | `docs/tickets/epics/NBB-006.md` |
 | `NBB-007` | Verification, Enforcement, and Cleanup | `docs/tickets/epics/NBB-007.md` |
+| `NBB-008` | Services Eradication and Final Boundary Enforcement | `docs/tickets/epics/NBB-008.md` |
 
 ## Graph Generation and Validation
 
@@ -100,7 +103,7 @@ python docs/tickets/dag.py --check --write
 `dag.py --check` automates the machine-checkable CSV rules. Reviewers still verify manually:
 
 - old flat tickets are archived under `docs/tickets/archive/legacy-flat/`
-- exactly seven epic files exist
+- exactly eight epic files exist
 - `D-002` states production raw-code analysis remains disabled until future permanent replacement
 - `GRAPH.md` matches `dag.py --write` output
 - no stale branch-only or old-fork clone guidance remains in new ticket docs
@@ -119,7 +122,7 @@ See `TRACEABILITY.md` for old-ticket and finding mappings. See `DEFERRED.md` for
 
 ## Move bookkeeping
 
-Structural movement tickets (NBB-209A–E, 304, 402, 705A–D, and partially 403, 504–507, 602–604) execute Python and TypeScript moves through the **refactory** Claude Code plugin — `mcp__refactory__move_module`, `mcp__refactory__move_symbol`, and `mcp__refactory__rename_symbol`. Refactory's `validate_imports` catches import-statement breakage after a move, but string references in docs and tests need a separate pass. `NBB-706` is verification and manual cleanup only; it does not call refactory execution tools and does not append rows to `move-plan.csv`.
+Structural movement tickets (NBB-209A–E, 304, 402, 705A–D, 803–810, and partially 403, 504–507, 602–604) execute Python and TypeScript moves through the **refactory** Claude Code plugin — `mcp__refactory__move_module`, `mcp__refactory__move_symbol`, and `mcp__refactory__rename_symbol`. Refactory's `validate_imports` catches import-statement breakage after a move, but string references in docs and tests need a separate pass. `NBB-706` is verification and manual cleanup only; it does not call refactory execution tools and does not append rows to `move-plan.csv`. `NBB-811` is final enforcement cleanup after all `NBB-008` moves land.
 
 `docs/tickets/move-plan.csv` is an append-only audit log of every move. Read-only metadata, not a driver script — refactory does the execution during the ticket's turn. Purpose: consolidated audit ("where did `utils/pdf_utils.py` land?") across 11+ mover tickets.
 

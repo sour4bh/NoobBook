@@ -15,9 +15,9 @@ REPO_ROOT = ROOT.parent.parent
 
 # These targets intentionally pin the current migration graph. Update them
 # only when adding or removing tickets deliberately.
-TARGET_ROW_COUNT = 66
-TARGET_EPIC_COUNT = 7
-TARGET_TASK_COUNT = 59
+TARGET_ROW_COUNT = 78
+TARGET_EPIC_COUNT = 8
+TARGET_TASK_COUNT = 70
 REMOVED_AGGREGATE_KEYS = (
     "NBB-108",
     "NBB-202",
@@ -280,7 +280,7 @@ def render():
     return "\n\n".join(
         [
             "# Ticket Dependency Graph",
-            "Generated from `docs/tickets/tickets.csv` by `python3 docs/tickets/dag.py --write`.",
+            "Generated from `docs/tickets/tickets.csv` by `python docs/tickets/dag.py --write`.",
             wave_table(tasks, waves),
             "## Mermaid Task Dependency DAG",
             mermaid_dag(tasks),

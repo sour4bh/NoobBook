@@ -17,15 +17,17 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of 2026-04-26, **MIGRATION SPRINT COMPLETE** — Phase 4/5 batch 19 closed, with Codex post-sprint audit fixes applied in the working tree. NBB-706 merged via two-worker split (Sonnet doc/mechanical + Opus semantic refactor + single Opus reviewer covering both):
+As of 2026-04-26, **MIGRATION SPRINT COMPLETE** for the original 59-ticket sprint, with a stricter post-sprint continuation now registered as `NBB-008`. Phase 4/5 batch 19 closed when NBB-706 merged via two-worker split (Sonnet doc/mechanical + Opus semantic refactor + single Opus reviewer covering both). NBB-706 remains complete under its approved-exception standard; NBB-008 supersedes those placement exceptions for final `backend/app/services/` eradication:
 
-- Working tree base: `main` @ `f8639ad`
+- Current planning base: `main` @ `d37d25d` (`f8639ad` is the original sprint-completion baseline before post-sprint audit/plan commits).
 - Merged progress: **58 of 59 tasks merged** + 1 deferred (NBB-108B per D-004) = 59 accounted. (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5: NBB-501A, NBB-209A; batch 6: NBB-501B, NBB-402; batch 7: NBB-502, NBB-201; batch 8: NBB-202A, NBB-503; batch 9: NBB-209C, NBB-506, NBB-504, NBB-505; batch 10: NBB-705A, NBB-602, NBB-705C; batch 11: NBB-603, NBB-705D, NBB-507; batch 12: NBB-604, NBB-301, NBB-202B; batch 13: NBB-302; batch 14: NBB-403; batch 15: NBB-705B, NBB-303; batch 16: NBB-705E, NBB-304, NBB-701; batch 17: NBB-702, NBB-704B, NBB-703; batch 18: NBB-704C; batch 19: NBB-706 (split worker dispatch))
+- Continuation progress: `NBB-008` epic registered with `NBB-801` through `NBB-811`; no product-code continuation ticket has executed yet. `NBB-801` is the first task and must land before services movement resumes.
 - Current verifier status on this working tree: `verify_no_stateless_singletons.py` 8 allowlisted (down from 10) + 0 new offenses; `verify_architecture.py` 0 violations; `verify_project_id_coverage.py` 0 omissions across 344 files; backend pytest 726 passed; pyright 0 errors; frontend build passes from `frontend/`.
 - **Sprint outcome**: domain-first layout fully landed under `app/<domain>/…`. Mechanism-first buckets (`ai_services/`, `ai_agents/`, `tool_executors/`, `utils/`) drained or annotated as approved exceptions. 6 barrels removed + 7 stateless classes converted to module functions + chat submodule-vs-function shadow eliminated. Type-safety (pyright) + AST-safety (`verify_no_stateless_singletons.py` + `verify_project_id_coverage.py`) checks gating CI. Architecture invariant (rules 1-5 in `verify_architecture.py`) gating CI. 43-row suffix-drift disposition inventory in `docs/tickets/NBB-706-disposition.md` documents every residual `*Service`/`*Executor` class with KEEP/CONVERTED-IN-NBB-706/HOLDOUT disposition (37 KEEP + 7 CONVERTED + 0 HOLDOUTs).
+- **Continuation target**: every tracked file under `backend/app/services/` is either deleted or moved to a truthful domain/provider/connector home; `NBB-811` then fails on any tracked `backend/app/services` file, `app.services.*` import, or current-doc guidance treating `services/` as live.
 - Refactory worktree-isolation contract in force: absolute `project_root` is mandatory on every move/rename; preview is default; `apply: true` mutates. `expected_git_root` is no longer part of the caller-facing contract. Cat A/B hazard pre-flight refuses with actionable errors. Pre-fix contamination forensic retained at `stash@{0}`.
-- Phase 5 studio lane open (NBB-503 pilot proves the 5-file pattern; NBB-504–506 merged in batch 9; NBB-507 ready for batch 11).
-- Graph shape: 66 CSV rows, 7 epics, 59 tasks
+- Phase 5 studio lane closed in the original sprint (NBB-503 pilot plus NBB-504 through NBB-507 all merged).
+- Graph shape: 78 CSV rows, 8 epics, 70 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify the session exposes refactory `move_module` before dispatching movement work.
 - Permanent raw-code analysis replacement: out of scope, tracked by `D-002`
@@ -36,10 +38,10 @@ As of 2026-04-26, **MIGRATION SPRINT COMPLETE** — Phase 4/5 batch 19 closed, w
 1. A task may start only when every task in its `depends_on` field has merged to `main`.
 2. Epic-row dependencies are not scheduling gates for individual tasks.
 3. If implementation reveals a missing owner or contradiction, pause product-code edits and patch the owning ticket or deferred register first.
-4. No movement ticket may bypass refactory unless the ticket explicitly says the change is manual.
+4. No movement ticket may bypass refactory unless the ticket explicitly allows manual movement or a bounded manual repair is recorded.
 5. Refactory calls are dry-run first, apply second.
 6. Every mechanical move appends one row to `docs/tickets/move-plan.csv`.
-7. Forwarding shims are temporary and must be removed or justified by `NBB-706`.
+7. Forwarding shims are temporary and must be removed or justified by `NBB-706`; `NBB-008` supersedes any old placement justification that kept code under `backend/app/services/`.
 8. Agents must not revert unrelated edits from other agents.
 
 ## Roles and Authority
@@ -147,6 +149,7 @@ Do not escalate to Codex for:
 | Studio | taxonomy, registry, layer map, item migrations | `NBB-501A` through `NBB-507`, `NBB-703` |
 | Frontend | shell rules, hooks/providers, lib/context tightening | `NBB-601` through `NBB-604` |
 | Verification and cleanup | architecture checks, utility drains, final cleanup | `NBB-704A` through `NBB-706` |
+| Services eradication | final `backend/app/services/` drain, provider/connector split, no-return enforcement | `NBB-801` through `NBB-811` |
 
 ## Phase Plan
 
@@ -316,6 +319,38 @@ NBB-704B + NBB-109 + NBB-705E -> NBB-704C
 NBB-701 + NBB-702 + NBB-703 + NBB-704B + NBB-704C + NBB-705E -> NBB-706
 ```
 
+### Phase 7 - Services Eradication Continuation
+
+Run after the original sprint is complete:
+
+```text
+NBB-706 -> NBB-801 -> NBB-802
+NBB-802 -> NBB-803 -> NBB-804
+NBB-802 -> NBB-805 -> NBB-806 -> NBB-807
+NBB-803 -> NBB-808
+NBB-802 -> NBB-809
+NBB-804 + NBB-806 + NBB-807 + NBB-808 + NBB-809 -> NBB-810 -> NBB-811
+```
+
+Parallel-safe batches:
+
+```text
+Batch A: NBB-801
+Batch B: NBB-802
+Batch C: NBB-803 plus NBB-809 if write-overlap check is clean
+Batch D: NBB-804 plus NBB-805
+Batch E: NBB-806
+Batch F: NBB-807 plus NBB-808 if import-overlap check is clean
+Batch G: NBB-810
+Batch H: NBB-811
+```
+
+Purpose:
+
+- Turn the NBB-706 approved exceptions into a strict final migration.
+- Move live behavior out of `backend/app/services/` into domain, provider, connector, settings, source, studio, and chat homes.
+- End with verifier enforcement that prevents tracked services files or `app.services.*` imports from returning.
+
 ## Critical Path
 
 The longest weighted path currently runs through studio/background/utility cleanup:
@@ -328,6 +363,16 @@ NBB-101 -> NBB-102 -> NBB-104 -> NBB-204 -> NBB-210
 
 Do not let `NBB-204`, `NBB-210`, `NBB-501B`, `NBB-502`, or `NBB-503` sit idle once unblocked.
 
+The continuation critical path is now the services drain chain:
+
+```text
+NBB-801 -> NBB-802 -> NBB-803 -> NBB-804
+NBB-805 -> NBB-806 -> NBB-807
+NBB-808 + NBB-809 -> NBB-810 -> NBB-811
+```
+
+Do not start broad product-code movement before `NBB-801` lands and the drain map is the durable source of truth.
+
 ## Refactory Workflow
 
 Use refactory for movement tickets named in `REFACTORY_SETUP.md`.
@@ -336,7 +381,7 @@ Per operation:
 
 1. Confirm the refactory MCP tools are available in the session.
 2. For `move_symbol`, create the target module first.
-3. Run the refactory operation with absolute `project_root=<your worktree root>`, omitting `apply` so refactory returns the preview.
+3. Run the refactory operation with absolute `project_root=<your worktree>/backend`, omitting `apply` so refactory returns the preview.
 4. Review the preview and affected files.
 5. Run the same operation with the same `project_root` and `apply: true`.
 6. Append a row to `docs/tickets/move-plan.csv`.
@@ -344,7 +389,7 @@ Per operation:
 8. Run `mcp__refactory__validate_imports` (read-only).
 9. Run the ticket's verification commands.
 
-Do not use refactory execution tools in `NBB-706`; that ticket is verification and manual cleanup only.
+Do not use refactory execution tools in `NBB-706`; that ticket is verification and manual cleanup only. `NBB-008` movement tickets may use refactory where it is safe and useful, but bounded manual moves are allowed when they preserve behavior more clearly.
 
 ## PR Checklist
 
@@ -378,7 +423,7 @@ Use the narrowest required check during active development, then broaden before 
 | Backend focused | Backend behavior touched | targeted `pytest` files |
 | Backend broad | Route/auth/core migration touched | `cd backend && pytest` when feasible |
 | Frontend focused | Frontend ownership touched | `cd frontend && npm run build` or chosen `NBB-108A` test command |
-| Final cleanup | `NBB-704C` and `NBB-706` | pyright, AST verifiers, backend tests, frontend build if touched |
+| Final cleanup | `NBB-704C`, `NBB-706`, and `NBB-811` | pyright, AST verifiers, backend tests, frontend build if touched |
 
 ## Active Sprint Board
 
@@ -444,6 +489,17 @@ Update this table when work starts, merges, or blocks.
 | `NBB-303` | Chat | Merged | top-level dispatcher | `worktree-agent-a93a18ba16351d6c5` / cleaned up | `MERGE` (2 P3 cosmetic findings — neither merge-blocking) | `b0ca99a` (non-ff of `297af73`) | PASS worker/reviewer checks; PASS merge/push (move-plan.csv add-add conflict resolved by concatenation per Decision Log convention 5 — NBB-705B rows first, NBB-303 rows after); PASS pytest backend (605 passed, 2 baseline deselects); PASS verify_architecture.py (4 NBB-705C-inherited violations; zero NBB-303-introduced); PASS dag.py --check; PASS string_ref_scan (zero code references for the 4 old paths); PASS post-condition `rg 'def execute_tool\(|\.execute_tool\('` returns zero across chat/sources/studio/connectors/services; PASS smoke imports for all 4 new module paths | **First dispatch BLOCKED on Cat B hazard pre-flight** (4 executors had `<name>_executor = <Class>()` singleton bindings matching module stems — canonical Cat B refusal). Re-dispatch authorized bounded-manual `git mv` + Edit (same NBB-403 batch 14 / NBB-507 batch 11 precedent). 4 manual module moves: services/tool_executors/{memory_executor,studio_signal_executor,source_search_executor,web_agent_executor}.py → chat/memory/store.py, studio/signal.py, sources/search.py, sources/link/run.py. 3 method renames: StudioSignalExecutor.execute→emit; SourceSearchExecutor.execute→search; WebAgentExecutor.execute_tool→dispatch. **MemoryExecutor.execute INTENTIONALLY KEPT** (per dispatch authorization) — `chat/memory/__init__.py::store` is a thin public-seam wrapper calling memory_executor.execute(...); only the import path was updated to `app.chat.memory.store`. Singleton bindings preserved at module bottom (memory_executor, studio_signal_executor, source_search_executor, web_agent_executor). Barrel cleanup at services/tool_executors/__init__.py: 4 re-exports + `__all__` entries removed. 1 commit + 4 move-plan rows. **Worker also caught + corrected stale pytest deselect IDs in dispatch**: `tests/test_app_factory_imports.py` doesn't exist (correct: `tests/config/test_asset_registry.py::test_public_register_helpers_exported_from_package`); `tests/test_cost_tracking.py::test_unknown_model_uses_sonnet_pricing` missing class qualifier (correct: `TestCalculateCost::test_unknown_model_uses_sonnet_pricing`). Both reproduce as pre-existing baseline failures via `git stash` + clean-tree run. Reviewer-noted P3s (neither merge-blocking, NBB-706 cleanup): (1) move-plan.csv missing 3 paired `python_symbol_rename` rows for the 3 method renames per NBB-403 precedent; (2) chat/memory submodule/function name collision is practically safe — `import app.chat.memory.store as X` returns the function (post-rebind), but only chat/memory/__init__.py:10 actually does the submodule import (which executes before the rebind). **Closes batch 15 — second 2-worker batch under the new refactory worktree-isolation contract.** Unblocks NBB-701. |
 | `NBB-705B` | Verification and cleanup | Merged | top-level dispatcher | `worktree-agent-ada0657c5a826c59c` / cleaned up | `MERGE` | `7d007c2` (non-ff of `6a0ea59`) | PASS worker/reviewer checks; PASS merge/push (no conflict); PASS pytest backend (605 passed, 2 baseline deselects); PASS verify_architecture.py (5 violations: 4 NBB-705C-inherited + 1 NEW at providers/anthropic/token_count.py:12 — same NBB-705C surfacing pattern, routed to NBB-704B); PASS validate_imports (delta = stdlib false-positives only); PASS dag.py --check; PASS string_ref_scan (only docs/archive prose) | 5 module moves via refactory `move_module`+`apply: true`: utils/embedding_utils.py → sources/tokens.py, utils/pdf_utils.py → sources/pdf/ops.py, utils/pptx_utils.py → sources/pptx/ops.py, utils/docx_utils.py → sources/docx/ops.py, utils/batching_utils.py → sources/extract/batching.py (new package). 17 consumer files import-rewritten by refactory. 5 move-plan rows. **Cat A bounded-manual exception on embedding_utils**: 3 lazy in-function imports (audio_service.py:196,346 + providers/anthropic/token_count.py:25) hoisted to module top before refactory apply. Empirical finding: 2 of 3 lazy imports were **vestigial** (audio_service eager works, all 605 tests pass); 3rd (token_count.py:25) is load-bearing for architecture invariant but verifier walks ast.walk so even lazy triggers it — left eager as cleaner end state. **State drift confirmed**: file_utils.py/citation_utils.py/source_content_utils.py already absent (drained by NBB-401/402); decision-map rows are no-ops. **New operational signal — refactory project_root discriminator**: `project_root=<worktree-root>` returns FALSE-GREEN previews (refactory misinterprets `backend/` as python package, emits spurious `backend/__init__.py` in affected_files). `project_root=<worktree>/backend` (the actual package root) is the correct discriminator that surfaces real Cat A/B refusals. Past dispatches that used worktree-root may have silently accepted moves that were actually unsafe — flag for retroactive verification of NBB-705C/D moves. P3 stale prose: `pptx_service.py:6` docstring still references "pdf_utils"; CLAUDE.md/AGENTS.md AI Service Standard Pattern still references batching_utils + embedding_utils — NBB-706 cleanup. Unblocks NBB-705E. |
 | `NBB-403` | Sources and analysis | Merged | top-level dispatcher | `worktree-agent-aa4b9bd0fc57b8b7a` / cleaned up | `MERGE` | `77b41f8` (non-ff of `13ff502`) | PASS worker/reviewer checks; PASS merge/push (auto-merge clean); PASS pytest backend (605 passed, 2 deselected — both deselects pre-exist at base 16de3cf, confirmed by reviewer); PASS pyright on `backend/app/sources/analysis/` (34 baseline-noise, identical shape to base, zero new); PASS validate_imports (delta = stdlib false-positives only); PASS string_ref_scan (no stragglers in active code); PASS NBB-203 raw-analysis gate (20/20 tests — parametrize expansion of 16/16 base, not new test functions); PASS verify_architecture.py | 13 module moves into `backend/app/sources/analysis/{csv,database,freshdesk,research}/`; 4 tool JSON dirs migrated (csv split into `raw_tools/` (analysis_agent category) + `tools/` (csv_tool category) to avoid `load_tools_for_agent` glob collision); 5 METHOD renames via refactory `rename_symbol`+`apply: true`: csv_tool_executor.execute_tool→analyze, analysis_executor.execute_tool→dispatch, database_executor.execute_tool→query, freshdesk_executor.execute_tool→fetch, deep_research_executor.execute_tool→research; service.py→summarize.py forbidden-token rename in research slice (in-charter per NBB-402); 9 Cat B + 1 Cat A pre-authorized manual exceptions executed cleanly; 1 commit (`13ff502`); 43 move-plan rows. **Reviewer empirical-cycle-test resolved judgment call #1**: worker added 3 NEW lazy in-function imports at csv/database/freshdesk entry.py rationalized via cited `chat/loop.py → entry.py → agent.py → app.chat.message.store → app.chat.__init__ → app.chat.loop` cycle. Reviewer rewrote all 3 entry.py with eager top-level imports + ran `python -c "import app.chat"` and `from app import create_app` in fresh subprocesses — both RC=0. Cycle does NOT form because `app.chat.message/` has no `__init__.py`, so `from app.chat.message.store import message_service` does not require `app.chat.__init__.py` to fully execute first. Lazy imports work but rest on a false rationale; downgraded P3 (cosmetic; functionality unaffected) for NBB-706 cleanup. Manual procedural deviation on 3 module-form executors (database_executor, database_analyzer_agent_executor, freshdesk_analyzer_agent_executor) verified byte-equivalent to refactory output (only path/import edits, no semantic drift). NBB-203 dual env-flag gate preserved byte-for-byte at `app/sources/analysis/csv/run.py`. **Closes batch 14 — single-ticket batch on lead BLOCKED-on-overlap recommendation from batch 13 disjointness check.** Unblocks NBB-705B. |
+| `NBB-801` | Services eradication | In progress | Codex | main working tree | pending | | PASS `python docs/tickets/dag.py --check`; PASS `git diff --check` | Registers `NBB-008`, tickets `NBB-801`-`NBB-811`, drain map, graph counts, and sprint-control updates. Product code movement remains out of scope. |
+| `NBB-802` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-801`. Deletes already-dead services residue and stale disposition rows. |
+| `NBB-803` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-802`. Drains source AI and link-agent services. |
+| `NBB-804` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-803`. Moves chat memory merge out of `ai_services`. |
+| `NBB-805` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-802`. Drains settings env runtime and validation dispatcher. |
+| `NBB-806` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-805`. Splits raw provider clients and provider validators. |
+| `NBB-807` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-806`. Splits connector clients, sync code, tool service, and connector validators. |
+| `NBB-808` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-803`. Drains remaining source upload and processing services. |
+| `NBB-809` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-802`. Moves studio job index service to `app.studio.jobs.store`. |
+| `NBB-810` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-804`, `NBB-806`, `NBB-807`, `NBB-808`, and `NBB-809`. Moves remaining static tool JSON schemas. |
+| `NBB-811` | Services eradication | Blocked | unassigned | | | | | Blocked on `NBB-810`. Deletes `services/__init__.py` and enforces no tracked services files or `app.services.*` imports. |
 
 Status values:
 
@@ -512,6 +568,7 @@ PASS <short command>; SKIP <short command> - <reason>; FAIL <short command> - <r
 | 2026-04-25 | Phase 4/5 batch 9 partial close (`NBB-209C` @ `2302823` auth user/password stores). **Rope-hostility-zero result via factory indirection.** Despite matching all prior rope-hostile preconditions on paper (singleton name matches source basename `user_service` ≈ `user_service.py`; consumer code exists), ZERO manual repairs were needed. Root cause: the singleton is exclusively accessed through `get_user_service()` factory function, not bare `user_service` attribute. Rope correctly rewrote factory call sites without mangling lazy imports (cost_tracking.py :300/:357) or triggering shim-form collapse. Heuristic refinement: **factory-gated singletons are rope-safe** even when basename collides. Future mover tickets should ask early "does the singleton have a factory?" — if yes, Cat A/B/C pre-authorization is prudent but typically unused. Also: refactory `move_module` correctly handles basename change via 2-op split (same-basename relocate + in-dir rename); intermediate path never commits; move-plan.csv records both ops. Unblocked NBB-705A. Batch 9 workers 504/505/506 remain in flight; batch 10 can plan NBB-507 + NBB-202B + 602+705C once studio parallelism lands. | Lead integrator |
 | 2026-04-26 | Codex post-sprint audit reconciliation. Current working tree is based on `main@f8639ad`; verifier status updated to backend pytest 726 passed, pyright 0 errors, architecture/project-id/stateless verifiers clean, and frontend build clean. Refactory caller contract supersedes older `expected_git_root` entries: callers pass an absolute `project_root` and use preview-by-default/`apply: true`; `expected_git_root` is no longer caller-facing. `move-plan.csv` now has a standard CSV header row and normalized mode values; `compact_tool.json` is valid JSON so chat tool-category loading no longer fails; `services/data_services/__init__.py` is deleted after zero active importers. | Codex audit |
 | 2026-04-26 | Codex cleanup completion pass. Closed the remaining sprint-cleanup obligations without folding in broader auth/runtime bug fixes: `message_service` is now exported from the public `app.chat.store` surface and non-chat callers route through it; the architecture verifier no longer carries the deleted chat-internals allowlist; forwarding-only `background_services` and studio job/processing packages are deleted; `studio_services/__init__.py` is doc-only with explicit `studio_index_service` submodule imports; studio route-facing comments/imports point at `run.py::run(...)` entrypoints; `REGISTRY.md`/`TAXONOMY.md`/`LAYER_MAP.md` now describe the migrated item homes; `move-plan.csv`'s malformed NBB-209B rename row is repaired; `dag.py --check` now validates `move-plan.csv` headers, modes, malformed rows, and mode-specific required fields. Separate follow-ups for OAuth callback auth, dev-mode API middleware fallback, and project membership access semantics are recorded in `DEFERRED.md` as D-006 through D-008. | Codex audit |
+| 2026-04-26 | NBB-008 continuation epic registered. The original sprint remains complete at NBB-706's approved-exception bar, but post-sprint review found 121 tracked `backend/app/services` files and live `app.services.*` import fanout. `NBB-008` converts that finding into an 11-ticket strict final migration: `NBB-801` records the drain map; `NBB-802` deletes dead residue; `NBB-803`-`NBB-810` move live source, chat memory, settings, provider, connector, source-processing, studio-job, and tool-schema behavior; `NBB-811` deletes the services root and adds no-return enforcement. | Codex audit |
 
 ## Done Criteria for the Sprint
 
@@ -523,3 +580,11 @@ The sprint is complete when:
 - No forwarding-only compatibility modules remain without documented reason.
 - Final backend architecture docs describe the migrated truth.
 - `DEFERRED.md` still names all known out-of-scope work and guardrails.
+
+The `NBB-008` continuation is complete when:
+
+- `NBB-811` is merged.
+- `git ls-files backend/app/services` returns no tracked files.
+- `rg "app\\.services\\." backend/app backend/tests` returns no active imports.
+- `python backend/scripts/verify_architecture.py`, `python backend/scripts/verify_no_stateless_singletons.py`, `python backend/scripts/verify_project_id_coverage.py`, `python docs/tickets/dag.py --check`, backend pytest, pyright, and frontend build pass or record a concrete pre-existing blocker.
+- Current docs name `services/` only as historical migration record, not as a live destination.

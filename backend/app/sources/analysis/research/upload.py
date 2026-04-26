@@ -141,12 +141,12 @@ def _submit_processing_task(project_id: str, source_id: str) -> None:
     Educational Note: Research processing can take several minutes as the
     AI agent searches the web and synthesizes findings. This runs in background.
     """
-    from app.services.source_services.source_processing import source_processing_service
+    from app.sources.pipeline import source_pipeline
 
     task_service.submit_task(
         "source_processing",
         source_id,
-        source_processing_service.process_source,
+        source_pipeline.process_source,
         project_id,
         source_id
     )

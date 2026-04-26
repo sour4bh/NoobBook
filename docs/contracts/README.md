@@ -706,7 +706,7 @@ call that includes the tool; our loader does not currently pre-validate shape.
 
 **Backend owner:**
 - Kind + MIME: `backend/app/sources/file_contract.py::ALLOWED_EXTENSIONS` and `::MIME_TYPES`, plus `::get_file_info`
-- Status: `backend/app/sources/catalog.py::SourceCatalog.update_source` (status writes) and the per-type processors under `backend/app/services/source_services/source_processing/`
+- Status: `backend/app/sources/catalog.py::SourceCatalog.update_source` (status writes) and the per-type processors under `backend/app/sources/**/process.py`
 - Row: `sources` table; charter owner `backend/app/sources/CHARTER.md`
 
 **Frontend consumer:** `frontend/src/lib/api/sources.ts`

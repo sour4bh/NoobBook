@@ -216,17 +216,17 @@ def _submit_processing_task(project_id: str, source_id: str) -> None:
     """
     Submit a background task to process the source.
 
-    Educational Note: We import source_processing_service here to avoid
+    Educational Note: We import source_pipeline here to avoid
     circular imports at module load time.
     """
     try:
-        from app.services.source_services.source_processing import source_processing_service
+        from app.sources.pipeline import source_pipeline
         from app.sources.catalog import source_service
 
         task_service.submit_task(
             "source_processing",
             source_id,
-            source_processing_service.process_source,
+            source_pipeline.process_source,
             project_id,
             source_id
         )

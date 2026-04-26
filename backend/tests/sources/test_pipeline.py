@@ -18,10 +18,9 @@ Pipeline contracts pinned here:
    do not re-download + re-embed already-finished work.
 
 These contracts come from ``backend/app/sources/pipeline.py``; protecting
-them keeps the post-NBB-402 ingestion surface from regressing as the
-service layer below it continues to migrate.
+them keeps the source-owned ingestion surface from regressing.
 """
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -183,6 +182,76 @@ class TestProcessSourceErrorPaths:
         # accepts non-ready statuses but `process_source` would have flipped
         # it to "processing" before failing.
         mock_service.update_source.assert_not_called()
+
+
+class TestProcessSourceDispatch:
+    """Every processor branch imports from its source-owned module."""
+
+    @pytest.mark.parametrize(
+        ("extension", "processor", "patch_target"),
+        [
+            (".pdf", "pdf", "app.sources.pdf.process.process_pdf"),
+            (".txt", "text", "app.sources.text.process.process_text"),
+            (".docx", "docx", "app.sources.docx.process.process_docx"),
+            (".csv", "csv", "app.sources.analysis.csv.process.process_csv"),
+            (".jpg", "image", "app.sources.image.process.process_image"),
+            (".pptx", "pptx", "app.sources.pptx.process.process_pptx"),
+            (".mp3", "audio", "app.sources.audio.process.process_audio"),
+            (".link", "link", "app.sources.link.process.process_link"),
+            (
+                ".database",
+                "database",
+                "app.sources.analysis.database.process.process_database",
+            ),
+            (
+                ".freshdesk",
+                "freshdesk",
+                "app.sources.analysis.freshdesk.process.process_freshdesk",
+            ),
+            (".jira", "jira", "app.sources.analysis.jira.process.process_jira"),
+            (
+                ".mixpanel",
+                "mixpanel",
+                "app.sources.analysis.mixpanel.process.process_mixpanel",
+            ),
+            (".mcp", "mcp", "app.sources.analysis.mcp.process.process_mcp"),
+            (
+                ".research",
+                "research",
+                "app.sources.analysis.research.process.process_research",
+            ),
+        ],
+    )
+    def test_source_kind_dispatches_to_owned_processor(
+        self, extension, processor, patch_target
+    ):
+        pipeline = SourcePipeline()
+        stored_filename = f"{SOURCE_ID}{extension}"
+
+        with patch("app.sources.catalog.source_service") as mock_service, patch(
+            "app.sources.pipeline.storage_service"
+        ) as mock_storage, patch(patch_target) as mock_processor:
+            source = {
+                "id": SOURCE_ID,
+                "status": "uploaded",
+                "name": f"{processor} source",
+                "embedding_info": {
+                    "file_extension": extension,
+                    "stored_filename": stored_filename,
+                },
+            }
+            mock_service.get_source.return_value = source
+            mock_storage.download_raw_file.return_value = b"raw-data"
+            mock_processor.return_value = {"success": True, "status": "ready"}
+
+            result = pipeline.process_source(PROJECT_ID, SOURCE_ID)
+
+        assert result == {"success": True, "status": "ready"}
+        mock_service.update_source.assert_called_once_with(
+            PROJECT_ID, SOURCE_ID, status="processing"
+        )
+        mock_processor.assert_called_once()
+        assert mock_processor.call_args.args[:3] == (PROJECT_ID, SOURCE_ID, source)
 
 
 # ---------------------------------------------------------------------------

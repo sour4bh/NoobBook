@@ -32,7 +32,7 @@ Source Lifecycle:
 
 The Processing Pipeline:
 1. Upload -> source_service.upload_source()
-2. Extract text -> source_processing_service (by file type)
+2. Extract text -> sources.pipeline (by file type)
 3. Chunk text -> chunking.py (~200 tokens per chunk)
 4. Embed -> OpenAI text-embedding-3-small
 5. Store -> Pinecone vector database

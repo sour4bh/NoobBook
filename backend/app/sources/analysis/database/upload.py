@@ -121,7 +121,7 @@ def add_database_source(
 
     index.add_source_to_index(project_id, source_metadata)
 
-    # Trigger processing in background (uses existing source_processing_service)
+    # Trigger processing in background.
     _submit_processing_task(project_id, source_id)
 
     return source_metadata
@@ -130,13 +130,13 @@ def add_database_source(
 def _submit_processing_task(project_id: str, source_id: str) -> None:
     """Submit a background task to process the database source."""
     try:
-        from app.services.source_services.source_processing import source_processing_service
+        from app.sources.pipeline import source_pipeline
         from app.sources.catalog import source_service
 
         task_service.submit_task(
             "source_processing",
             source_id,
-            source_processing_service.process_source,
+            source_pipeline.process_source,
             project_id,
             source_id,
         )

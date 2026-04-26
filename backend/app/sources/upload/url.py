@@ -144,13 +144,13 @@ def _submit_processing_task(project_id: str, source_id: str) -> None:
     so it doesn't block the API response.
     """
     try:
-        from app.services.source_services.source_processing import source_processing_service
+        from app.sources.pipeline import source_pipeline
         from app.sources.catalog import source_service
 
         task_id = task_service.submit_task(
             "source_processing",
             source_id,
-            source_processing_service.process_source,
+            source_pipeline.process_source,
             project_id,
             source_id
         )

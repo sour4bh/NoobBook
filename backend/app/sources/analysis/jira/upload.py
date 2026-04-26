@@ -1,9 +1,10 @@
 """
-Mixpanel Upload Handler - Create a MIXPANEL source flag for a project.
+Jira Upload Handler - Create a JIRA source flag for a project.
 
-Educational Note: Same lightweight pattern as jira_upload — the source acts
-as a per-project flag that enables Mixpanel chat tools. No data is synced
-locally; all queries go live to the Mixpanel Query API.
+Educational Note: Unlike Freshdesk sources that sync data locally, Jira sources
+are lightweight "flags" that enable the existing Jira API tools (jira_list_projects,
+jira_search_issues, jira_get_issue, jira_get_project) for a specific project.
+No data is synced or stored locally — all queries go directly to the Jira API.
 """
 
 import json
@@ -12,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.connectors.mixpanel.client import mixpanel_service
+from app.connectors.jira.client import jira_service
 from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index
@@ -20,13 +21,17 @@ from app.sources import index
 logger = logging.getLogger(__name__)
 
 
-def add_mixpanel_source(
+def add_jira_source(
     project_id: str,
     name: Optional[str] = None,
     description: str = "",
 ) -> Dict[str, Any]:
     """
-    Create a MIXPANEL source in a project and trigger processing.
+    Create a JIRA source in a project and trigger processing.
+
+    Educational Note: This is a lightweight source that acts as a per-project
+    flag to enable Jira tools in chat. The processing step verifies the Jira
+    connection and builds a summary of available projects.
 
     Args:
         project_id: The project UUID
@@ -37,22 +42,23 @@ def add_mixpanel_source(
         Source metadata dictionary
 
     Raises:
-        ValueError: If Mixpanel is not configured
+        ValueError: If Jira is not configured
     """
-    if not mixpanel_service.is_configured():
+    if not jira_service.is_configured():
         raise ValueError(
-            "Mixpanel not configured. Please add MIXPANEL_SERVICE_ACCOUNT_USERNAME, "
-            "MIXPANEL_SERVICE_ACCOUNT_SECRET, and MIXPANEL_PROJECT_ID to your .env file."
+            "Jira not configured. Please add JIRA_EMAIL, JIRA_API_KEY, and "
+            "either JIRA_CLOUD_ID or JIRA_DOMAIN to your .env file."
         )
 
     source_id = str(uuid.uuid4())
-    stored_filename = f"{source_id}.mixpanel"
+    stored_filename = f"{source_id}.jira"
 
     raw_payload = {
-        "kind": "mixpanel_source",
+        "kind": "jira_source",
         "created_at": datetime.now().isoformat(),
     }
 
+    # Upload raw metadata "file" (no credentials stored)
     raw_bytes = json.dumps(raw_payload, indent=2).encode("utf-8")
     storage_path = storage_service.upload_raw_file(
         project_id=project_id,
@@ -62,18 +68,19 @@ def add_mixpanel_source(
         content_type="application/json; charset=utf-8",
     )
     if not storage_path:
-        raise ValueError("Failed to create Mixpanel source metadata in storage")
+        raise ValueError("Failed to create Jira source metadata in storage")
 
-    display_name = (name or "Mixpanel Analytics").strip()
+    # Create source metadata
+    display_name = (name or "Jira Projects").strip()
     if not display_name:
-        display_name = "Mixpanel Analytics"
+        display_name = "Jira Projects"
 
     source_metadata = {
         "id": source_id,
         "project_id": project_id,
         "name": display_name,
         "description": description,
-        "type": "MIXPANEL",
+        "type": "JIRA",
         "status": "uploaded",
         "raw_file_path": storage_path,
         "file_size": len(raw_bytes),
@@ -81,41 +88,44 @@ def add_mixpanel_source(
         "embedding_info": {
             "original_filename": stored_filename,
             "mime_type": "application/json",
-            "file_extension": ".mixpanel",
+            "file_extension": ".jira",
             "stored_filename": stored_filename,
-            "source_type": "mixpanel",
+            "source_type": "jira",
             "is_global": False,
         },
         "processing_info": {
             "created_at": datetime.now().isoformat(),
-            "note": "Mixpanel source created. Processing will verify connection.",
+            "note": "Jira source created. Processing will verify connection.",
         },
     }
 
     index.add_source_to_index(project_id, source_metadata)
+
+    # Submit processing task to verify connection and build summary
     _submit_processing_task(project_id, source_id)
+
     return source_metadata
 
 
 def _submit_processing_task(project_id: str, source_id: str) -> None:
-    """Submit a background task to process the Mixpanel source."""
+    """Submit a background task to process the Jira source."""
     try:
-        from app.services.source_services.source_processing import (
-            source_processing_service,
-        )
+        from app.sources.pipeline import source_pipeline
         from app.sources.catalog import source_service
 
         task_service.submit_task(
             "source_processing",
             source_id,
-            source_processing_service.process_source,
+            source_pipeline.process_source,
             project_id,
             source_id,
         )
+
+        # Update status immediately
         source_service.update_source(project_id, source_id, status="processing")
     except Exception as e:
         logger.error(
-            "Failed to submit Mixpanel processing task for source %s: %s",
+            "Failed to submit Jira processing task for source %s: %s",
             source_id,
             e,
         )

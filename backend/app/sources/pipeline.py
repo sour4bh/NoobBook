@@ -1,5 +1,5 @@
 """
-Source Processing Service - Orchestrates processing for different source types.
+Source Pipeline - Orchestrates processing for different source types.
 
 Educational Note: This service is a simple dispatcher that routes sources
 to the appropriate processor based on file type. Each processor handles:
@@ -13,15 +13,15 @@ Processing Flow:
     3. If embeddings needed -> status: "embedding"
     4. Complete -> status: "ready" | "error"
 
-The actual processing logic lives in the individual processor modules:
-- pdf_processor.py
-- text_processor.py
-- docx_processor.py
-- image_processor.py
-- pptx_processor.py
-- audio_processor.py
-- link_processor.py (also handles YouTube via youtube_processor)
-- research_processor.py (deep research via AI agent)
+The actual processing logic lives in source-owned modules:
+- sources/pdf/process.py
+- sources/text/process.py
+- sources/docx/process.py
+- sources/image/process.py
+- sources/pptx/process.py
+- sources/audio/process.py
+- sources/link/process.py (also handles YouTube via sources/youtube/process.py)
+- sources/analysis/research/process.py (deep research via AI agent)
 
 Storage: Files are stored in Supabase Storage and downloaded to temp
 directories for processing. Processed content is uploaded back to Supabase.
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 class SourcePipeline:
     """
-    Service class for orchestrating source file processing.
+    Pipeline class for orchestrating source file processing.
 
     Educational Note: This service dispatches to the appropriate processor
     based on file extension. Processing is typically run in background threads.
@@ -145,59 +145,59 @@ class SourcePipeline:
             logger.info("Dispatching source %s to processor: %s", source_id, processor_type)
 
             if processor_type == "pdf":
-                from app.services.source_services.source_processing.pdf_processor import process_pdf
+                from app.sources.pdf.process import process_pdf
                 return process_pdf(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "text":
-                from app.services.source_services.source_processing.text_processor import process_text
+                from app.sources.text.process import process_text
                 return process_text(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "docx":
-                from app.services.source_services.source_processing.docx_processor import process_docx
+                from app.sources.docx.process import process_docx
                 return process_docx(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "csv":
-                from app.services.source_services.source_processing.csv_processor import process_csv
+                from app.sources.analysis.csv.process import process_csv
                 return process_csv(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "image":
-                from app.services.source_services.source_processing.image_processor import process_image
+                from app.sources.image.process import process_image
                 return process_image(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "pptx":
-                from app.services.source_services.source_processing.pptx_processor import process_pptx
+                from app.sources.pptx.process import process_pptx
                 return process_pptx(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "audio":
-                from app.services.source_services.source_processing.audio_processor import process_audio
+                from app.sources.audio.process import process_audio
                 return process_audio(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "link":
-                from app.services.source_services.source_processing.link_processor import process_link
+                from app.sources.link.process import process_link
                 return process_link(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "database":
-                from app.services.source_services.source_processing.database_processor import process_database
+                from app.sources.analysis.database.process import process_database
                 return process_database(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "freshdesk":
-                from app.services.source_services.source_processing.freshdesk_processor import process_freshdesk
+                from app.sources.analysis.freshdesk.process import process_freshdesk
                 return process_freshdesk(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "jira":
-                from app.services.source_services.source_processing.jira_processor import process_jira
+                from app.sources.analysis.jira.process import process_jira
                 return process_jira(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "mixpanel":
-                from app.services.source_services.source_processing.mixpanel_processor import process_mixpanel
+                from app.sources.analysis.mixpanel.process import process_mixpanel
                 return process_mixpanel(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "mcp":
-                from app.services.source_services.source_processing.mcp_processor import process_mcp
+                from app.sources.analysis.mcp.process import process_mcp
                 return process_mcp(project_id, source_id, source, raw_file_path, source_service)
 
             elif processor_type == "research":
-                from app.services.source_services.source_processing.research_processor import process_research
+                from app.sources.analysis.research.process import process_research
                 return process_research(project_id, source_id, source, raw_file_path, source_service)
 
             else:
@@ -342,5 +342,4 @@ class SourcePipeline:
         return {"success": True, "message": "Processing restarted"}
 
 
-# Singleton instance
-source_processing_service = SourcePipeline()
+source_pipeline = SourcePipeline()

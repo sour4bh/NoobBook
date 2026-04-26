@@ -48,7 +48,7 @@ def process_link(
         Dict with success status
     """
     from app.sources.link.agent import web_agent_service
-    from app.services.source_services.source_processing.youtube_processor import process_youtube
+    from app.sources.youtube.process import process_youtube
 
     # Read the .link file to get URL
     with open(raw_file_path, 'r') as f:

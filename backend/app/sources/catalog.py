@@ -1,11 +1,11 @@
 """
-Source Service - Business logic for managing project sources.
+Source Catalog - Business logic for managing project sources.
 
 Educational Note: This service provides the main interface for source operations.
 It delegates to specialized modules for cleaner code organization:
-- source_index_service: Index CRUD operations
-- source_upload: Upload handling (file, URL, text)
-- source_processing: Processing orchestration
+- sources.index: Index CRUD operations
+- sources.upload: Upload handling (file, URL, text)
+- sources.pipeline: Processing orchestration
 
 CRUD Operations are kept here for backwards compatibility with API routes.
 """
@@ -14,18 +14,15 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 from werkzeug.datastructures import FileStorage
 
-from app.services.source_services.source_upload import (
-    upload_file,
-    create_from_existing_file,
-    upload_url,
-    upload_text,
-    upload_research,
-    add_database_source,
-    add_freshdesk_source,
-    add_jira_source,
-    add_mcp_source,
-    add_mixpanel_source,
-)
+from app.sources.upload.file import upload_file, create_from_existing_file
+from app.sources.upload.url import upload_url
+from app.sources.upload.text import upload_text
+from app.sources.analysis.database.upload import add_database_source
+from app.sources.analysis.freshdesk.upload import add_freshdesk_source
+from app.sources.analysis.jira.upload import add_jira_source
+from app.sources.analysis.mcp.upload import add_mcp_source
+from app.sources.analysis.mixpanel.upload import add_mixpanel_source
+from app.sources.analysis.research.upload import upload_research
 from app.utils.path_utils import (
     get_raw_dir,
     get_processed_dir,
@@ -294,7 +291,7 @@ class SourceCatalog:
         return ALLOWED_EXTENSIONS.copy()
 
     # =========================================================================
-    # Source Upload/Creation (delegates to source_upload module)
+    # Source Upload/Creation
     # =========================================================================
 
     def upload_source(
@@ -307,7 +304,7 @@ class SourceCatalog:
         """
         Upload a new source file to a project.
 
-        Delegates to source_upload.file_upload module.
+        Delegates to sources/upload/file.py.
         """
         return upload_file(project_id, file, name, description)
 
@@ -324,7 +321,7 @@ class SourceCatalog:
         """
         Create a source entry from an already-saved file.
 
-        Delegates to source_upload.file_upload module.
+        Delegates to sources/upload/file.py.
         """
         return create_from_existing_file(
             project_id, file_path, name, original_filename,
@@ -341,7 +338,7 @@ class SourceCatalog:
         """
         Add a URL source (website or YouTube link) to a project.
 
-        Delegates to source_upload.url_upload module.
+        Delegates to sources/upload/url.py.
         """
         return upload_url(project_id, url, name, description)
 
@@ -355,7 +352,7 @@ class SourceCatalog:
         """
         Add a pasted text source to a project.
 
-        Delegates to source_upload.text_upload module.
+        Delegates to sources/upload/text.py.
         """
         return upload_text(project_id, content, name, description)
 
@@ -369,7 +366,7 @@ class SourceCatalog:
         """
         Add a deep research source to a project.
 
-        Delegates to source_upload.research_upload module.
+        Delegates to sources/analysis/research/upload.py.
         """
         return upload_research(project_id, topic, description, links)
 
@@ -479,19 +476,19 @@ class SourceCatalog:
         """
         Cancel processing for a source.
 
-        Delegates to source_processing_service.
+        Delegates to sources.pipeline.
         """
-        from app.services.source_services.source_processing import source_processing_service
-        return source_processing_service.cancel_processing(project_id, source_id)
+        from app.sources.pipeline import source_pipeline
+        return source_pipeline.cancel_processing(project_id, source_id)
 
     def retry_processing(self, project_id: str, source_id: str) -> Dict[str, Any]:
         """
         Retry processing for a source that failed or was cancelled.
 
-        Delegates to source_processing_service.
+        Delegates to sources.pipeline.
         """
-        from app.services.source_services.source_processing import source_processing_service
-        return source_processing_service.retry_processing(project_id, source_id)
+        from app.sources.pipeline import source_pipeline
+        return source_pipeline.retry_processing(project_id, source_id)
 
     # =========================================================================
     # Path utilities (for backwards compatibility with processing services)

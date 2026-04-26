@@ -1,5 +1,5 @@
 """
-Studio Index Service - Core CRUD for studio generation jobs via Supabase.
+Studio job store - Core CRUD for studio generation jobs via Supabase.
 
 Educational Note: This service manages studio content generation jobs
 (audio, video, presentations, etc.) in a Supabase `studio_jobs` table,
@@ -16,25 +16,12 @@ Architecture:
     list_jobs, delete_job) that all 18 job modules delegate to.
     Each job module defines its own JOB_TYPE and default fields.
 
-    jobs/
-    ├── audio_jobs.py
-    ├── video_jobs.py
-    ├── ad_jobs.py
-    ├── flash_card_jobs.py
-    ├── mind_map_jobs.py
-    ├── quiz_jobs.py
-    ├── social_post_jobs.py
-    ├── infographic_jobs.py
-    ├── email_jobs.py
-    ├── website_jobs.py           (moved to app/studio/design/website/job.py)
-    ├── component_jobs.py         (moved to app/studio/design/component/job.py)
-    ├── flow_diagram_jobs.py      (moved to app/studio/design/flow_diagram/job.py)
-    ├── wireframe_jobs.py         (moved to app/studio/design/wireframe/job.py)
-    ├── presentation_jobs.py      (moved to app/studio/documents/presentation/job.py)
-    ├── prd_jobs.py               (moved to app/studio/documents/prd/job.py)
-    ├── marketing_strategy_jobs.py
-    ├── blog_jobs.py             (moved to app/studio/documents/blog/job.py)
-    └── business_report_jobs.py  (moved to app/studio/documents/business_report/job.py)
+    app/studio/
+    ├── media/<item>/job.py
+    ├── learning/<item>/job.py
+    ├── marketing/<item>/job.py
+    ├── documents/<item>/job.py
+    └── design/<item>/job.py
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -286,13 +273,12 @@ def delete_job(
 
 
 # =============================================================================
-# Re-exports for Backward Compatibility
+# Per-item job exports
 # =============================================================================
-# All job-specific functions are now in separate modules under jobs/
-# These re-exports ensure existing imports continue to work.
+# Job-specific functions live in item-owned modules.
 # Imports MUST stay at the bottom of this file: each per-item job module imports
-# `create_job`/`update_job`/etc from this module, so `studio_index_service` must
-# define those generic CRUD helpers before the per-item modules load.
+# `create_job`/`update_job`/etc from this module, so the store must define those
+# generic CRUD helpers before the per-item modules load.
 
 from app.studio.media.audio.job import (
     create_audio_job,

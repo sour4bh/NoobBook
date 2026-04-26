@@ -20,10 +20,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from app.services.ai_services import embedding_service
-from app.services.ai_services import summary_service
 from app.connectors.mcp.connection.store import mcp_connection_service
 from app.services.integrations.supabase import storage_service
+from app.sources.embedding import process_embeddings
+from app.sources.summary import generate_summary
 
 
 logger = logging.getLogger(__name__)
@@ -235,7 +235,7 @@ def process_mcp(
     try:
         source_service.update_source(project_id, source_id, status="embedding")
 
-        embedding_result = embedding_service.process_embeddings(
+        embedding_result = process_embeddings(
             project_id=project_id,
             source_id=source_id,
             processed_text=processed_text,
@@ -259,7 +259,7 @@ def process_mcp(
             "embedding_info": merged_embedding_info,
             "processing_info": {**processing_info, "total_pages": len(resources)},
         }
-        summary_info = summary_service.generate_summary(project_id, source_id, summary_source_metadata) or {}
+        summary_info = generate_summary(project_id, source_id, summary_source_metadata) or {}
     except Exception as e:
         logger.exception("Summary generation failed for MCP source %s", source_id)
         summary_info = {}

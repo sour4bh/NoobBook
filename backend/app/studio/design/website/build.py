@@ -18,7 +18,7 @@ from app.config.prompt_loader import prompt_loader
 from app.config.tool_loader import tool_loader
 from app.config import brand_context_loader
 from app.sources.content import get_source_content
-import app.services.studio_services.studio_index_service as studio_index_service
+import app.studio.jobs.store as studio_index_service
 from app.studio.design.website.tool import website_tool_executor
 from app.chat.store import message_service
 import app.providers.anthropic.content

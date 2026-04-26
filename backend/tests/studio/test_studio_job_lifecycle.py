@@ -5,7 +5,7 @@ Pins Contract 13 (`studio_jobs` create/update/get/list/delete + status enum +
 result-shape keys) using `design/website` as the representative item per the
 NBB-503 pilot. Tests the per-item job module wrappers in
 `app.studio.design.website.job` and the underlying generic CRUD in
-`app.services.studio_services.studio_index_service`.
+`app.studio.jobs.store`.
 
 Status enum (Contract 13): pending | processing | ready | error | cancelled.
 """
@@ -18,7 +18,7 @@ import pytest
 # website.job first triggers the back-edge before studio_index_service has
 # defined create_job/update_job. Going through studio_index_service first
 # loads the full chain in dependency order.
-import app.services.studio_services.studio_index_service as studio_index_service
+import app.studio.jobs.store as studio_index_service
 from app.studio.design.website import job as website_job
 
 

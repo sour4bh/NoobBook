@@ -7,7 +7,7 @@ Supabase. Mirrors the auth/api/chat conftest pattern: replace the Supabase
 singleton with a MagicMock before any app import touches the background tasks
 module.
 
-`app.studio.*` job modules import `app.services.studio_services.studio_index_service`
+`app.studio.*` job modules import `app.studio.jobs.store`
 which imports `app.services.integrations.supabase` at module load — same hazard,
 same fix.
 """

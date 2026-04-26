@@ -10,7 +10,7 @@ from typing import Dict, Any, Tuple
 from datetime import datetime
 
 from app.services.integrations.supabase import storage_service
-import app.services.studio_services.studio_index_service as studio_index_service
+import app.studio.jobs.store as studio_index_service
 
 logger = logging.getLogger(__name__)
 

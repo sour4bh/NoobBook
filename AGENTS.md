@@ -386,14 +386,14 @@ Types: PDF, TEXT, DOCX, PPTX, AUDIO, IMAGE, LINK, YOUTUBE
 
 ### Source Types & AI Patterns
 
-Paths in the table below describe current module locations during the structure migration. These modules are migrating per `STRUCTURE.md`; the bucket names (`ai_services/`, `ai_agents/`, `tool_executors/`, `utils/`) are legacy/migration sources, not preferred homes for new work.
+Paths in the table below describe current module locations during the structure migration. The bucket names (`tool_executors/`, `utils/`) are legacy/migration sources, not preferred homes for new work.
 
 | Type | Service | AI Method | Pages |
 |------|---------|-----------|-------|
-| **PDF** | `ai_services/pdf_service.py` | Batched vision extraction (5 pages/batch, parallel ThreadPool). `submit_page_extraction` tool. | Real pages |
-| **PPTX** | `ai_services/pptx_service.py` | Same pattern as PDF - slides as images in batches, `submit_slide_extraction` tool. | Real slides |
-| **Image** | `ai_services/image_service.py` | Single Codex vision call with `submit_image_extraction` tool. | 1 per image |
-| **URL** | `ai_agents/web_agent_service.py` | Agentic loop with `web_fetch`, `tavily_search` tools. | Single page |
+| **PDF** | `sources/pdf/extract.py` | Batched vision extraction (5 pages/batch, parallel ThreadPool). `submit_page_extraction` tool. | Real pages |
+| **PPTX** | `sources/pptx/extract.py` | Same pattern as PDF - slides as images in batches, `submit_slide_extraction` tool. | Real slides |
+| **Image** | `sources/image/extract.py` | Single Codex vision call with `submit_image_extraction` tool. | 1 per image |
+| **URL** | `sources/link/agent.py` | Agentic loop with `web_fetch`, `tavily_search` tools. | Single page |
 | **DOCX** | `sources/docx/ops.py` | No AI - python-docx extraction | Single page |
 | **Audio** | `integrations/elevenlabs/audio_service.py` | No AI - ElevenLabs Scribe v1 transcription | Single page |
 | **Text** | `sources/pipeline.py` | No AI - direct file read | Single page |
@@ -556,9 +556,9 @@ Centralized rate limiting in `app/config/tier_loader.py`. Set via `ANTHROPIC_TIE
 
 **Tier 4 Optimization**: Workers can be high (80) because PDF/PPTX processing is I/O-bound (waiting for API), not CPU-bound. The 4000 RPM limit with 5-page batches theoretically supports ~20,000 pages/min, but output token limits (~800K/min) cap practical throughput.
 
-## AI Service Standard Pattern
+## AI Integration Standard Pattern
 
-This section describes the Codex-API integration pattern NoobBook uses: configuration loading, path management, the API call, and response parsing. Modules that currently live under `ai_services/`, `ai_agents/`, and `tool_executors/` follow it. Those bucket names describe where these modules live today during the structure migration — they are legacy/migration sources per `STRUCTURE.md`, not preferred homes for new work. When adding a new Codex-API integration, keep the steps below and pick a domain-owned destination per `STRUCTURE.md` and the `NBB-104` charter.
+This section describes the Codex-API integration pattern NoobBook uses: configuration loading, path management, the API call, and response parsing. New integrations must live in domain-owned homes such as `sources/`, `chat/`, `studio/`, `providers/`, or `connectors/`, not legacy mechanism buckets under `services/`.
 
 ### Required Steps (Mandatory)
 

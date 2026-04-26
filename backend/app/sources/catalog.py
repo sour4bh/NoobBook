@@ -204,7 +204,7 @@ class SourceCatalog:
         1. Raw file (original upload)
         2. Processed file (extracted text)
         3. Chunk files (individual page files)
-        4. Pinecone vectors (via embedding_service)
+        4. Pinecone vectors and chunk files
 
         Args:
             project_id: The project UUID
@@ -220,8 +220,8 @@ class SourceCatalog:
         # Delete embeddings and chunk files from Supabase Storage (if any)
         if source.get("embedding_info", {}).get("is_embedded"):
             try:
-                from app.services.ai_services import embedding_service
-                embedding_service.delete_embeddings(
+                from app.sources.embedding import delete_embeddings
+                delete_embeddings(
                     project_id=project_id,
                     source_id=source_id
                 )

@@ -13,8 +13,6 @@ Allowed imports:
   `auth/`, `projects/`, and `background/`.
 - This package must not reach into another domain's internals.
 
-Migration source: `backend/app/services/source_services/`,
-`backend/app/services/ai_services/`, `backend/app/services/ai_agents/`, and
-`backend/app/services/tool_executors/` feed this domain; moves are owned by
-`NBB-401` through `NBB-403`.
+Migration source: legacy source processing and source AI modules are being
+drained from `backend/app/services/` by `NBB-401` through `NBB-808`.
 """

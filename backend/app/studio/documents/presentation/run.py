@@ -57,7 +57,7 @@ class PresentationRunner:
         Returns:
             Job info with status and job_id for polling
         """
-        import app.services.studio_services.studio_index_service as studio_index_service
+        import app.studio.jobs.store as studio_index_service
         from app.background.tasks import task_service
         from app.studio.documents.presentation.compose import presentation_agent_service
         from app.sources.catalog import source_service

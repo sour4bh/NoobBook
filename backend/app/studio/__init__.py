@@ -12,7 +12,6 @@ Allowed imports:
   `providers/`.
 - This package must not reach into another domain's internals.
 
-Migration source: `backend/app/services/studio_services/` feeds this domain;
-the taxonomy, registry, and slice migrations are owned by `NBB-501A` through
-`NBB-507`.
+Migration source: legacy `backend/app/services/studio_services/` modules were
+drained into this domain by `NBB-501A` through `NBB-809`.
 """

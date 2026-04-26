@@ -15,8 +15,8 @@ from typing import Dict, Any
 
 from app.services.integrations.supabase import storage_service
 from app.sources.tokens import needs_embedding
-from app.services.ai_services import embedding_service
-from app.services.ai_services import summary_service
+from app.sources.embedding import process_embeddings
+from app.sources.summary import generate_summary
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def process_pptx(
     Returns:
         Dict with success status
     """
-    from app.services.ai_services.pptx_service import pptx_service
+    from app.sources.pptx.extract import pptx_service
 
     # Extract content using PPTX service (handles conversion + vision analysis)
     result = pptx_service.extract_content_from_pptx(
@@ -123,7 +123,7 @@ def _process_embeddings(
     source_service
 ) -> Dict[str, Any]:
     """
-    Process embeddings for a source using embedding_service.
+    Process embeddings for a source.
 
     Educational Note: We ALWAYS chunk and embed every source for consistent
     retrieval. The token count is used for chunk sizing decisions.
@@ -137,9 +137,8 @@ def _process_embeddings(
         source_service.update_source(project_id, source_id, status="embedding")
         logger.info("Starting embedding for %s (%s)", source_name, reason)
 
-        # Process embeddings using the embedding service
-        # Chunks are automatically uploaded to Supabase Storage
-        return embedding_service.process_embeddings(
+        # Process embeddings and upload chunks to Supabase Storage
+        return process_embeddings(
             project_id=project_id,
             source_id=source_id,
             source_name=source_name,
@@ -164,7 +163,7 @@ def _generate_summary(
 ) -> Dict[str, Any]:
     """Generate a summary for a processed source."""
     try:
-        result = summary_service.generate_summary(
+        result = generate_summary(
             project_id=project_id,
             source_id=source_id,
             source_metadata=source_metadata

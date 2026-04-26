@@ -11,7 +11,7 @@ The markdown output can be rendered nicely on frontend and exported to PDF.
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from app.services.studio_services.studio_index_service import (
+from app.studio.jobs.store import (
     create_job, update_job, get_job, list_jobs, delete_job
 )
 

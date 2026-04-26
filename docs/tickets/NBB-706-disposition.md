@@ -10,6 +10,8 @@ Disposition values:
   store, orchestration). Stateful or has explicit platform contract.
 - `CONVERTED-IN-NBB-706` — converted in this ticket per the seven-row
   stateless conversion map.
+- `MOVED-IN-NBB-803` — kept or converted by NBB-706, then moved out of
+  `services/` by the NBB-008 continuation epic.
 - `HOLDOUT` — should have been converted upstream; if the blast radius is
   small enough this ticket fixes it manually, otherwise the upstream
   owner is named.
@@ -19,14 +21,14 @@ Disposition values:
 | Path | Class | Disposition | Rationale |
 |---|---|---|---|
 | backend/app/background/tasks.py | TaskService | KEEP | `ThreadPoolExecutor`, lock, futures dictionary, and cancellation state. Per NBB-706 Keep-as-class list. |
-| backend/app/services/ai_agents/web_agent_service.py | WebAgentService | KEEP | Agentic loop orchestration; lazy tool definitions, MAX_ITERATIONS. Per NBB-706 Keep-as-class list (ai_agents/* class kept). |
+| backend/app/sources/link/agent.py | WebAgentService | MOVED-IN-NBB-803 | Agentic loop orchestration; lazy tool definitions, MAX_ITERATIONS. Kept as a class per NBB-706, then moved to source-owned link extraction by NBB-803. |
 | backend/app/services/ai_services/chat_naming_service.py | ChatNamingService | CONVERTED-IN-NBB-706 | Row 6: class deleted; behavior inlined into `app/chat/naming.py` (NBB-302's domain home). |
-| backend/app/services/ai_services/embedding_service.py | EmbeddingService | CONVERTED-IN-NBB-706 | Row 3: class deleted; module-level functions exposed (`process_embeddings`, `delete_embeddings`, `search_similar`). AST allowlist entry dropped in same commit. |
-| backend/app/services/ai_services/image_service.py | ImageService | KEEP | Stateful: `_tool_definition`, `_prompt_config`, `_tier_config` lazy caches. Not in NBB-706 conversion map. |
+| backend/app/sources/embedding.py | EmbeddingService | MOVED-IN-NBB-803 | Row 3: class deleted in NBB-706; module-level functions exposed (`process_embeddings`, `delete_embeddings`, `search_similar`). Moved from `services/ai_services` to source-owned embedding by NBB-803. |
+| backend/app/sources/image/extract.py | ImageService | MOVED-IN-NBB-803 | Stateful: `_tool_definition`, `_prompt_config`, `_tier_config` lazy caches. Kept as a class per NBB-706, then moved to source-owned image extraction by NBB-803. |
 | backend/app/services/ai_services/memory_service.py | MemoryService | KEEP | Per NBB-706 Keep-as-class list: merge behavior and stateful memory policy. |
-| backend/app/services/ai_services/pdf_service.py | PDFService | KEEP | Stateful: lazy tool/prompt config, ThreadPoolExecutor, batched extraction state. Not in NBB-706 conversion map. |
-| backend/app/services/ai_services/pptx_service.py | PPTXService | KEEP | Stateful: lazy tool/prompt config, ThreadPoolExecutor, batched extraction state. Not in NBB-706 conversion map. |
-| backend/app/services/ai_services/summary_service.py | SummaryService | CONVERTED-IN-NBB-706 | Row 5: class deleted; module-level `generate_summary` exposed; `_prompt_config` preserved as module-private lazy cache. |
+| backend/app/sources/pdf/extract.py | PDFService | MOVED-IN-NBB-803 | Stateful: lazy tool/prompt config, ThreadPoolExecutor, batched extraction state. Kept as a class per NBB-706, then moved to source-owned PDF extraction by NBB-803. |
+| backend/app/sources/pptx/extract.py | PPTXService | MOVED-IN-NBB-803 | Stateful: lazy tool/prompt config, ThreadPoolExecutor, batched extraction state. Kept as a class per NBB-706, then moved to source-owned PPTX extraction by NBB-803. |
+| backend/app/sources/summary.py | SummaryService | MOVED-IN-NBB-803 | Row 5: class deleted in NBB-706; module-level `generate_summary` exposed with `_prompt_config` preserved as module-private lazy cache. Moved from `services/ai_services` to source-owned summaries by NBB-803. |
 | backend/app/services/ai_services/video_prompt_service.py | VideoPromptService | CONVERTED-IN-NBB-706 | Row 7: class deleted; module renamed to `app/studio/media/video/prompt.py` per ticket body in-scope rename; `generate_video_prompt` exposed as module function. AST allowlist entry dropped in same commit. |
 | backend/app/services/app_settings/env_service.py | EnvService | KEEP | Per NBB-706 Keep-as-class list: mutable `.env` writes and reload behavior. |
 | backend/app/services/app_settings/validation/validation_service.py | ValidationService | CONVERTED-IN-NBB-706 | Row 4: class deleted; `validate(key_name, value)` exposed as module function with per-key validator function dispatch. |
@@ -69,10 +71,10 @@ Disposition values:
 ## Summary
 
 - Total classes in inventory: 42 (33 *Service + 9 *Executor).
-- KEEP: 36 (27 *Service + 9 *Executor).
-- CONVERTED-IN-NBB-706 (matched by the *Service grep): 6 — `ChatNamingService`,
-  `EmbeddingService`, `SummaryService`, `ValidationService`, `VideoPromptService`,
-  and `OpenAIService`.
+- KEEP: 32 (23 *Service + 9 *Executor).
+- MOVED-IN-NBB-803: 6 *Service rows.
+- CONVERTED-IN-NBB-706 (matched by the *Service grep): 4 — `ChatNamingService`,
+  `ValidationService`, `VideoPromptService`, and `OpenAIService`.
 - HOLDOUTS: 0.
 - The seventh NBB-706 conversion target (`SupabaseClient`) carries a `Client`
   suffix and is invisible to the inventory greps. It is logged in the

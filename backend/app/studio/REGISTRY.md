@@ -14,7 +14,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | `Contract 7` | `studio_signals` / studio event shape | `docs/contracts/README.md` § Contract 7 (NBB-205) |
 | `Contract 10` | Background-task polling response | `docs/contracts/README.md` § Contract 10 (NBB-205) |
 | `background/tasks.py` | Canonical background surface | `backend/app/background/tasks.py` (NBB-210) |
-| `studio_jobs` (table) | Studio-owned job index | `studio_index_service.py` + `backend/supabase/migrations/00009_studio_jobs.sql` (NBB-204) |
+| `studio_jobs` (table) | Studio-owned job store | `app/studio/jobs/store.py` + `backend/supabase/migrations/00009_studio_jobs.sql` (NBB-204) |
 | Provider: Claude | Anthropic Messages API | `providers/CHARTER.md` (NBB-206) |
 | Provider: Gemini Imagen | Google Imagen image generation | `providers/CHARTER.md` (NBB-206) |
 | Provider: Google Veo | Google Veo video generation | `providers/CHARTER.md` (NBB-206) |
@@ -45,7 +45,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/documents/blog/prompts/blog_agent_prompt.json` | owning domain: `studio/documents/blog/prompts/` (NBB-207B deferred; lands in NBB-504) |
 | Tool JSON | `backend/app/studio/documents/blog/tools/` (`generate_blog_image.json`, `plan_blog_post.json`, `write_blog_post.json`) | owning domain: `studio/documents/blog/tools/` (NBB-207C deferred; lands in NBB-504) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude (planning + writing); Gemini Imagen (hero/section images) | NBB-206 |
 
 <a id="documents-business_report"></a>
@@ -61,7 +61,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/documents/business_report/prompts/business_report_agent_prompt.json` | owning domain: `studio/documents/business_report/prompts/` (NBB-207B deferred; NBB-504) |
 | Tool JSON | `backend/app/studio/documents/business_report/tools/` (`analyze_csv_data.json`, `plan_business_report.json`, `search_source_content.json`, `write_business_report.json`) | owning domain: `studio/documents/business_report/tools/` (NBB-207C deferred; NBB-504) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 <a id="documents-prd"></a>
@@ -77,7 +77,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/documents/prd/prompts/prd_agent_prompt.json` | owning domain: `studio/documents/prd/prompts/` (NBB-207B deferred; NBB-504) |
 | Tool JSON | `backend/app/studio/documents/prd/tools/` (`plan_prd.json`, `write_prd_section.json`) | owning domain: `studio/documents/prd/tools/` (NBB-207C deferred; NBB-504) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 <a id="documents-presentation"></a>
@@ -93,7 +93,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/documents/presentation/prompts/presentation_agent_prompt.json` | owning domain: `studio/documents/presentation/prompts/` (NBB-207B deferred; NBB-504) |
 | Tool JSON | `backend/app/studio/documents/presentation/tools/` (`create_base_styles.json`, `create_slide.json`, `finalize_presentation.json`, `plan_presentation.json`) | owning domain: `studio/documents/presentation/tools/` (NBB-207C deferred; NBB-504) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 ---
@@ -113,7 +113,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/marketing/ad/prompts/ad_creative_prompt.json` | owning domain: `studio/marketing/ad/prompts/` (NBB-207B deferred; NBB-505). Reconciliation: NBB-207B records category-level `studio/marketing/prompts/`; REGISTRY refines to item-level per TAXONOMY precedent; NBB-505 lands final path. |
 | Tool JSON | none | ad creative has no Claude tool schema |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude (prompt planning); Gemini Imagen (image generation) | NBB-206 |
 
 <a id="marketing-email"></a>
@@ -129,7 +129,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/marketing/email/prompts/email_agent_prompt.json` | owning domain: `studio/marketing/email/prompts/` (NBB-207B deferred; NBB-505) |
 | Tool JSON | `backend/app/studio/marketing/email/tools/` (`generate_email_image.json`, `plan_email_template.json`, `write_email_code.json`) | owning domain: `studio/marketing/email/tools/` (NBB-207C deferred; NBB-505) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude (planning + writing); Gemini Imagen (email images) | NBB-206 |
 
 <a id="marketing-infographic"></a>
@@ -145,7 +145,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/marketing/infographic/prompts/infographic_prompt.json` | owning domain: `studio/marketing/infographic/prompts/` (NBB-207B deferred; NBB-505). Reconciliation (category drift): NBB-207B assigns infographic to `studio/design/prompts/`; TAXONOMY.md (NBB-501A) locks infographic under `studio/marketing/`; REGISTRY follows TAXONOMY; NBB-505 and a follow-up NBB-207B sweep must reconcile before final placement. |
 | Tool JSON | none | infographic has no Claude tool schema |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude (prompt planning); Gemini Imagen (image generation) | NBB-206 |
 
 <a id="marketing-strategy"></a>
@@ -161,7 +161,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/marketing/strategy/prompts/marketing_strategy_agent_prompt.json` | owning domain: `studio/marketing/strategy/prompts/` (NBB-207B deferred; NBB-505) |
 | Tool JSON | `backend/app/studio/marketing/strategy/tools/` (`plan_marketing_strategy.json`, `write_marketing_section.json`) | owning domain: `studio/marketing/strategy/tools/` (NBB-207C deferred; NBB-505) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 <a id="marketing-social_post"></a>
@@ -177,7 +177,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/marketing/social_post/prompts/social_posts_prompt.json` | owning domain: `studio/marketing/social_post/prompts/` (NBB-207B deferred; NBB-505). Reconciliation: NBB-207B records category-level `studio/marketing/prompts/`; REGISTRY refines to item-level per TAXONOMY precedent; NBB-505 lands final path. |
 | Tool JSON | none | social_post has no Claude tool schema |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude (text); Gemini Imagen (post images) | NBB-206 |
 
 ---
@@ -197,7 +197,7 @@ All rows below follow one linkage table. Per-row entries use the short label on 
 | Prompt JSON | `backend/app/studio/design/component/prompts/component_agent_prompt.json` | owning domain: `studio/design/component/prompts/` (NBB-207B deferred; NBB-506) |
 | Tool JSON | `backend/app/studio/design/component/tools/` (`plan_components.json`, `write_component_code.json`) | owning domain: `studio/design/component/tools/` (NBB-207C deferred; NBB-506) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/component/build.py` (class `ComponentBuilder`); tool `tool.py` (class `ComponentDispatcher`, `dispatch(...)`); agent executor `run.py` (class `ComponentRunner`, module-level `run(...)`); job `job.py`; prompt `prompts/component_agent_prompt.json`; tools `tools/`.
@@ -215,7 +215,7 @@ Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/c
 | Prompt JSON | `backend/app/studio/design/flow_diagram/prompts/flow_diagram_prompt.json` | owning domain: `studio/design/flow_diagram/prompts/` (NBB-207B deferred; NBB-506) |
 | Tool JSON | `backend/app/studio/design/flow_diagram/tools/flow_diagram_tool.json` | owning domain: `studio/design/flow_diagram/tools/` (NBB-207C deferred; NBB-506) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/flow_diagram/build.py` (class `FlowDiagramBuilder`); job `job.py`; prompt `prompts/flow_diagram_prompt.json`; tool `tools/flow_diagram_tool.json`. No tool executor or agent executor (single Claude call).
@@ -253,7 +253,7 @@ Migration status: under `NBB-506` the brand-asset resolver moved to `backend/app
 | Prompt JSON | `backend/app/studio/design/website/prompts/website_agent_prompt.json` | owning domain: `studio/design/website/prompts/` (NBB-207B deferred; NBB-506) |
 | Tool JSON | `backend/app/studio/design/website/tools/` (`create_file.json`, `finalize_website.json`, `generate_website_image.json`, `insert_code.json`, `plan_website.json`, `read_file.json`, `update_file_lines.json`) | owning domain: `studio/design/website/tools/` (NBB-207C deferred; NBB-506) |
 | Tests | `backend/tests/test_website_tool_executor.py` | only item-specific studio test at base commit |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude (planning + writing); Gemini Imagen (website images) | NBB-206 |
 
 <a id="design-wireframe"></a>
@@ -269,7 +269,7 @@ Migration status: under `NBB-506` the brand-asset resolver moved to `backend/app
 | Prompt JSON | `backend/app/studio/design/wireframe/prompts/wireframe_agent_prompt.json`, `backend/app/studio/design/wireframe/prompts/wireframe_prompt.json` | both map to `studio/design/wireframe/prompts/` (NBB-207B deferred; NBB-506). Two prompts exist: one for the multi-section agent flow and one for the single-shot wireframe path. |
 | Tool JSON | `backend/app/studio/design/wireframe/tools/` (`add_wireframe_section.json`, `finalize_wireframe.json`, `plan_wireframe.json`) plus `backend/app/studio/design/wireframe/tools/wireframe_tool.json` | all map to `studio/design/wireframe/tools/` (NBB-207C deferred; NBB-506) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/wireframe/draw.py` (class `WireframeBuilder`); tool `tool.py` (class `WireframeDispatcher`, `dispatch(...)`); job `job.py`; prompts `prompts/wireframe_agent_prompt.json` + `prompts/wireframe_prompt.json`; tools `tools/`. No agent executor (`run.py`) — agent runs through the tool executor loop.
@@ -291,7 +291,7 @@ Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/w
 | Prompt JSON | `backend/app/studio/learning/flash_card/prompts/flash_cards_prompt.json` | owning domain: `studio/learning/flash_card/prompts/` (NBB-207B deferred; NBB-507) |
 | Tool JSON | `backend/app/studio/learning/flash_card/tools/flash_cards_tool.json` | owning domain: `studio/learning/flash_card/tools/` (NBB-207C deferred; NBB-507) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 <a id="learning-mind_map"></a>
@@ -307,7 +307,7 @@ Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/w
 | Prompt JSON | `backend/app/studio/learning/mind_map/prompts/mind_map_prompt.json` | owning domain: `studio/learning/mind_map/prompts/` (NBB-207B deferred; NBB-507) |
 | Tool JSON | `backend/app/studio/learning/mind_map/tools/mind_map_tool.json` | owning domain: `studio/learning/mind_map/tools/` (NBB-207C deferred; NBB-507) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 <a id="learning-quiz"></a>
@@ -323,7 +323,7 @@ Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/w
 | Prompt JSON | `backend/app/studio/learning/quiz/prompts/quiz_prompt.json` | owning domain: `studio/learning/quiz/prompts/` (NBB-207B deferred; NBB-507) |
 | Tool JSON | `backend/app/studio/learning/quiz/tools/quiz_tool.json` | owning domain: `studio/learning/quiz/tools/` (NBB-207C deferred; NBB-507) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude | NBB-206 |
 
 ---
@@ -343,7 +343,7 @@ Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/w
 | Prompt JSON | `backend/app/studio/media/audio/prompts/audio_script_prompt.json` | owning domain: `studio/media/audio/prompts/` (NBB-207B deferred; NBB-507) |
 | Tool JSON | `backend/app/studio/media/audio/tools/write_script_section.json` | owning domain: `studio/media/audio/tools/` (NBB-207C deferred; NBB-507). `backend/app/studio/media/audio/tools/read_source_content.json` is **sources-owned** (`sources/content/tools/`) per NBB-207C and is not part of this item's tool inventory. |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10 |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10 |
 | Providers | Claude (script writing); ElevenLabs TTS (audio synthesis) | NBB-206 |
 
 <a id="media-video"></a>
@@ -359,7 +359,7 @@ Migration status: migrated under `NBB-506`. Service `backend/app/studio/design/w
 | Prompt JSON | `backend/app/studio/media/video/prompts/video_prompt.json` | owning domain: `studio/media/video/prompts/` (NBB-207B deferred; NBB-507) |
 | Tool JSON | none | video has no item-owned Claude tool schema; invoked via studio_signal (Contract 7) |
 | Tests | none | blueprint-level smoke only |
-| Background | `studio_jobs` via `studio_index_service.py` + `background/tasks.py` | Contract 13; Contract 10; Contract 7 (studio_signal entrypoint) |
+| Background | `studio_jobs` via `jobs/store.py` + `background/tasks.py` | Contract 13; Contract 10; Contract 7 (studio_signal entrypoint) |
 | Providers | Claude (prompt planning); Google Veo (video generation) | NBB-206 |
 
 ---
@@ -372,7 +372,7 @@ These modules live in the studio domain but are not item-owned. They stay as stu
 |---|---|---|
 | `backend/app/api/studio/__init__.py` | Studio blueprint registrar and project-access guard. | Studio blueprint; route file movement deferred under `D-001`. |
 | `backend/app/api/studio/logo_utils.py` | Brand-asset resolution helper consumed by `ads.py`, `blogs.py`, `infographics.py`, `social_posts.py`. | Studio-level support. Placement decision (studio helper vs brand public surface) lands in `NBB-502`/`NBB-506`. |
-| `backend/app/services/studio_services/studio_index_service.py` | Generic CRUD for the `studio_jobs` table (per-item create/update/get/list/delete wrappers). | Studio-level job index. It remains as the single documented legacy studio service module; consumers import the submodule explicitly. |
+| `backend/app/studio/jobs/store.py` | Generic CRUD for the `studio_jobs` table (per-item create/update/get/list/delete wrappers). | Studio-level job store. Consumers import `app.studio.jobs.store` directly. |
 | Removed `studio_processing/` package | Empty package deleted during cleanup. | No runtime surface. |
 | Per-item job modules | Per-item `job.py` wiring lives in each item directory listed above. | No forwarding legacy jobs package remains. |
 | `backend/app/studio/signal.py` | Chat-side emitter that writes `studio_signals` rows and routes to item-specific executors. | `emit(...)` (NBB-502 decision); studio-level, not item-owned. |

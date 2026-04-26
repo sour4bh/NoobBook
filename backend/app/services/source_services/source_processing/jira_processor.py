@@ -13,9 +13,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from app.services.ai_services import summary_service
 from app.services.integrations.knowledge_bases.jira.jira_service import jira_service
 from app.services.integrations.supabase import storage_service
+from app.sources.summary import generate_summary
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ def process_jira(
             },
         }
         summary_info = (
-            summary_service.generate_summary(
+            generate_summary(
                 project_id, source_id, summary_source_metadata
             )
             or {}

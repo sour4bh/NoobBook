@@ -21,7 +21,7 @@ from app.sources.content import get_source_content
 from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.services.integrations.supabase import storage_service
-import app.services.studio_services.studio_index_service as studio_index_service
+import app.studio.jobs.store as studio_index_service
 from app.studio.design.component.tool import component_tool_executor
 from app.projects.store import project_service
 from app.chat.store import message_service

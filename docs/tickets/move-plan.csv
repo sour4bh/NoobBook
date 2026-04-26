@@ -372,3 +372,10 @@ NBB-706,python,backend/app/sources/search.py,backend/app/sources/search.py,execu
 NBB-706,python,backend/app/sources/link/run.py,backend/app/sources/link/run.py,execute_tool,dispatch,python_symbol_rename,manual
 NBB-706,python,backend/app/chat/stream.py,backend/app/chat/streaming.py,,,python_module_move,manual
 NBB-706,python,backend/app/chat/memory/store.py,backend/app/chat/memory/run.py,,,python_module_move,manual
+NBB-809,python,backend/app/services/studio_services/studio_index_service.py,backend/app/studio/jobs/store.py,,,python_module_move,manual
+NBB-803,python,backend/app/services/ai_agents/web_agent_service.py,backend/app/sources/link/agent.py,,,python_module_move,manual
+NBB-803,python,backend/app/services/ai_services/pdf_service.py,backend/app/sources/pdf/extract.py,,,python_module_move,manual
+NBB-803,python,backend/app/services/ai_services/pptx_service.py,backend/app/sources/pptx/extract.py,,,python_module_move,manual
+NBB-803,python,backend/app/services/ai_services/image_service.py,backend/app/sources/image/extract.py,,,python_module_move,manual
+NBB-803,python,backend/app/services/ai_services/embedding_service.py,backend/app/sources/embedding.py,,,python_module_move,manual
+NBB-803,python,backend/app/services/ai_services/summary_service.py,backend/app/sources/summary.py,,,python_module_move,manual

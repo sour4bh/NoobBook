@@ -782,7 +782,7 @@ and upload routes write `status`, and they use string literals from the enum abo
 ## Contract 13 - Studio job status / progress / result
 
 **Backend owner:**
-- Writer: `backend/app/services/studio_services/studio_index_service.py::create_job` and `::update_job`
+- Writer: `backend/app/studio/jobs/store.py::create_job` and `::update_job`
 - Table: `studio_jobs` in `backend/supabase/migrations/00009_studio_jobs.sql` and
   follow-ups (see `backend/app/studio/CHARTER.md`)
 - Per-type readers: `backend/app/api/studio/<type>.py` (e.g., `audio.py`, `videos.py`)

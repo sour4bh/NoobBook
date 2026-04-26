@@ -318,7 +318,7 @@ These modules live in the studio domain but are not item-owned. `REGISTRY.md` en
 |---|---|---|
 | `backend/app/api/studio/__init__.py` | Studio blueprint registrar and project-access guard. | Route file; route movement deferred under `D-001`. |
 | `backend/app/api/studio/logo_utils.py` | Brand-asset resolution helper consumed by `ads.py`, `blogs.py`, `infographics.py`, `social_posts.py`. | Studio-level brand-asset resolution support. Final placement (studio helper vs brand public surface) is decided by `NBB-506`; this file is not logo generation and is not item-owned. |
-| `backend/app/services/studio_services/studio_index_service.py` | Generic CRUD for the `studio_jobs` table; per-item `create_job`/`update_job`/`get_job`/`list_jobs`/`delete_job` wrappers. Writer of record for Contract 13. | Studio-level job index module (owned by `studio/` at studio-level, not inside an item directory). `NBB-210` owns `background/tasks.py` and must not be duplicated. |
+| `backend/app/studio/jobs/store.py` | Generic CRUD for the `studio_jobs` table; per-item `create_job`/`update_job`/`get_job`/`list_jobs`/`delete_job` wrappers. Writer of record for Contract 13. | Studio-level job store, not an item directory. `NBB-210` owns `background/tasks.py` and must not be duplicated. |
 | Removed `studio_processing/` package | Empty package deleted during cleanup. | No runtime surface. |
 | Per-item job modules | Per-item `job.py` wiring lives in the item directories listed above. | No forwarding jobs package remains. |
 | `backend/app/studio/signal.py` | Chat-side emitter that writes `studio_signals` rows (Contract 7) and routes to item-specific executors. | `emit(...)` per the executable naming rule. Studio-level, not item-specific. |
@@ -339,7 +339,7 @@ Every per-item row above is tied to these contracts. Shape definitions live in `
 
 | Contract | Source | Role in the layer map |
 |---|---|---|
-| Contract 13 — Studio job status / progress / result | `docs/contracts/README.md` § Contract 13 | Shape contract for `<item>/schema.py` request/progress/result wire shapes; writer of record is `studio_index_service.create_job` / `update_job` (today). |
+| Contract 13 — Studio job status / progress / result | `docs/contracts/README.md` § Contract 13 | Shape contract for `<item>/schema.py` request/progress/result wire shapes; writer of record is `app.studio.jobs.store.create_job` / `update_job`. |
 | Contract 7 — `studio_signals` / studio event shape | `docs/contracts/README.md` § Contract 7 | Shape for chat→studio routing that lands on a job; `studio/signal.py::emit(...)` is the studio-level entry point for the row writer side. |
 | Contract 10 — Background-task polling response | `docs/contracts/README.md` § Contract 10 | Envelope that merges `studio_jobs` (pending + processing) into the project task feed; `job.py` status transitions must preserve the enum (`pending | processing | ready | error | cancelled`) and the human-readable `progress` string. |
 

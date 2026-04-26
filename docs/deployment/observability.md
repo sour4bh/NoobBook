@@ -31,7 +31,7 @@ This inventory names the owner for each observability concern, calls out what lo
 |---|---|---|
 | Task lifecycle log | `backend/app/background/tasks.py` (`logger.info` on submit/start/complete; `logger.exception` on failure) | Owned by `background/` per `backend/app/background/CHARTER.md`. Persistent truth lives in the Supabase `background_tasks` table; the in-process logger is for operator visibility only. |
 | Worker pool | `ThreadPoolExecutor(max_workers=MAX_WORKERS)` inside `TaskService` | See "Async paths" below for the trace-context gap. |
-| Per-domain background threads | `backend/app/services/tool_executors/memory_executor.py` (memory merge), `backend/app/services/integrations/freshdesk/freshdesk_sync_service.py` (`freshdesk-global-sync` daemon thread), `backend/app/services/ai_services/pdf_service.py` and `.../pptx_service.py` (page/slide `ThreadPoolExecutor`) | These are domain-owned today. Logging inside each thread goes through the domain's module logger. None currently propagate request identity or a trace ID across the thread boundary. |
+| Per-domain background threads | `backend/app/services/tool_executors/memory_executor.py` (memory merge), `backend/app/services/integrations/freshdesk/freshdesk_sync_service.py` (`freshdesk-global-sync` daemon thread), `backend/app/sources/pdf/extract.py` and `backend/app/sources/pptx/extract.py` (page/slide `ThreadPoolExecutor`) | These are domain-owned today. Logging inside each thread goes through the domain's module logger. None currently propagate request identity or a trace ID across the thread boundary. |
 | Stale-task cleanup | `TaskService._cleanup_stale_tasks_on_startup` | Logs a count of stale tasks marked failed at startup. |
 
 ### Chat
@@ -48,7 +48,7 @@ This inventory names the owner for each observability concern, calls out what lo
 |---|---|---|
 | Per-service logger | Every `backend/app/services/**/*.py` module | Uses `logging.getLogger(__name__)`. No domain-specific observability hooks beyond the cross-cutting stdlib logger. |
 | Source pipeline progress | Persisted to `sources.status` + `background_tasks.progress` rows | RLS and persistence owned by `NBB-204`; lifecycle owned by `NBB-210`. Not a separate observability channel. |
-| Studio generation logs | `backend/app/services/studio_services/*` (e.g., `flash_cards_service.py`) | Same stdlib pattern; no per-domain hook. |
+| Studio generation logs | `backend/app/studio/**` item modules and `backend/app/studio/jobs/store.py` | Same stdlib pattern; no per-domain hook. |
 | Web-agent execution debug dumps | `data/projects/{id}/agents/web_agent/{execution_id}.json` | Local file artifact only (frozen under `STRUCTURE.md`). Not a deployable observability channel. |
 
 ### Deployment surface (no Python package owner)

@@ -14,7 +14,7 @@ from app.services.integrations.google.video_service import google_video_service
 
 logger = logging.getLogger(__name__)
 from app.studio.media.video import prompt as video_prompt
-import app.services.studio_services.studio_index_service as studio_index_service
+import app.studio.jobs.store as studio_index_service
 from app.services.integrations.supabase import storage_service
 
 

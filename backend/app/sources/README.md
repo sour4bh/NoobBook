@@ -33,12 +33,12 @@ Destinations are locked by `NBB-401` (file-format ownership map, in `CHARTER.md`
 | PPTX format | `sources/pptx/` | `sources/pptx/ops.py`, `sources/pptx/extract.py` |
 | DOCX format | `sources/docx/` | `sources/docx/ops.py` |
 | Image format | `sources/image/` | `sources/image/extract.py` |
-| Link / URL format | `sources/link/` | orchestration module(s) owned by `NBB-402` |
+| Link / URL format | `sources/link/` | `sources/link/agent.py`, `sources/link/run.py` |
 | YouTube format | `sources/youtube/` | orchestration module(s) owned by `NBB-402` |
 | Audio format | `sources/audio/` | orchestration module(s) owned by `NBB-402` |
 | Analysis slices | `sources/analysis/<feature>/` | `sources/analysis/csv/`, `sources/analysis/database/`, `sources/analysis/freshdesk/`, `sources/analysis/research/` (per `NBB-403`) |
 
-Skeleton markers present today: `sources/upload/__init__.py`, `sources/pdf/__init__.py`, `sources/pptx/__init__.py`, `sources/docx/__init__.py`, `sources/image/__init__.py`, `sources/link/__init__.py`, `sources/youtube/__init__.py`, `sources/audio/__init__.py`, `sources/analysis/__init__.py`, `sources/analysis/research/__init__.py`. Each is an empty module with a one-line docstring naming the downstream owner ticket.
+Package markers present today: `sources/upload/__init__.py`, `sources/pdf/__init__.py`, `sources/pptx/__init__.py`, `sources/docx/__init__.py`, `sources/image/__init__.py`, `sources/link/__init__.py`, `sources/youtube/__init__.py`, `sources/audio/__init__.py`, `sources/analysis/__init__.py`, `sources/analysis/research/__init__.py`.
 
 ## What does not live under `sources/`
 

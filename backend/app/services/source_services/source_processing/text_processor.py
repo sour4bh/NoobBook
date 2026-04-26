@@ -15,9 +15,9 @@ from typing import Dict, Any
 
 from app.utils.text import build_processed_output
 from app.sources.tokens import needs_embedding, count_tokens
-from app.services.ai_services import embedding_service
-from app.services.ai_services import summary_service
 from app.services.integrations.supabase import storage_service
+from app.sources.embedding import process_embeddings
+from app.sources.summary import generate_summary
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ def _process_embeddings(
     source_service
 ) -> Dict[str, Any]:
     """
-    Process embeddings for a source using embedding_service.
+    Process embeddings for a source.
 
     Educational Note: We ALWAYS chunk and embed every source for consistent
     retrieval. The token count is used for chunk sizing decisions.
@@ -143,7 +143,7 @@ def _process_embeddings(
 
         # Process embeddings using the embedding service
         # Chunks are automatically uploaded to Supabase Storage
-        return embedding_service.process_embeddings(
+        return process_embeddings(
             project_id=project_id,
             source_id=source_id,
             source_name=source_name,
@@ -168,7 +168,7 @@ def _generate_summary(
 ) -> Dict[str, Any]:
     """Generate a summary for a processed source."""
     try:
-        result = summary_service.generate_summary(
+        result = generate_summary(
             project_id=project_id,
             source_id=source_id,
             source_metadata=source_metadata

@@ -15,8 +15,8 @@ from typing import Dict, Any
 
 from app.services.integrations.supabase import storage_service
 from app.sources.tokens import needs_embedding
-from app.services.ai_services import embedding_service
-from app.services.ai_services import summary_service
+from app.sources.embedding import process_embeddings
+from app.sources.summary import generate_summary
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def process_pdf(
     Returns:
         Dict with success status and processing info
     """
-    from app.services.ai_services.pdf_service import pdf_service
+    from app.sources.pdf.extract import pdf_service
 
     result = pdf_service.extract_text_from_pdf(
         project_id=project_id,
@@ -148,9 +148,8 @@ def _process_embeddings(
         source_service.update_source(project_id, source_id, status="embedding")
         logger.info("Starting embedding for %s (%s)", source_name, reason)
 
-        # Process embeddings using the embedding service
-        # Note: embedding_service now uploads chunks to Supabase Storage
-        return embedding_service.process_embeddings(
+        # Process embeddings and upload chunks to Supabase Storage
+        return process_embeddings(
             project_id=project_id,
             source_id=source_id,
             source_name=source_name,
@@ -175,7 +174,7 @@ def _generate_summary(
 ) -> Dict[str, Any]:
     """Generate a summary for a processed source."""
     try:
-        result = summary_service.generate_summary(
+        result = generate_summary(
             project_id=project_id,
             source_id=source_id,
             source_metadata=source_metadata

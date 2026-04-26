@@ -94,7 +94,7 @@ These modules live in studio but do not map to a single item. They stay as studi
 |---|---|---|
 | `api/studio/__init__.py` | Blueprint registrar. | Studio route blueprint (route movement deferred under `D-001`). |
 | `api/studio/logo_utils.py` | Brand-asset resolution helper consumed by `ads.py`, `blogs.py`, `infographics.py`, `social_posts.py`. | Studio-level support; not an item. Placement decision (studio helper vs brand public surface) is out of scope for NBB-501A; `NBB-502`/`NBB-506` decides. |
-| `services/studio_services/studio_index_service.py` | Generic CRUD for `studio_jobs`. | Studio-level job index; the package is doc-only and consumers import the submodule explicitly. |
+| `studio/jobs/store.py` | Generic CRUD for `studio_jobs`. | Studio-level job store. Consumers import `app.studio.jobs.store` directly. |
 | Removed `studio_processing/` package | Empty package deleted during cleanup. | No runtime surface. |
 | Per-item `job.py` modules | Per-item background job wiring in the item directories listed above. | No forwarding jobs package remains. |
 | `studio/signal.py` | Chat-side studio-signal emitter; listed in `NBB-502` as the one studio-level executor. | `emit(...)` (NBB-502 decision, not item-owned). |

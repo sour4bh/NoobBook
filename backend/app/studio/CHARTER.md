@@ -4,7 +4,7 @@
 
 **Validation approach:** every table, bucket, or JSONB field below must point at a migration file. Every access-guard claim must point at a route or service file. Reviewer uses `backend/supabase/migrations/OWNERS.md` and `backend/supabase/STORAGE_CONTRACTS.md` to spot-check.
 
-**Migration source:** studio services currently live under `backend/app/services/studio_services/`; `NBB-501A`/`NBB-501B` lock the taxonomy and registry; `NBB-502` maps the job/tool/run layer; `NBB-503`-`NBB-507` migrate the category slices.
+**Migration source:** legacy studio services were drained from `backend/app/services/studio_services/` into this domain across `NBB-501A` through `NBB-809`.
 
 ## Tables owned by `studio/`
 

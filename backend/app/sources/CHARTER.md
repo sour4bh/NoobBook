@@ -77,9 +77,9 @@ Copied verbatim from `docs/tickets/epics/NBB-004.md#nbb-401`. Downstream tickets
 | `utils/pdf_utils.py` | `sources/pdf/ops.py` | PDF page count and page-byte operations for source extraction. |
 | `utils/pptx_utils.py` | `sources/pptx/ops.py` | PPTX conversion operations for source extraction. |
 | `utils/docx_utils.py` | `sources/docx/ops.py` | DOCX text extraction for source ingestion. |
-| `ai_services/pdf_service.py` | `sources/pdf/extract.py` | PDF extraction behavior. |
-| `ai_services/pptx_service.py` | `sources/pptx/extract.py` | PPTX extraction behavior. |
-| `ai_services/image_service.py` | `sources/image/extract.py` | Source image extraction behavior; model/client calls stay behind providers/connectors. |
+| PDF extraction behavior | `sources/pdf/extract.py` | Landed by `NBB-803`; model/client calls stay behind providers/connectors. |
+| PPTX extraction behavior | `sources/pptx/extract.py` | Landed by `NBB-803`; model/client calls stay behind providers/connectors. |
+| Source image extraction behavior | `sources/image/extract.py` | Landed by `NBB-803`; model/client calls stay behind providers/connectors. |
 | Link/URL source orchestration | `sources/link/` | URL ingestion and extraction behavior. Vendor search/fetch clients stay outside sources. |
 | YouTube source orchestration | `sources/youtube/` | Source-side transcript orchestration. Vendor/library client code stays under provider ownership. |
 | Audio source orchestration | `sources/audio/` | Source-side transcription flow. ElevenLabs client code stays under provider ownership. |

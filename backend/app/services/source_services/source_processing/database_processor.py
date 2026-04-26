@@ -22,10 +22,10 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import pymysql
 
-from app.services.ai_services import embedding_service
-from app.services.ai_services import summary_service
 from app.connectors.database.connection.store import database_connection_service
 from app.services.integrations.supabase import storage_service
+from app.sources.embedding import process_embeddings
+from app.sources.summary import generate_summary
 
 
 logger = logging.getLogger(__name__)
@@ -312,7 +312,7 @@ def process_database(
             "embedding_info": merged_embedding_info,
             "processing_info": {**processing_info, "total_pages": max(1, len(tables))},
         }
-        summary_info = summary_service.generate_summary(project_id, source_id, summary_source_metadata) or {}
+        summary_info = generate_summary(project_id, source_id, summary_source_metadata) or {}
     except Exception as e:
         logger.exception("Summary generation failed for source %s", source_id)
         summary_info = {}

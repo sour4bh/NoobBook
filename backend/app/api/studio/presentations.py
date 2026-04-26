@@ -30,7 +30,7 @@ import io
 import zipfile
 from flask import jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
-import app.services.studio_services.studio_index_service as studio_index_service
+import app.studio.jobs.store as studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 

@@ -6,7 +6,7 @@ Ticket tracking lives in `docs/tickets/`. Epic `NBB-001` (`docs/tickets/epics/NB
 
 ## Direction
 
-The migration replaces a mechanism-first backend layout (`services/`, `utils/`, `ai_agents/`, `ai_services/`, `tool_executors/`, `services/tools/`, `data/prompts/`) with a **domain-first** layout. New behavior lives under the domain that owns it rather than under a bucket named after the technical mechanism it uses.
+The migration replaces the former mechanism-first backend layout (`services/`, `utils/`, `ai_agents/`, `ai_services/`, `tool_executors/`, `services/tools/`, `data/prompts/`) with a **domain-first** layout. New behavior lives under the domain that owns it rather than under a bucket named after the technical mechanism it uses.
 
 ## Canonical Backend Roots (NBB-104)
 
@@ -29,7 +29,10 @@ The backend root list is finalized. Every backend file belongs under exactly one
 
 Each root's `__init__.py` carries the full charter (owner scope, allowed import direction, migration sources). Read the charter before adding a file to a root.
 
-Legacy roots such as `backend/app/utils/` and `backend/app/services/` are not approved destinations. They are frozen by `NBB-103` and drained or reduced to approved exceptions by `NBB-705A` through `NBB-705E`.
+Legacy roots are not approved destinations. `backend/app/services/` has been
+drained and must remain empty of tracked files after NBB-811; `backend/app/utils/`
+remains a frozen legacy root while its approved exceptions are settled by
+`NBB-705A` through `NBB-705E`.
 
 ## Base and Shared Charters (NBB-104)
 
@@ -76,15 +79,22 @@ The following paths are frozen. New files must not be added to them unless they 
 - `backend/app/services/studio_services/jobs/` (directory removed by `NBB-802`; do not recreate)
 - `backend/app/services/studio_services/studio_processing/` (directory removed by `NBB-802`; do not recreate)
 - `backend/data/prompts/`
-- `frontend/src/components/hooks/` (directory removed by `NBB-602`; entry retained for the `NBB-103` legacy-files guardrail until `NBB-706` retires it)
+- `frontend/src/components/hooks/` (directory removed by `NBB-602`; entry retained for the legacy-files guardrail)
 
-These paths still contain code today, except where annotated as removed. Treat them as **legacy/migration sources**: you may read from them, import from them, and drain from them as ownership moves. Do not add new files to them and do not describe them as the preferred home for new work.
+These paths are frozen no-return locations. Some remain only as historical
+migration sources or guardrail entries; `backend/app/services/` must not regain
+tracked files or `app.services.*` imports. Do not add new files to them and do
+not describe them as the preferred home for new work.
 
-`NBB-103` will enforce this list in CI. `NBB-705A` through `NBB-705E` and `NBB-706` drain or delete what remains.
+`NBB-103` enforces the frozen list in CI. `NBB-811` adds the final services
+no-return gate: any tracked `backend/app/services/` file or `app.services.*`
+import fails the architecture check.
 
 ## Allowed Destinations
 
-New backend behavior lands under its domain root from the Canonical Backend Roots table above. The migration sources named in each root's charter docstring remain readable during the move; read the charter before adding or moving a file.
+New backend behavior lands under its domain root from the Canonical Backend Roots
+table above. Historical migration sources named in root charters are not live
+destinations; read the charter before adding or moving a file.
 
 External clients and SDK wrappers follow the providers/connectors split defined by `NBB-206`. Background task behavior lives under the background owner defined by `NBB-210`. Prompt JSON and tool JSON wait for `NBB-207A` loader support; existing JSON assets do not move until then.
 
@@ -97,7 +107,7 @@ Reviewers and authors run this checklist for every new file. If any row fails, t
 3. **Path reflects the owning concept, not the mechanism.** Name the directory after what the code is *about* (`chat/`, `sources/ingestion/`, `studio/<category>/`), not after how it is implemented (`agents/`, `ai_services/`, `executors/`).
 4. **External edge respected.** Low-level external clients sit under `providers/`; product-configured capabilities sit under `connectors/`; domain behavior does not reach into another domain's internals.
 5. **Shared or base boundaries are earned.** New `base/` or `<domain>/shared/` files cite the `NBB-104` charter rule (3+ concrete consumers, no better owner). Preemptive `shared/` directories are not created.
-6. **Prompt/tool JSON deferred to `NBB-207A`.** New prompt JSON or tool JSON is not added under `backend/data/prompts/` or `backend/app/services/tools/` until `NBB-207A` loader shims land; once they do, ownership follows `NBB-207B` (prompts) and `NBB-207C` (tools).
+6. **Prompt/tool JSON follows owning domains.** New prompt JSON is not added under frozen `backend/data/prompts/`; new tool JSON is not added under retired `backend/app/services/tools/`. Tool JSON now lives in domain-owned `tools/` directories and resolves through the asset registry.
 7. **Frontend features land under owning subtrees.** New feature-specific React code lives under its feature subtree (for example `frontend/src/components/chat/`, `frontend/src/components/sources/`, `frontend/src/components/studio/`), not in shell buckets such as `frontend/src/components/`, `frontend/src/hooks/`, `frontend/src/lib/`, or `frontend/src/contexts/` whose meaning `NBB-105` tightens. The legacy `frontend/src/components/hooks/` directory was removed by `NBB-602`; it remains in the frozen list above only as a CI guardrail entry.
 8. **Refactory used for moves.** If this file is reached by moving or renaming an existing module, the movement ticket uses the refactory MCP plugin and records the operation in `docs/tickets/move-plan.csv` per `docs/tickets/README.md`.
 
@@ -105,8 +115,13 @@ If the answer to any row is "I am not sure," stop and check the owning ticket in
 
 ## Status of Older Placement Guidance
 
-The `AI Service Standard Pattern` section in `AGENTS.md` and `CLAUDE.md` documents a useful Claude-API integration pattern. Its step list (config loading, path management, API call, response parsing) is accurate project knowledge. The bucket names it uses (`ai_services/`, `ai_agents/`, `tool_executors/`) describe where those modules currently live during migration, not a preferred home for new work.
+The `AI Service Standard Pattern` section in `AGENTS.md` and `CLAUDE.md`
+documents a useful Claude-API integration pattern. Its step list (config
+loading, path management, API call, response parsing) is accurate project
+knowledge. Any legacy bucket names it uses (`ai_services/`, `ai_agents/`,
+`tool_executors/`) are historical source names, not current homes for new work.
 
 `REFACTORING.md` was written against the legacy mechanism-first layout. Its prescriptive wording ("put X in `ai_services/`", "move tool handlers to `tool_executors/`") is superseded by this file. Its tables of past refactors are historical record and remain useful.
 
-Until the migration completes and `NBB-706` removes leftovers, both sets of docs should be read as: *structure rules live in `STRUCTURE.md`; everything else is context.*
+After the services drain, both sets of docs should be read as: *structure rules
+live in `STRUCTURE.md`; legacy mechanism paths are historical context only.*

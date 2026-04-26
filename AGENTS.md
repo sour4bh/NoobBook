@@ -555,7 +555,7 @@ Centralized rate limiting in `app/config/tier_loader.py`. Set via `ANTHROPIC_TIE
 
 ## AI Integration Standard Pattern
 
-This section describes the Codex-API integration pattern NoobBook uses: configuration loading, path management, the API call, and response parsing. New integrations must live in domain-owned homes such as `sources/`, `chat/`, `studio/`, `providers/`, or `connectors/`, not legacy mechanism buckets under `services/`.
+This section describes the Codex-API integration pattern NoobBook uses: configuration loading, path management, the API call, and response parsing. New integrations must live in domain-owned homes such as `sources/`, `chat/`, `studio/`, `providers/`, or `connectors/`, not former mechanism buckets under `services/`.
 
 ### Required Steps (Mandatory)
 

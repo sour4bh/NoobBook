@@ -238,7 +238,7 @@ This heading covers two linked contracts: **identity** (`/auth/me`) and **sessio
 (`/auth/signin`, `/auth/signup`, `/auth/refresh`, `/auth/signout`).
 
 **Backend owner:**
-- Identity: `backend/app/api/auth/routes.py::me` + `backend/app/services/auth/rbac.py::get_request_identity`
+- Identity: `backend/app/api/auth/routes.py::me` + `backend/app/auth/identity.py::get_request_identity`
 - Session: `backend/app/api/auth/routes.py::signup|signin|refresh|signout` +
   `backend/app/providers/supabase/auth.py::AuthService._serialize_user` and
   `::_serialize_session`
@@ -856,9 +856,9 @@ pattern).
 
 ## Contract 14 - Permissions JSON contract
 
-**Backend owner:** `backend/app/services/auth/permissions.py::_get_default_permissions`,
+**Backend owner:** `backend/app/auth/permissions.py::_get_default_permissions`,
 `::get_user_permissions`, `::update_user_permissions`; enforcement decorator
-`backend/app/services/auth/rbac.py::require_permission`. Stored in
+`backend/app/auth/guards.py::require_permission`. Stored in
 `users.permissions` JSONB; `NULL` means "use defaults".
 
 **Frontend consumer:** `frontend/src/lib/api/settings.ts` (admin permissions modal)

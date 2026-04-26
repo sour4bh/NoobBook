@@ -12,6 +12,6 @@ Allowed imports:
   Supabase auth clients) and on `base/` only for charter-exempt primitives.
 - This package must not reach into another domain's internals.
 
-Migration source: `backend/app/services/auth/` remains the legacy location
-until later tickets move behavior here.
+Migration source: auth behavior formerly lived under `backend/app/services/auth/`;
+NBB-008 moved the live surface here and NBB-811 keeps services from returning.
 """

@@ -39,7 +39,7 @@ callback contract.
 
 ## Current-code inventory
 
-Classification of connector-owned modules after `NBB-807`, plus the former `backend/app/services/data_services/` connector stores, against the providers/connectors split. Static tool-schema moves remain governed by `NBB-207C`.
+Classification of connector-owned modules after `NBB-807`, plus the former `backend/app/services/data_services/` connector stores, against the providers/connectors split. Static tool schemas were moved by `NBB-810` and now resolve through domain-owned `tools/` directories.
 
 | Current path | Classification | Rationale |
 |---|---|---|
@@ -68,7 +68,7 @@ All tool-schema families resolve to domain roots (`chat/`, `sources/`, `studio/`
 
 The authoritative per-family mapping for every static tool JSON file lives in the `NBB-207C` decision map: `docs/tickets/epics/NBB-002.md#nbb-207c`. This charter does not duplicate that table. The rule for connectors: any Claude-visible tool whose execution requires per-user or per-project credentials for an external product (Notion, Jira, Mixpanel, MCP) lives under `connectors/<name>/tools/`. Tools whose execution depends on a domain's data (source search, memory, studio signals, analysis over project-owned data) remain domain-owned even if they call a provider SDK transitively.
 
-Tool moves are gated on `NBB-207A` loader compatibility and executed by `NBB-207C` via `docs/tickets/helpers/json_asset_move.sh` with `move-plan.csv` rows; this charter does not move JSON.
+Tool moves were gated on `NBB-207A` loader compatibility and the static connector schemas were completed by `NBB-810`; this charter does not move JSON.
 
 ## Connector-store mapping
 

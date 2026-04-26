@@ -32,12 +32,14 @@ Two CI guardrails run on every push/PR:
 
 `verify_architecture.py` enforces five rules:
 
-1. **Root registry.** Every top-level child of `backend/app/` must be a
-   canonical backend root from `STRUCTURE.md`'s NBB-104 table. Existing
-   legacy roots (`services/`, `utils/`) and the `config/` package are
-   tolerated as known migration state. A new root outside the approved list
-   fails the check. A new mechanism bucket such as `backend/app/agents/` is
-   exactly the regression this catches.
+1. **Root registry and services no-return.** Every tracked top-level child of
+   `backend/app/` must be a canonical backend root from `STRUCTURE.md`'s
+   NBB-104 table. The remaining legacy `utils/` root and the `config/` package
+   are known migration state.
+   `services/` is retired by NBB-811.
+   Any tracked file under `backend/app/services/`, any `app.services.*`
+   reference in backend app code or tests, or current docs that present
+   `services/` as live architecture fail the check.
 2. **`providers/` is a leaf.** Modules under `backend/app/providers/` must
    not import from `app.api`, `app.connectors`, or any domain root (`auth`,
    `projects`, `chat`, `sources`, `studio`, `brand`, `background`,

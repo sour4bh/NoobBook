@@ -15,7 +15,8 @@ Allowed imports:
   studio-owned export behavior belongs in `studio/`.
 
 Migration source: `backend/app/services/integrations/` and parts of
-`backend/app/services/tool_executors/` feed this root.
+`backend/app/services/tool_executors/` formerly fed this root; NBB-810 moved
+the remaining static tool schemas and NBB-811 keeps services from returning.
 
 See `CHARTER.md` in this directory for the NBB-206 boundary overlay.
 """

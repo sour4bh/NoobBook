@@ -39,9 +39,8 @@ logger = logging.getLogger(__name__)
 
 
 # NBB-203: Env var names for the raw-code analysis gate.
-# Duplicated truthy parsing instead of importing from app.services.auth to
-# keep the gate independent of that module during the structure migration
-# (see ticket NBB-203 parallel-safety note).
+# Duplicated truthy parsing keeps the gate independent of the auth stack during
+# the structure migration (see ticket NBB-203 parallel-safety note).
 _AUTH_REQUIRED_ENV = "NOOBBOOK_AUTH_REQUIRED"
 _ALLOW_RAW_ANALYSIS_ENV = "NOOBBOOK_ALLOW_RAW_ANALYSIS"
 _TRUTHY = {"1", "true", "yes", "on"}

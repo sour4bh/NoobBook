@@ -3,11 +3,12 @@ Architecture checks for the NoobBook structure migration (NBB-704A + NBB-704B).
 
 NBB-704A established two narrow rules that hold long before migration finishes:
 
-1. Backend root registry. Every top-level child of ``backend/app/`` must be a
-   canonical root from ``STRUCTURE.md`` (NBB-104). Legacy roots (``services``,
-   ``utils``) and the existing ``config`` package are tolerated as known
-   migration state; new roots outside the approved list fail. This catches a
-   contributor inventing a new mechanism bucket such as ``backend/app/agents/``.
+1. Backend root registry. Every tracked top-level child of ``backend/app/``
+   must be a canonical root from ``STRUCTURE.md`` (NBB-104). The legacy
+   ``utils`` root and the existing ``config`` package are tolerated as known
+   migration state; ``services`` is retired by NBB-811 and may not return. New
+   roots outside the approved list fail. This catches a contributor inventing a
+   new mechanism bucket such as ``backend/app/agents/``.
 
 2. Import direction at the external edge (NBB-104, NBB-206).
    - ``backend/app/providers/`` is a leaf. It must not import from ``app.api``,
@@ -50,12 +51,19 @@ sources/studio public-surface enforcement and the frontend ownership check are
 intentionally deferred (see ``backend/STRUCTURE.md`` Architecture checks). This
 script stays stdlib-only by design.
 
+NBB-811 adds the services no-return rules: no current tracked file under
+``backend/app/services``, no ``app.services.*`` references in backend app code
+or backend tests, and no current docs that present ``services/`` as a live
+destination instead of a historical migration source.
+
 Usage:
     python backend/scripts/verify_architecture.py
 
 Exits 0 when no violations are found. Exits 1 and prints one line per offense.
 """
 import ast
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
@@ -93,12 +101,10 @@ DOMAIN_ROOTS: frozenset[str] = frozenset({
     "settings",
 })
 
-# Legacy roots NBB-103 still allows to read from during the migration. New
-# files under these are blocked by ``scripts/ci/check_no_new_legacy_files.py``;
-# this script tolerates their continued existence so the root-registry check
-# does not fire on the migration's current state.
+# Legacy roots NBB-103 still allows to read from during the migration. The
+# services root is intentionally absent after NBB-811; any current tracked file
+# under ``backend/app/services`` is a no-return violation.
 LEGACY_ROOTS: frozenset[str] = frozenset({
-    "services",
     "utils",
 })
 
@@ -188,6 +194,71 @@ INDEPENDENT_ROOTS_ALLOWLIST: frozenset[Tuple[str, int, str]] = frozenset({
     ("backend/app/connectors/freshdesk/sync.py", 74, "sources"),
 })
 
+CURRENT_DOC_PATHS: Tuple[Path, ...] = (
+    REPO_ROOT / "AGENTS.md",
+    REPO_ROOT / "CLAUDE.md",
+    REPO_ROOT / "STRUCTURE.md",
+    BACKEND_DIR / "STRUCTURE.md",
+    REPO_ROOT / "docs/contracts/README.md",
+)
+
+ACTIVE_SERVICES_GUIDANCE_PATTERNS: Tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"(new|add|create|place|put|land|lives?|belongs?|destination|owner|"
+        r"backend owner|may read|may import|tolerated|current|currently|"
+        r"remains|feed|feeds).*(backend/app/services|app/services|services/|"
+        r"app\.services\.)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(backend/app/services|app/services|services/|app\.services\.).*"
+        r"(new|add|create|place|put|land|lives?|belongs?|destination|owner|"
+        r"backend owner|may read|may import|tolerated|current|currently|"
+        r"remains|feed|feeds)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"backend/app/services/.+::", re.IGNORECASE),
+)
+
+SERVICES_NO_RETURN_MARKERS: Tuple[str, ...] = (
+    "not approved",
+    "frozen",
+    "do not add",
+    "do not recreate",
+    "must remain empty",
+    "must not",
+    "forbidden",
+    "fail",
+    "no-return",
+    "no return",
+    "reject",
+    "retired",
+    "replaces",
+    "rather than",
+    "former",
+    "formerly",
+    "migrated",
+    "migration source",
+    "moved",
+    "removed",
+    "drained",
+    "deleted",
+    "historical",
+)
+
+SERVICES_LIVE_MARKERS: Tuple[str, ...] = (
+    "tolerated",
+    "still contain",
+    "current",
+    "currently",
+    "remains",
+    "feed this root",
+    "feeds this root",
+    "may read",
+    "may import",
+    "backend owner",
+)
+
 
 class Violation:
     __slots__ = ("path", "lineno", "message")
@@ -210,20 +281,36 @@ def check_root_registry() -> List[Violation]:
     """Flag top-level children of ``backend/app/`` outside the approved set."""
     approved = CANONICAL_ROOTS | LEGACY_ROOTS | TOLERATED_ROOTS
     violations: List[Violation] = []
-    for entry in sorted(APP_DIR.iterdir()):
-        if entry.name.startswith((".", "_")):
+    tracked_files, error = _git_ls_files("backend/app")
+    if error is not None:
+        return [Violation(None, 0, error)]
+    root_names: set[str] = set()
+    for rel_path in tracked_files:
+        path = REPO_ROOT / rel_path
+        if not path.exists():
             continue
-        if entry.is_file() and entry.suffix != ".py":
+        parts = Path(rel_path).parts
+        if len(parts) < 3:
             continue
-        if entry.is_file() and entry.name == "__init__.py":
+        name = parts[2]
+        if name.startswith((".", "_")):
             continue
-        # Module names are directories or top-level .py files.
-        name = entry.stem if entry.is_file() else entry.name
+        if len(parts) == 3:
+            if name == "__init__.py":
+                continue
+            suffix = Path(name).suffix
+            if suffix and suffix != ".py":
+                continue
+            name = Path(name).stem
+        root_names.add(name)
+
+    for name in sorted(root_names):
         if name in approved:
             continue
-        kind = "module" if entry.is_file() else "package"
+        path = APP_DIR / name
+        kind = "module" if path.with_suffix(".py").is_file() else "package"
         violations.append(Violation(
-            entry,
+            path,
             0,
             (
                 f"new backend root {kind} '{name}' is not in the canonical "
@@ -231,6 +318,125 @@ def check_root_registry() -> List[Violation]:
                 "approved domain root instead."
             ),
         ))
+    return violations
+
+
+def _git_ls_files(*pathspecs: str) -> Tuple[List[str], Optional[str]]:
+    cmd = ["git", "ls-files", *pathspecs]
+    result = subprocess.run(
+        cmd,
+        cwd=REPO_ROOT,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        return [], f"{' '.join(cmd)} failed: {stderr}"
+    return [line for line in result.stdout.splitlines() if line], None
+
+
+def check_no_services_root() -> List[Violation]:
+    """NBB-811: services is gone; no tracked file may live under it."""
+    tracked_files, error = _git_ls_files("backend/app/services")
+    if error is not None:
+        return [Violation(None, 0, error)]
+    violations: List[Violation] = []
+    for rel_path in tracked_files:
+        path = REPO_ROOT / rel_path
+        violations.append(Violation(
+            path,
+            0,
+            (
+                "backend/app/services is retired by NBB-811. Move this file "
+                "to an owning canonical root; no app.services compatibility "
+                "shim is allowed."
+            ),
+        ))
+    return violations
+
+
+def check_no_app_services_imports() -> List[Violation]:
+    """NBB-811: app.services imports may not return in backend code or tests."""
+    violations: List[Violation] = []
+    roots = (APP_DIR, BACKEND_DIR / "tests")
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*.py")):
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError) as exc:
+                violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+                continue
+            for index, line in enumerate(lines, start=1):
+                if "app.services." not in line:
+                    continue
+                violations.append(Violation(
+                    path,
+                    index,
+                    (
+                        "app.services imports are forbidden after NBB-811. "
+                        "Import from the owning canonical root instead."
+                    ),
+                ))
+    return violations
+
+
+def _iter_current_doc_paths() -> Iterable[Path]:
+    yield from CURRENT_DOC_PATHS
+    for path in sorted(APP_DIR.glob("*/CHARTER.md")):
+        yield path
+    for path in sorted(APP_DIR.glob("*/__init__.py")):
+        yield path
+
+
+def _is_allowed_services_history(line: str) -> bool:
+    lower = line.lower()
+    if not any(marker in lower for marker in SERVICES_NO_RETURN_MARKERS):
+        return False
+    return not any(marker in lower for marker in SERVICES_LIVE_MARKERS)
+
+
+def check_no_live_services_docs() -> List[Violation]:
+    """NBB-811: current guidance must not present services as live."""
+    violations: List[Violation] = []
+    seen: set[Path] = set()
+    for path in _iter_current_doc_paths():
+        resolved = path.resolve()
+        if resolved in seen or not path.exists():
+            continue
+        seen.add(resolved)
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+        for index, line in enumerate(lines, start=1):
+            if not any(
+                token in line
+                for token in (
+                    "backend/app/services",
+                    "app/services",
+                    "services/",
+                    "app.services.",
+                )
+            ):
+                continue
+            if _is_allowed_services_history(line):
+                continue
+            if not any(pattern.search(line) for pattern in ACTIVE_SERVICES_GUIDANCE_PATTERNS):
+                continue
+            violations.append(Violation(
+                path,
+                index,
+                (
+                    "current docs must not describe services/ as a live "
+                    "destination after NBB-811; keep only no-return or "
+                    "historical migration wording."
+                ),
+            ))
     return violations
 
 
@@ -457,6 +663,9 @@ def main() -> int:
 
     violations: List[Violation] = []
     violations.extend(check_root_registry())
+    violations.extend(check_no_services_root())
+    violations.extend(check_no_app_services_imports())
+    violations.extend(check_no_live_services_docs())
     violations.extend(check_providers_imports())
     violations.extend(check_connectors_imports())
     violations.extend(check_chat_publics_only())

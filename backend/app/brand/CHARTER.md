@@ -36,7 +36,7 @@ Path builder: `backend/app/providers/supabase/storage.py::_build_brand_path`. Do
 
 ## Access guard of record
 
-- Entry guard: brand routes are user-scoped (not project-scoped). They rely on the authenticated identity set by the auth stack (`get_request_identity` in `backend/app/services/auth/rbac.py`); the `@before_request` project-access guard does not apply because the URL prefix is `/api/v1/brand/...`, not `/api/v1/projects/{id}/...`. Verify this assumption when NBB-209D moves the store — any new brand route that takes a `{project_id}` must add the project guard.
+- Entry guard: brand routes are user-scoped (not project-scoped). They rely on the authenticated identity set by the auth stack (`get_request_identity` in `backend/app/auth/identity.py`); the `@before_request` project-access guard does not apply because the URL prefix is `/api/v1/brand/...`, not `/api/v1/projects/{id}/...`. Any new brand route that takes a `{project_id}` must add the project guard.
 - RLS of record (hosted): `brand_assets` and `brand_config` policies in `00010_brand_to_user_level.sql` use `user_id = auth.uid()`.
 - Self-hosted mode has no RLS on these tables; the backend-authenticated user id is the only barrier. Brand bucket storage RLS is `Allow all on brand-assets` (init.sql), so the backend guard must not be skipped.
 

@@ -14,5 +14,5 @@ Allowed imports:
 - This package must not reach into a domain's internals; domain-specific work
   is registered through the background task contract, not embedded here.
 
-Migration source: `backend/app/services/background_services/` feeds this root.
+Migration source: `backend/app/services/background_services/` formerly fed this root.
 """

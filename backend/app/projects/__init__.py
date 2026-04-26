@@ -12,6 +12,6 @@ Allowed imports:
   `auth/` for identity/permission checks.
 - This package must not reach into another domain's internals.
 
-Migration source: project persistence currently lives under
-`backend/app/services/data_services/` and moves in later tickets.
+Migration source: project persistence formerly lived under
+`backend/app/services/data_services/` and moved in later tickets.
 """

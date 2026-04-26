@@ -73,8 +73,8 @@ The following paths are frozen. New files must not be added to them unless they 
 - `backend/app/services/ai_services/`
 - `backend/app/services/tool_executors/`
 - `backend/app/services/tools/`
-- `backend/app/services/studio_services/jobs/`
-- `backend/app/services/studio_services/studio_processing/`
+- `backend/app/services/studio_services/jobs/` (directory removed by `NBB-802`; do not recreate)
+- `backend/app/services/studio_services/studio_processing/` (directory removed by `NBB-802`; do not recreate)
 - `backend/data/prompts/`
 - `frontend/src/components/hooks/` (directory removed by `NBB-602`; entry retained for the `NBB-103` legacy-files guardrail until `NBB-706` retires it)
 

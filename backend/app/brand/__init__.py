@@ -12,6 +12,6 @@ Allowed imports:
   checks.
 - This package must not reach into another domain's internals.
 
-Migration source: `backend/app/services/data_services/` currently owns the
-brand stores; moves are owned by `NBB-209D`.
+Migration source: `backend/app/services/data_services/` formerly owned the
+brand stores; moves were owned by `NBB-209D`.
 """

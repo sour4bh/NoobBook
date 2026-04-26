@@ -85,4 +85,4 @@ Any ticket that moves a store or introduces a new storage call must run through 
 - `backend/app/api/brand/routes.py`
 - `backend/app/api/studio/` (category routes)
 - `backend/app/__init__.py` (`enforce_auth` before-request hook)
-- `backend/app/services/data_services/project_service.py` (`has_project_access`)
+- `backend/app/projects/store.py` (`has_project_access`)

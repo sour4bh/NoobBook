@@ -14,7 +14,7 @@ Disposition values:
   small enough this ticket fixes it manually, otherwise the upstream
   owner is named.
 
-## *Service classes (34)
+## *Service classes (33)
 
 | Path | Class | Disposition | Rationale |
 |---|---|---|---|
@@ -28,7 +28,6 @@ Disposition values:
 | backend/app/services/ai_services/pptx_service.py | PPTXService | KEEP | Stateful: lazy tool/prompt config, ThreadPoolExecutor, batched extraction state. Not in NBB-706 conversion map. |
 | backend/app/services/ai_services/summary_service.py | SummaryService | CONVERTED-IN-NBB-706 | Row 5: class deleted; module-level `generate_summary` exposed; `_prompt_config` preserved as module-private lazy cache. |
 | backend/app/services/ai_services/video_prompt_service.py | VideoPromptService | CONVERTED-IN-NBB-706 | Row 7: class deleted; module renamed to `app/studio/media/video/prompt.py` per ticket body in-scope rename; `generate_video_prompt` exposed as module function. AST allowlist entry dropped in same commit. |
-| backend/app/services/ai_services/wireframe_service.py | WireframeService | KEEP | Stateful: lazy tool/prompt config caches. Not in NBB-706 conversion map. |
 | backend/app/services/app_settings/env_service.py | EnvService | KEEP | Per NBB-706 Keep-as-class list: mutable `.env` writes and reload behavior. |
 | backend/app/services/app_settings/validation/validation_service.py | ValidationService | CONVERTED-IN-NBB-706 | Row 4: class deleted; `validate(key_name, value)` exposed as module function with per-key validator function dispatch. |
 | backend/app/services/integrations/claude/claude_service.py | ClaudeService | KEEP | Per NBB-706 Keep-as-class list: provider observability, streaming, retry/backoff, and broad call-site stability. |
@@ -69,8 +68,8 @@ Disposition values:
 
 ## Summary
 
-- Total classes in inventory: 43 (34 *Service + 9 *Executor).
-- KEEP: 37 (28 *Service + 9 *Executor).
+- Total classes in inventory: 42 (33 *Service + 9 *Executor).
+- KEEP: 36 (27 *Service + 9 *Executor).
 - CONVERTED-IN-NBB-706 (matched by the *Service grep): 6 — `ChatNamingService`,
   `EmbeddingService`, `SummaryService`, `ValidationService`, `VideoPromptService`,
   and `OpenAIService`.
@@ -85,4 +84,10 @@ Disposition values:
 |---|---|---|---|
 | backend/app/services/integrations/supabase/supabase_client.py | SupabaseClient | CONVERTED-IN-NBB-706 | Row 1: class deleted; `get_client()`, `is_configured()`, `reset()` exposed as module functions; `_client`, `_initialized` preserved as module-private state. |
 
-The 43 inventory rows above cover the AC#3 deliverable; SupabaseClient is logged here for completeness because the seventh conversion target uses a `Client` suffix instead of `Service` and would be missed by the inventory greps.
+The 42 inventory rows above cover the AC#3 deliverable; SupabaseClient is logged here for completeness because the seventh conversion target uses a `Client` suffix instead of `Service` and would be missed by the inventory greps.
+
+## Deleted residue after NBB-706
+
+| Path | Class | Disposition | Rationale |
+|---|---|---|---|
+| backend/app/services/ai_services/wireframe_service.py | WireframeService | DELETED-IN-NBB-802 | Dead residue from the studio wireframe migration; live behavior is in `backend/app/studio/design/wireframe/draw.py`. |

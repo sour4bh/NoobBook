@@ -33,7 +33,7 @@ Rich import-direction enforcement lands in `NBB-704A` and `NBB-704B`.
 
 ## Current-code inventory
 
-Classification of today's `backend/app/services/integrations/`, `backend/app/services/data_services/`, and `backend/app/services/tools/` against the providers/connectors split. Target shape is `backend/app/connectors/<name>/`; actual moves land in `NBB-207C` (tool schemas), `NBB-209E` (connector stores), and the per-connector migration tickets that follow.
+Classification of today's `backend/app/services/integrations/` and `backend/app/services/tools/`, plus the former `backend/app/services/data_services/` connector stores, against the providers/connectors split. Target shape is `backend/app/connectors/<name>/`; actual moves land in `NBB-207C` (tool schemas), `NBB-209E` (connector stores), and the per-connector migration tickets that follow.
 
 | Current path | Classification | Rationale |
 |---|---|---|
@@ -45,8 +45,8 @@ Classification of today's `backend/app/services/integrations/`, `backend/app/ser
 | `services/integrations/freshdesk/freshdesk_sync_service.py` | connector | Freshdesk project-scoped sync behavior; connector-owned. Target: `connectors/freshdesk/`. |
 | `services/integrations/google/google_drive_service.py` | connector | Google Drive is a user/project product capability (OAuth-scoped file listing, download, Workspace export). Target: `connectors/google_drive/`. The `google/` subdir splits across roots — OAuth primitive and raw Gemini/Veo clients go to `providers/`, Drive goes to `connectors/`. |
 | `services/integrations/mcp/mcp_tool_service.py` | connector | Discovers MCP tools from user connections, namespaces them (`mcp_{slug}_*`), and routes Claude tool calls to the right MCP server. Target: `connectors/mcp/`. |
-| `services/data_services/database_connection_service.py` | connector (store) | Per-user database connection credentials. `NBB-209E` moves it to `connectors/database/connection/store.py` as `DatabaseConnectionStore`. |
-| `services/data_services/mcp_connection_service.py` | connector (store) | Per-user MCP connection config. `NBB-209E` moves it to `connectors/mcp/connection/store.py` as `McpConnectionStore`. |
+| `services/data_services/database_connection_service.py` | connector (store) | Per-user database connection credentials. `NBB-209E` moved it to `connectors/database/connection/store.py` as `DatabaseConnectionStore`; `NBB-802` removed the dead residue. |
+| `services/data_services/mcp_connection_service.py` | connector (store) | Per-user MCP connection config. `NBB-209E` moved it to `connectors/mcp/connection/store.py` as `McpConnectionStore`; `NBB-802` removed the dead residue. |
 
 Tool-schema rows pulled from the NBB-207C decision map that resolve to connector ownership:
 
@@ -66,9 +66,9 @@ Tool moves are gated on `NBB-207A` loader compatibility and executed by `NBB-207
 
 ## Connector-store mapping
 
-`NBB-209E` moves the connector stores:
+`NBB-209E` moved the connector stores:
 
-| Current file | Target | Public name |
+| Former file | Target | Public name |
 |---|---|---|
 | `services/data_services/database_connection_service.py` | `connectors/database/connection/store.py` | `DatabaseConnectionStore` |
 | `services/data_services/mcp_connection_service.py` | `connectors/mcp/connection/store.py` | `McpConnectionStore` |

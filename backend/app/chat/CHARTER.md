@@ -4,7 +4,7 @@
 
 **Validation approach:** every table, column, or JSONB field below must point at a migration file. Every access-guard claim must point at a route or service file. Reviewer uses `backend/supabase/migrations/OWNERS.md` to spot-check.
 
-**Migration source (NBB-209A):** chat and message stores moved from `backend/app/services/data_services/` to `backend/app/chat/store.py` and `backend/app/chat/message/store.py`.
+**Migration source (NBB-209A):** chat and message stores moved from `backend/app/services/data_services/` to `backend/app/chat/store.py` and `backend/app/chat/message/store.py`; `NBB-802` removed the dead residue.
 
 ## Tables owned by `chat/`
 

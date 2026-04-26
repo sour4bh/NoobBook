@@ -4,7 +4,7 @@
 
 **Validation approach:** every table, column, or claim below must point at a migration file. Every access-guard claim must point at a route or service file. Reviewer uses `backend/supabase/migrations/OWNERS.md` to spot-check.
 
-**Migration source (NBB-210):** background task coordination currently lives under `backend/app/services/background_services/`; `NBB-210` consolidates ownership here.
+**Migration source (NBB-210):** background task coordination formerly lived under `backend/app/services/background_services/`; `NBB-210` consolidated ownership here and `NBB-802` removed the dead residue.
 
 ## Tables owned by `background/`
 

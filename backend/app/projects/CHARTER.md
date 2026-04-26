@@ -4,7 +4,7 @@
 
 **Validation approach:** every table, column, or JSONB field below must point at a migration file. Every access-guard claim must point at a route or service file. Reviewer uses `backend/supabase/migrations/OWNERS.md` to spot-check.
 
-**Migration source (NBB-209B):** project persistence currently lives in `backend/app/services/data_services/project_service.py`; `NBB-209B` moves it under this root.
+**Migration source (NBB-209B):** project persistence formerly lived in `backend/app/services/data_services/project_service.py`; `NBB-209B` moved it under this root and `NBB-802` removed the dead residue.
 
 ## Tables owned by `projects/`
 
@@ -32,7 +32,7 @@ Auxiliary tables defined elsewhere but keyed to `project_id`:
 ## Access guard of record
 
 - Entry guard: `@before_request` enforcement in `backend/app/__init__.py` calls `project_service.has_project_access(project_id, user_id)` for every `/api/v1/projects/{id}/...` route.
-- Ownership query: `backend/app/services/data_services/project_service.py::has_project_access` performs a bare `id=? AND user_id=?` lookup against the `projects` table. It does **not** currently consult `project_members`; extend this (or call `user_has_project_access()` SQL helper from migration 00006) when multi-user collaboration is re-enabled.
+- Ownership query: `backend/app/projects/store.py::has_project_access` performs a bare `id=? AND user_id=?` lookup against the `projects` table. It does **not** currently consult `project_members`; extend this (or call `user_has_project_access()` SQL helper from migration 00006) when multi-user collaboration is re-enabled.
 - RLS defence-in-depth (hosted): `migrations/00003_rls_policies.sql` gates `projects` by `auth.uid() = user_id`.
 
 ## Data-move pre-flight (any `NBB-209*` ticket touching project data)

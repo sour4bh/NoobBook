@@ -1,7 +1,7 @@
 """
 Excalidraw Utilities - Convert simplified elements to Excalidraw format.
 
-Used by wireframe_service for generating Excalidraw-compatible wireframes.
+Used by the wireframe builder for generating Excalidraw-compatible wireframes.
 """
 
 import uuid

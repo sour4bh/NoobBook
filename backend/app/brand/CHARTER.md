@@ -4,7 +4,7 @@
 
 **Validation approach:** every table, bucket, or JSONB field below must point at a migration file. Every access-guard claim must point at a route or service file. Reviewer uses `backend/supabase/migrations/OWNERS.md` and `backend/supabase/STORAGE_CONTRACTS.md` to spot-check.
 
-**Migration source (NBB-209D):** brand stores currently live under `backend/app/services/data_services/`; `NBB-209D` moves them here.
+**Migration source (NBB-209D):** brand stores formerly lived under `backend/app/services/data_services/`; `NBB-209D` moved them here and `NBB-802` removed the dead residue.
 
 ## Tables owned by `brand/`
 

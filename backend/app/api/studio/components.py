@@ -2,7 +2,7 @@
 Component Generation endpoints - Reusable UI components.
 
 Educational Note: Components demonstrate code generation patterns:
-1. component_agent_executor orchestrates generation
+1. `studio/design/component/run.py` orchestrates generation
 2. Claude creates self-contained HTML components
 3. Components include inline CSS and JavaScript
 4. Ready for copy-paste into any project
@@ -29,7 +29,7 @@ Routes:
 import io
 from flask import g, jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 import app.studio.design.component.run
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
@@ -39,7 +39,7 @@ from app.auth.guards import require_permission
 @require_permission("studio", "components")
 def generate_components(project_id: str):
     """
-    Start component generation via component agent.
+    Start component generation via the component run entrypoint.
 
     Request Body:
         - source_id: UUID of the source to generate components from (required)

@@ -1,0 +1,9 @@
+{
+  "name": "compact",
+  "description": "Request context compaction for the current chat when the conversation is getting too large.",
+  "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  }
+}

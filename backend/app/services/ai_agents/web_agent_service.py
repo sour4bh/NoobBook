@@ -25,7 +25,7 @@ from app.services.integrations.claude import claude_service
 from app.config.prompt_loader import prompt_loader
 from app.config.tool_loader import tool_loader
 from app.sources.link.run import web_agent_executor
-from app.chat.message.store import message_service
+from app.chat.store import message_service
 import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)

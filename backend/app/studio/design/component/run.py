@@ -1,8 +1,8 @@
 """
-Component Agent Executor - Handles studio signal execution for UI components.
+Component runner - handles studio-signal execution for UI components.
 
-Educational Note: This executor is triggered by studio signals (from main chat)
-and launches the component agent as a background task to generate 2-4 component variations.
+Educational Note: This runner is triggered by studio signals (from main chat)
+and launches the component builder as a background task to generate 2-4 component variations.
 """
 
 import logging
@@ -15,15 +15,15 @@ logger = logging.getLogger(__name__)
 
 class ComponentRunner:
     """
-    Executor for UI component generation via studio signals.
+    Runner for UI component generation via studio signals.
 
     Educational Note: The studio signal flow:
     1. User chats with AI about creating components
     2. AI decides to activate studio (sends studio_signal tool call)
-    3. studio_signal_executor routes to this executor
-    4. We create a job and launch component_agent as background task
-    5. Agent runs independently and updates job status
-    6. Agent generates 2-4 variations of the requested component
+    3. studio_signal routes to this runner
+    4. We create a job and launch the component builder as a background task
+    5. The builder updates job status
+    6. The builder generates 2-4 variations of the requested component
     """
 
     def execute(
@@ -47,7 +47,7 @@ class ComponentRunner:
         Returns:
             Job info with status and job_id for polling
         """
-        from app.services.studio_services import studio_index_service
+        import app.services.studio_services.studio_index_service as studio_index_service
         from app.background.tasks import task_service
         from app.studio.design.component.build import component_agent_service
         from app.sources.catalog import source_service

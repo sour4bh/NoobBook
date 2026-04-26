@@ -2,13 +2,13 @@
 Business Report endpoints - AI-generated data-driven business reports.
 
 Educational Note: Business reports demonstrate multi-agent orchestration:
-1. business_report_agent_executor orchestrates the generation
+1. The business report run module orchestrates the generation
 2. The agent calls csv_analyzer_agent for data analysis and charts
 3. Context from non-CSV sources is incorporated
 4. Complete package: Markdown report + data visualizations
 
 Agent Pattern:
-- Uses business_report_agent_executor for orchestration
+- Uses the business report run module for orchestration
 - Agent has tools for planning, data analysis, context search, and writing
 - Calls csv_analyzer_agent internally for pandas/matplotlib operations
 - Multi-step process with intermediate results
@@ -33,8 +33,8 @@ import io
 import zipfile
 from flask import jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
-from app.studio.documents.business_report.run import business_report_agent_executor
+import app.services.studio_services.studio_index_service as studio_index_service
+from app.studio.documents.business_report.run import run as run_business_report
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 
@@ -130,8 +130,8 @@ def generate_business_report(project_id: str):
         if report_type not in valid_report_types:
             report_type = 'executive_summary'
 
-        # Execute via business_report_agent_executor (creates job and launches agent)
-        result = business_report_agent_executor.execute(
+        # Execute via the business report run entrypoint (creates job and launches agent)
+        result = run_business_report(
             project_id=project_id,
             source_id=source_id,
             direction=direction,

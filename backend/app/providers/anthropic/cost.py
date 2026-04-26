@@ -58,7 +58,7 @@ def _calculate_cost(model_key: str, input_tokens: int, output_tokens: int) -> fl
     Calculate cost for a single API call.
 
     Args:
-        model_key: "sonnet" or "haiku"
+        model_key: "opus", "sonnet", or "haiku"
         input_tokens: Number of input tokens
         output_tokens: Number of output tokens
 

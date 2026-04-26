@@ -98,14 +98,14 @@ Use refactory for movement tickets named in `docs/tickets/REFACTORY_SETUP.md` or
 
 Before any refactory operation:
 
-1. Confirm `tool_search` surfaces refactory's `move_module` tool. It will appear as either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (plugin-dir load). If neither surfaces, stop and return `BLOCKED: refactory plugin not loaded`; do not fall back to manual edits.
+1. Confirm refactory's `move_module` tool is available in the session tool list. It will appear as either `mcp__refactory__move_module` (raw `.mcp.json` load) or `mcp__plugin_refactory_refactory__move_module` (plugin-dir load). If neither namespace is available, stop and return `BLOCKED: refactory plugin not loaded`; do not fall back to manual edits.
 2. For `move_symbol`, create the target module before the first preview.
-3. Call the refactory tool with `project_root` as an absolute path under your worktree (e.g. `<your worktree pwd>/backend`) and `expected_git_root` set to your worktree root (the `pwd` recorded in Work Planning step 3). Omit `apply` — preview is the default. Refactory refuses the call if `project_root` resolves outside `expected_git_root`; this is the worktree-confinement guard, not optional.
+3. Call the refactory tool with `project_root` as an absolute path under your worktree (e.g. `<your worktree pwd>/backend` for Python moves or `<your worktree pwd>/frontend` for TypeScript moves). Omit `apply` — preview is the default. Refactory refuses relative paths and paths outside the current worktree; this is the worktree-confinement guard, not optional.
 4. Review the affected files and preview.
-5. Call the same tool again with the same `project_root` and `expected_git_root`, plus `apply: true`.
+5. Call the same tool again with the same `project_root`, plus `apply: true`.
 6. Append one row to `docs/tickets/move-plan.csv` for that exact operation.
 7. Run `docs/tickets/helpers/string_ref_scan.py <old_path-or-pattern>`.
-8. Run refactory's `validate_imports` (`mcp__refactory__validate_imports` or `mcp__plugin_refactory_refactory__validate_imports`) scoped to the moved file(s) via `project_root`, not the whole `backend/` tree. `validate_imports` is read-only and does not accept `expected_git_root`. Rope returns false-positive `unresolved_import_name` errors for stdlib modules (`datetime`, `decimal`, `concurrent.futures`) against `backend/` without venv wiring; compare the error set against the pre-move baseline instead of treating non-empty output as failure. Record the baseline delta in NOTES.
+8. Run refactory's `validate_imports` (`mcp__refactory__validate_imports` or `mcp__plugin_refactory_refactory__validate_imports`) scoped to the moved file(s) via `project_root`, not the whole `backend/` tree. Rope returns false-positive `unresolved_import_name` errors for stdlib modules (`datetime`, `decimal`, `concurrent.futures`) against `backend/` without venv wiring; compare the error set against the pre-move baseline instead of treating non-empty output as failure. Record the baseline delta in NOTES.
 
 Refactory pre-flight refuses two patterns with actionable errors instead of silent corruption: lazy in-function imports of the source module (Cat A) and a top-level binding whose name equals the source module stem (Cat B). On either error, stop and return `BLOCKED: refactory hazard pre-flight — <error>` with the file/line list verbatim. Do not edit the source to dodge the pre-flight unless the dispatch prompt pre-authorizes a bounded one-ticket manual exception.
 

@@ -58,9 +58,9 @@ Detection rule (top-level definitions only):
 Multi-target assigns (``x = y = ClassName()``) are skipped intentionally.
 
 Allowlist key is ``(rel_path, class_name)`` — line numbers drift across
-unrelated edits, but the file/class pair is stable. Same precedent as
-``verify_architecture.py``'s ``INHERITED_PROVIDER_VIOLATIONS`` and
-``CHAT_INTERNAL_REACH_ALLOWLIST``.
+unrelated edits, but the file/class pair is stable. This mirrors
+``verify_architecture.py``'s preference for explicit, reviewable allowlist
+tuples rather than broad string suppression.
 
 Usage:
     python backend/scripts/verify_no_stateless_singletons.py

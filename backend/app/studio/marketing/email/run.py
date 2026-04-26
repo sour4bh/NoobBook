@@ -1,10 +1,9 @@
 """
-Email Agent Executor - Handles studio signal execution for email templates.
+Email Runner - Handles studio signal execution for email templates.
 
-Educational Note: This executor is triggered by studio signals (from main chat)
-and launches the email agent as a background task. Unlike web_agent_executor,
-this doesn't handle individual tool calls - those are handled inside
-email_agent_service itself.
+Educational Note: This runner is triggered by studio signals (from main chat)
+and launches the email agent as a background task. It does not handle
+individual tool calls; those are handled inside the email writer.
 """
 
 import logging
@@ -56,7 +55,7 @@ class EmailRunner:
         Returns:
             Job info with status and job_id for polling
         """
-        from app.services.studio_services import studio_index_service
+        import app.services.studio_services.studio_index_service as studio_index_service
         from app.background.tasks import task_service
         from app.studio.marketing.email.write import email_agent_service
         from app.sources.catalog import source_service
@@ -131,3 +130,28 @@ class EmailRunner:
 
 # Singleton instance
 email_agent_executor = EmailRunner()
+
+
+def run(
+    project_id: str,
+    source_id: str,
+    direction: str = "",
+    user_id: Optional[str] = None,
+    edit_instructions: Optional[str] = None,
+    previous_markdown: Optional[str] = None,
+    previous_title: Optional[str] = None,
+    parent_job_id: Optional[str] = None,
+    parent_source_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Module-level entry point matching the `<item>/run.py::run(...)` naming rule."""
+    return email_agent_executor.execute(
+        project_id=project_id,
+        source_id=source_id,
+        direction=direction,
+        user_id=user_id,
+        edit_instructions=edit_instructions,
+        previous_markdown=previous_markdown,
+        previous_title=previous_title,
+        parent_job_id=parent_job_id,
+        parent_source_name=parent_source_name,
+    )

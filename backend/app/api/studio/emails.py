@@ -2,13 +2,13 @@
 Email Template endpoints - AI-generated HTML email templates.
 
 Educational Note: Email templates demonstrate agent-based generation:
-1. email_agent_executor orchestrates the generation
+1. The email run module orchestrates the generation
 2. Claude creates HTML structure and content
 3. Gemini generates header/banner images
 4. Complete package: HTML + images
 
 Agent Pattern:
-- Uses email_agent_executor for orchestration
+- Uses the email run module for orchestration
 - Agent has tools for HTML generation and image creation
 - Multi-step process with intermediate results
 - Final output is a complete email template
@@ -33,8 +33,8 @@ import re
 import zipfile
 from flask import g, jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
-from app.studio.marketing.email.run import email_agent_executor
+import app.services.studio_services.studio_index_service as studio_index_service
+from app.studio.marketing.email.run import run as run_email
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 
@@ -101,8 +101,8 @@ def generate_email_template(project_id: str):
             previous_title = parent_job.get('template_name')
             parent_source_name = parent_job.get('source_name')
 
-        # Execute via email_agent_executor (creates job and launches agent)
-        result = email_agent_executor.execute(
+        # Execute via the email run entrypoint (creates job and launches agent)
+        result = run_email(
             project_id=project_id,
             source_id=source_id,
             direction=direction,

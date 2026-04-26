@@ -1,7 +1,7 @@
 """
-Video Executor - Handles studio signal execution for video generation.
+Video dispatcher - handles studio-signal execution for video generation.
 
-Educational Note: This executor is triggered by studio signals (from main chat)
+Educational Note: This dispatcher is triggered by studio signals (from main chat)
 and launches video generation as a background task.
 """
 import logging
@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 class VideoDispatcher:
     """
-    Executor for video generation via studio signals.
+    Dispatcher for video generation via studio signals.
 
     Educational Note: The studio signal flow:
     1. User chats with AI about creating videos
     2. AI decides to activate studio (sends studio_signal tool call)
-    3. studio_signal_executor routes to this executor
+    3. studio_signal routes to this dispatcher
     4. We create a job and launch video generation as background task
-    5. Service runs and updates job status
+    5. Video generation runs and updates job status
     """
 
     def dispatch(
@@ -53,7 +53,7 @@ class VideoDispatcher:
         Returns:
             Job info with status and job_id for polling
         """
-        from app.services.studio_services import studio_index_service
+        import app.services.studio_services.studio_index_service as studio_index_service
         from app.background.tasks import task_service
         from app.studio.media.video.generate import video_service
         from app.sources.catalog import source_service

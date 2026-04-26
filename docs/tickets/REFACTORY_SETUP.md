@@ -2,7 +2,7 @@
 
 This doc is agent-targeted setup for the `docs/tickets/` migration program. It documents how to enable the **refactory** Claude Code plugin so movement tickets share one codemod backend, plus the safety rules agents must follow.
 
-Refactory exposes four MCP tools — `move_module`, `move_symbol`, `rename_symbol`, `validate_imports` — backed by rope (Python) and ts-morph (TypeScript). NBB-103 wires it into NoobBook; movement tickets call refactory tools directly. The safety contract is refactory preview, apply with `expected_git_root`, `validate_imports`, string-reference scan, pyright on touched packages, and the relevant ticket tests.
+Refactory exposes four MCP tools — `move_module`, `move_symbol`, `rename_symbol`, `validate_imports` — backed by rope (Python) and ts-morph (TypeScript). NBB-103 wires it into NoobBook; movement tickets call refactory tools directly. The safety contract is refactory preview, absolute `project_root`, apply with `apply: true`, `validate_imports`, string-reference scan, pyright on touched packages, and the relevant ticket tests.
 
 ## When you need this
 
@@ -40,17 +40,17 @@ You do **not** need refactory for `NBB-109`, `NBB-207B`, or `NBB-207C` (those us
 
 ## Self-check before editing code
 
-In any agent session, confirm `tool_search` surfaces refactory's `move_module` tool. It appears as one of two namespaces depending on how refactory loaded:
+In any agent session, confirm refactory's `move_module` tool is available in the session tool list. It appears as one of two namespaces depending on how refactory loaded:
 
 - `mcp__refactory__move_module` — raw `.mcp.json` registration.
 - `mcp__plugin_refactory_refactory__move_module` — `--plugin-dir` plugin-framework load (the recommended path).
 
-Either namespace is fine — the agent specs allowlist both. If neither surfaces, the plugin is not loaded — **stop and fix session setup before editing code**. Silent fallback to manual import editing is a failure mode the migration is designed to avoid.
+Either namespace is fine — the agent specs allowlist both. If neither namespace is available, the plugin is not loaded — **stop and fix session setup before editing code**. Silent fallback to manual import editing is a failure mode the migration is designed to avoid.
 
 ## Safety rules
 
 - **Preview first; mutation needs `apply: true`.** Refactory's MCP schema defaults `apply` to `false`, so any call without `apply: true` returns a preview only and the response carries the explicit `Preview only.` message. Review the preview, then call the same tool again with `apply: true` to mutate.
-- **`expected_git_root` is mandatory on every move/rename call.** Pass `expected_git_root=<your worktree root>` (the `pwd` recorded by the worker on entering its worktree). Refactory refuses the operation when `project_root` resolves into a different git worktree, blocking accidental writes to the main checkout. `validate_imports` is read-only and does not accept `expected_git_root`.
+- **`project_root` is mandatory and absolute on every move/rename call.** Pass the actual package root under the worker worktree, usually `<your worktree pwd>/backend` for Python moves or `<your worktree pwd>/frontend` for TypeScript moves. Refactory refuses relative paths and paths that are not inside the current worktree; callers do not pass a separate git-root safety parameter.
 - **Hazard pre-flight fails closed.** Refactory refuses two patterns with actionable errors instead of silent corruption: lazy in-function imports of the source module (Cat A) and a top-level binding whose name equals the source module stem (Cat B). On either error, workers BLOCK and the dispatcher decides whether to re-dispatch under a bounded one-ticket manual exception.
 - **`move_symbol` needs the target file to exist.** Refactory's Python `move_symbol` preview fails if the target module is not on disk. `touch backend/app/<new_path>` before the first preview.
 - **Append to `move-plan.csv` after every move.** One row per operation, ticket id in the first column.

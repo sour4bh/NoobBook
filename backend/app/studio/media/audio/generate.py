@@ -21,7 +21,7 @@ from datetime import datetime
 
 from app.services.integrations.claude import claude_service
 from app.services.integrations.elevenlabs import tts_service
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.studio.media.audio.tool import studio_audio_executor
 from app.config.prompt_loader import prompt_loader
 from app.config.tool_loader import tool_loader

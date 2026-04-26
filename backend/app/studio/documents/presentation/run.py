@@ -1,8 +1,8 @@
 """
-Presentation Agent Executor - Handles studio signal execution for presentation generation.
+Presentation runner - handles studio-signal execution for presentation generation.
 
-Educational Note: This executor is triggered by studio signals (from main chat)
-and launches the presentation agent as a background task. After the agent generates
+Educational Note: This runner is triggered by studio signals (from main chat)
+and launches the presentation composer as a background task. After it generates
 HTML slides, it captures screenshots and exports to PPTX.
 """
 
@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 class PresentationRunner:
     """
-    Executor for presentation generation via studio signals.
+    Runner for presentation generation via studio signals.
 
     Educational Note: The studio signal flow:
     1. User chats with AI about sources
     2. AI decides to activate studio (sends studio_signal tool call)
-    3. studio_signal_executor routes to this executor
-    4. We create a job and launch presentation_agent as background task
-    5. Agent generates HTML slides
+    3. studio_signal routes to this runner
+    4. We create a job and launch the presentation composer as a background task
+    5. The composer generates HTML slides
     6. We capture screenshots and export to PPTX
     7. Job status is updated throughout
     """
@@ -57,7 +57,7 @@ class PresentationRunner:
         Returns:
             Job info with status and job_id for polling
         """
-        from app.services.studio_services import studio_index_service
+        import app.services.studio_services.studio_index_service as studio_index_service
         from app.background.tasks import task_service
         from app.studio.documents.presentation.compose import presentation_agent_service
         from app.sources.catalog import source_service

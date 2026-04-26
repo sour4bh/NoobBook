@@ -28,7 +28,7 @@ import json
 import uuid
 from flask import jsonify, request, current_app
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.studio.learning.mind_map.build import mind_map_service
 from app.background.tasks import task_service
 from app.auth.guards import require_permission

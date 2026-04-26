@@ -8,7 +8,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Textarea } from '../ui/textarea';
 import { PaperPlaneTilt, Microphone, CodeBlock, StopCircle } from '@phosphor-icons/react';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissions } from '@/contexts/permissions';
 
 interface ChatInputProps {
   message: string;

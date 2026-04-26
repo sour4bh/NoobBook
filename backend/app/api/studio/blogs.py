@@ -2,13 +2,13 @@
 Blog Post endpoints - AI-generated comprehensive blog posts.
 
 Educational Note: Blog posts demonstrate agent-based generation with image support:
-1. blog_agent_executor orchestrates the generation
+1. The blog run module orchestrates the generation
 2. Claude creates markdown structure and content
 3. Gemini generates images for hero and sections
 4. Complete package: Markdown + images
 
 Agent Pattern:
-- Uses blog_agent_executor for orchestration
+- Uses the blog run module for orchestration
 - Agent has tools for planning, image generation, and writing
 - Multi-step process with intermediate results
 - Final output is a complete markdown blog post
@@ -32,8 +32,8 @@ import io
 import zipfile
 from flask import jsonify, request, current_app, send_file, Response, g
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
-from app.studio.documents.blog.run import blog_agent_executor
+import app.services.studio_services.studio_index_service as studio_index_service
+from app.studio.documents.blog.run import run as run_blog
 from app.services.integrations.supabase import storage_service
 from app.studio.design.logo.ops import resolve_logo
 from app.auth.guards import require_permission
@@ -117,8 +117,8 @@ def generate_blog_post(project_id: str):
         # Resolve brand logo for image generation
         logo_image_bytes, logo_mime_type = resolve_logo(data, project_id)
 
-        # Execute via blog_agent_executor (creates job and launches agent)
-        result = blog_agent_executor.execute(
+        # Execute via the blog run entrypoint (creates job and launches agent)
+        result = run_blog(
             project_id=project_id,
             source_id=source_id,
             direction=direction,

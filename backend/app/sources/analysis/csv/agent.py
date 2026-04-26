@@ -33,7 +33,7 @@ from app.sources.analysis.csv.run import (
     raw_analysis_enabled,
     RAW_ANALYSIS_DISABLED_MESSAGE,
 )
-from app.chat.message.store import message_service
+from app.chat.store import message_service
 import app.providers.anthropic.response_parser
 import app.providers.anthropic.content
 

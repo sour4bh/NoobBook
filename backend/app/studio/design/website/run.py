@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 class WebsiteRunner:
     """
-    Executor for website generation via studio signals.
+    Runner for website generation via studio signals.
 
     Educational Note: The studio signal flow:
     1. User chats with AI about sources
     2. AI decides to activate studio (sends studio_signal tool call)
-    3. studio_signal_executor routes to this executor
-    4. We create a job and launch website_agent as background task
-    5. Agent runs independently and updates job status
+    3. studio_signal routes to this runner
+    4. We create a job and launch the website builder as a background task
+    5. The builder updates job status
     """
 
     def execute(
@@ -51,7 +51,7 @@ class WebsiteRunner:
         Returns:
             Job info with status and job_id for polling
         """
-        from app.services.studio_services import studio_index_service
+        import app.services.studio_services.studio_index_service as studio_index_service
         from app.background.tasks import task_service
         from app.studio.design.website.build import website_agent_service
         from app.sources.catalog import source_service

@@ -7,7 +7,7 @@ Educational Note: Presentation generation demonstrates HTML-to-PPTX workflow:
 3. python-pptx stitches screenshots into a PPTX file
 
 Agent Architecture:
-- Uses presentation_agent_executor for orchestration
+- Uses the presentation run module for orchestration
 - Agent has tools for planning, styling, and slide creation
 - Sequential slide generation for design consistency
 - Export pipeline: HTML -> PNG -> PPTX
@@ -30,7 +30,7 @@ import io
 import zipfile
 from flask import jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 
@@ -52,7 +52,7 @@ def generate_presentation(project_id: str):
     Returns:
         202 Accepted with job_id for polling
     """
-    from app.studio.documents.presentation.run import presentation_agent_executor
+    from app.studio.documents.presentation.run import run as run_presentation
 
     try:
         data = request.get_json()
@@ -110,7 +110,7 @@ def generate_presentation(project_id: str):
             }), 400
 
         # Execute presentation generation (background task)
-        result = presentation_agent_executor.execute(
+        result = run_presentation(
             project_id=project_id,
             source_id=source_id or '',
             direction=direction,

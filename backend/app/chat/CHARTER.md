@@ -4,7 +4,7 @@
 
 **Validation approach:** every table, column, or JSONB field below must point at a migration file. Every access-guard claim must point at a route or service file. Reviewer uses `backend/supabase/migrations/OWNERS.md` to spot-check.
 
-**Migration source (NBB-209A):** chat and message stores currently live under `backend/app/services/data_services/`; `NBB-209A` moves them here after `NBB-109`'s chat N+1/cost fixes land.
+**Migration source (NBB-209A):** chat and message stores moved from `backend/app/services/data_services/` to `backend/app/chat/store.py` and `backend/app/chat/message/store.py`.
 
 ## Tables owned by `chat/`
 
@@ -33,7 +33,7 @@
 ## Data-move pre-flight (NBB-209A and any future chat-store migrations)
 
 1. Keep the RLS subquery shape unchanged when moving the store; any rename that breaks the `chat_id -> project_id` join must be staged as a dedicated migration ticket.
-2. NBB-302 split the legacy `main_chat_service.py` into `chat/loop.py`, `chat/context.py`, `chat/tool/policy.py`, `chat/persistence.py`, `chat/stream.py`, `chat/memory/`, and `chat/naming.py`; the existing ownership query path is preserved. Do not introduce new direct reads of `messages` from outside `chat/` internals.
+2. NBB-302 split the legacy `main_chat_service.py` into `chat/loop.py`, `chat/context.py`, `chat/tool/policy.py`, `chat/persistence.py`, `chat/streaming.py`, `chat/memory/`, and `chat/naming.py`; the existing ownership query path is preserved. Do not introduce new direct reads of `messages` from outside `chat/` internals.
 3. Chat-invoked tools (NBB-303) may store rows in other domain tables (memory, studio signals, connector invocations). Those rows remain owned by the target domain's charter, not this one.
 
 ## Cross-reference

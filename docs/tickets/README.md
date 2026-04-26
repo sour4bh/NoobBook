@@ -125,7 +125,7 @@ Structural movement tickets (NBB-209A–E, 304, 402, 705A–D, and partially 403
 
 Columns (no spaces, standard CSV): `ticket,language,old_path,new_path,old_symbol,new_symbol,mode,tool`
 
-Modes: `python_module_move`, `python_symbol_rename`, `python_symbol_move`, `json_asset_move`, `text_reference_check`.
+Modes: `python_module_move`, `typescript_module_move`, `python_symbol_rename`, `python_symbol_move`, `python_symbol_extract`, `python_symbol_remove`, `python_module_remove`, `json_asset_move`, `text_reference_check`.
 
 Helpers for cases refactory does not cover (owned by `NBB-103`):
 
@@ -140,10 +140,10 @@ python docs/tickets/helpers/string_ref_scan.py <pattern>
 
 Agent convention for every move:
 
-1. Confirm `tool_search` surfaces `mcp__refactory__move_module`; if not, the refactory plugin is not loaded — see [`REFACTORY_SETUP.md`](REFACTORY_SETUP.md).
-2. For `move_symbol` rows only: `touch` the target file before the first dry-run call.
-3. Call the refactory tool with `dry_run=true`, review the diff.
-4. Call the refactory tool with `dry_run=false` to apply.
+1. Confirm the refactory MCP tools are available in the session; if not, the plugin is not loaded — see [`REFACTORY_SETUP.md`](REFACTORY_SETUP.md).
+2. For `move_symbol` rows only: `touch` the target file before the first preview call.
+3. Call the refactory tool with absolute `project_root=<worktree root>` and omit `apply` to preview.
+4. Call the same refactory operation with `apply=true` to mutate.
 5. Append one row per move to `move-plan.csv` with the ticket id.
 6. Run `string_ref_scan.py <old_path>` and resolve any hits.
 7. Run `pyright` on touched packages plus the NBB-106 route smokes and NBB-107 auth tests. The ticket is not done until these pass.

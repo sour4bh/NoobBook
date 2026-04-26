@@ -18,7 +18,7 @@ import pytest
 # website.job first triggers the back-edge before studio_index_service has
 # defined create_job/update_job. Going through studio_index_service first
 # loads the full chain in dependency order.
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.studio.design.website import job as website_job
 
 

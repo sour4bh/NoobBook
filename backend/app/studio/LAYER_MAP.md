@@ -14,10 +14,10 @@ Every studio item directory uses these file names when the layer exists. Create 
 
 | Layer | Canonical file | Role | Replaces |
 |---|---|---|---|
-| Core operation | `<item>/<verb>.py` | Core domain operation (planning, composition, generation). Domain verb is fixed per item in the table below. | `<item>_service.py` under `services/studio_services/` or `services/ai_agents/`. |
-| Background job wiring | `<item>/job.py` | Background job entry point, status/progress transitions, and `studio_jobs` lifecycle wiring. | `services/studio_services/jobs/<item>_jobs.py`. |
-| Sync tool dispatch | `<item>/tool.py` | Per-tool sync dispatch for the Claude agentic loop. | `<item>_tool_executor.py` under `services/tool_executors/`. |
-| Background orchestration | `<item>/run.py` | Background agentic orchestration (multi-step loops, phase control). | `<item>_agent_executor.py` under `services/tool_executors/`. |
+| Core operation | `<item>/<verb>.py` | Core domain operation (planning, composition, generation). Domain verb is fixed per item in the table below. | Legacy service/agent modules. |
+| Background job wiring | `<item>/job.py` | Background job entry point, status/progress transitions, and `studio_jobs` lifecycle wiring. | Legacy per-item job modules. |
+| Sync tool dispatch | `<item>/tool.py` | Per-tool sync dispatch for the Claude agentic loop. | Legacy tool-executor modules. |
+| Background orchestration | `<item>/run.py` | Background agentic orchestration (multi-step loops, phase control). | Legacy agent-executor modules. |
 | Wire shapes | `<item>/schema.py` | Item-local request/result/progress shapes tied to Contract 13 (studio job status/progress/result). | New local contract file per `NBB-205`. |
 
 ## Executable naming rule
@@ -26,7 +26,7 @@ Every studio item directory uses these file names when the layer exists. Create 
 |---|---|
 | Multi-tool `<item>/tool.py` router | Export `dispatch(...)`. Do not keep `execute_tool(...)`. |
 | Single-action tool module | Export the domain verb directly (`search`, `store`, `emit`, `analyze`, `fetch`, `research`, etc.). Do not export `execute_tool(...)`. |
-| Studio signal executor | `services/tool_executors/studio_signal_executor.py::execute` → `studio/signal.py::emit(...)`. Studio-level, not item-specific. |
+| Studio signal executor | `studio/signal.py::emit(...)`. Studio-level, not item-specific. |
 
 ## Core-operation verb table
 
@@ -74,10 +74,10 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `write.py` (core) | `backend/app/services/ai_agents/blog_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/blog_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/blog_tool_executor.py` |
-| `run.py` | `backend/app/services/tool_executors/blog_agent_executor.py` |
+| `write.py` (core) | `backend/app/studio/documents/blog/write.py` |
+| `job.py` | `backend/app/studio/documents/blog/job.py` |
+| `tool.py` | `backend/app/studio/documents/blog/tool.py` |
+| `run.py` | `backend/app/studio/documents/blog/run.py` |
 | `schema.py` | none (new local contract file; lands in NBB-504 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
 | Background | `backend/app/background/tasks.py` (NBB-210) |
@@ -86,10 +86,10 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `write.py` (core) | `backend/app/services/ai_agents/business_report_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/business_report_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/business_report_tool_executor.py` |
-| `run.py` | `backend/app/services/tool_executors/business_report_agent_executor.py` |
+| `write.py` (core) | `backend/app/studio/documents/business_report/write.py` |
+| `job.py` | `backend/app/studio/documents/business_report/job.py` |
+| `tool.py` | `backend/app/studio/documents/business_report/tool.py` |
+| `run.py` | `backend/app/studio/documents/business_report/run.py` |
 | `schema.py` | none (new local contract file; lands in NBB-504 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
 | Background | `backend/app/background/tasks.py` (NBB-210) |
@@ -98,9 +98,9 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `write.py` (core) | `backend/app/services/ai_agents/prd_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/prd_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/prd_tool_executor.py` |
+| `write.py` (core) | `backend/app/studio/documents/prd/write.py` |
+| `job.py` | `backend/app/studio/documents/prd/job.py` |
+| `tool.py` | `backend/app/studio/documents/prd/tool.py` |
 | `run.py` | none (prd uses `is_last_section` termination inside `tool.py`; no separate agent orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-504 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -110,10 +110,10 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `compose.py` (core) | `backend/app/services/ai_agents/presentation_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/presentation_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/presentation_tool_executor.py` |
-| `run.py` | `backend/app/services/tool_executors/presentation_agent_executor.py` |
+| `compose.py` (core) | `backend/app/studio/documents/presentation/compose.py` |
+| `job.py` | `backend/app/studio/documents/presentation/job.py` |
+| `tool.py` | `backend/app/studio/documents/presentation/tool.py` |
+| `run.py` | `backend/app/studio/documents/presentation/run.py` |
 | `schema.py` | none (new local contract file; lands in NBB-504 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
 | Background | `backend/app/background/tasks.py` (NBB-210) |
@@ -124,8 +124,8 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `create.py` (core) | `backend/app/services/studio_services/ad_creative_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/ad_jobs.py` |
+| `create.py` (core) | `backend/app/studio/marketing/ad/create.py` |
+| `job.py` | `backend/app/studio/marketing/ad/job.py` |
 | `tool.py` | none (image-first service; no Claude agentic tool loop) |
 | `run.py` | none (image-first service; no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-505 tied to Contract 13) |
@@ -136,10 +136,10 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `write.py` (core) | `backend/app/services/ai_agents/email_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/email_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/email_tool_executor.py` |
-| `run.py` | `backend/app/services/tool_executors/email_agent_executor.py` |
+| `write.py` (core) | `backend/app/studio/marketing/email/write.py` |
+| `job.py` | `backend/app/studio/marketing/email/job.py` |
+| `tool.py` | `backend/app/studio/marketing/email/tool.py` |
+| `run.py` | `backend/app/studio/marketing/email/run.py` |
 | `schema.py` | none (new local contract file; lands in NBB-505 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
 | Background | `backend/app/background/tasks.py` (NBB-210) |
@@ -148,8 +148,8 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `create.py` (core) | `backend/app/services/studio_services/infographic_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/infographic_jobs.py` |
+| `create.py` (core) | `backend/app/studio/marketing/infographic/create.py` |
+| `job.py` | `backend/app/studio/marketing/infographic/job.py` |
 | `tool.py` | none (image-first service; no Claude agentic tool loop) |
 | `run.py` | none (image-first service; no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-505 tied to Contract 13) |
@@ -160,9 +160,9 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `plan.py` (core) | `backend/app/services/ai_agents/marketing_strategy_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/marketing_strategy_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/marketing_strategy_tool_executor.py` |
+| `plan.py` (core) | `backend/app/studio/marketing/strategy/plan.py` |
+| `job.py` | `backend/app/studio/marketing/strategy/job.py` |
+| `tool.py` | `backend/app/studio/marketing/strategy/tool.py` |
 | `run.py` | none (marketing_strategy has no separate agent executor; tool executor drives the loop) |
 | `schema.py` | none (new local contract file; lands in NBB-505 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -172,8 +172,8 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `write.py` (core) | `backend/app/services/studio_services/social_posts_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/social_post_jobs.py` |
+| `write.py` (core) | `backend/app/studio/marketing/social_post/write.py` |
+| `job.py` | `backend/app/studio/marketing/social_post/job.py` |
 | `tool.py` | none (image-first + templated text; no Claude agentic tool loop) |
 | `run.py` | none (image-first + templated text; no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-505 tied to Contract 13) |
@@ -186,10 +186,10 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `build.py` (core) | `backend/app/services/ai_agents/component_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/component_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/component_tool_executor.py` |
-| `run.py` | `backend/app/services/tool_executors/component_agent_executor.py` |
+| `build.py` (core) | `backend/app/studio/design/component/build.py` |
+| `job.py` | `backend/app/studio/design/component/job.py` |
+| `tool.py` | `backend/app/studio/design/component/tool.py` |
+| `run.py` | `backend/app/studio/design/component/run.py` |
 | `schema.py` | none (new local contract file; lands in NBB-506 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
 | Background | `backend/app/background/tasks.py` (NBB-210) |
@@ -198,8 +198,8 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `build.py` (core) | `backend/app/services/studio_services/flow_diagram_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/flow_diagram_jobs.py` |
+| `build.py` (core) | `backend/app/studio/design/flow_diagram/build.py` |
+| `job.py` | `backend/app/studio/design/flow_diagram/job.py` |
 | `tool.py` | none (single Claude call with `flow_diagram_tool.json`; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-506 tied to Contract 13) |
@@ -224,10 +224,10 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `build.py` (core) | `backend/app/services/ai_agents/website_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/website_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/website_tool_executor.py` |
-| `run.py` | `backend/app/services/tool_executors/website_agent_executor.py` |
+| `build.py` (core) | `backend/app/studio/design/website/build.py` |
+| `job.py` | `backend/app/studio/design/website/job.py` |
+| `tool.py` | `backend/app/studio/design/website/tool.py` |
+| `run.py` | `backend/app/studio/design/website/run.py` |
 | `schema.py` | none (new local contract file; lands in NBB-506 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
 | Background | `backend/app/background/tasks.py` (NBB-210) |
@@ -236,9 +236,9 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `draw.py` (core) | `backend/app/services/ai_agents/wireframe_agent_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/wireframe_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/wireframe_tool_executor.py` |
+| `draw.py` (core) | `backend/app/studio/design/wireframe/draw.py` |
+| `job.py` | `backend/app/studio/design/wireframe/job.py` |
+| `tool.py` | `backend/app/studio/design/wireframe/tool.py` |
 | `run.py` | none (wireframe has no separate agent executor) |
 | `schema.py` | none (new local contract file; lands in NBB-506 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -250,8 +250,8 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `create.py` (core) | `backend/app/services/studio_services/flash_cards_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/flash_card_jobs.py` |
+| `create.py` (core) | `backend/app/studio/learning/flash_card/create.py` |
+| `job.py` | `backend/app/studio/learning/flash_card/job.py` |
 | `tool.py` | none (single Claude call with `flash_cards_tool.json`; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
@@ -262,8 +262,8 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `build.py` (core) | `backend/app/services/studio_services/mind_map_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/mind_map_jobs.py` |
+| `build.py` (core) | `backend/app/studio/learning/mind_map/build.py` |
+| `job.py` | `backend/app/studio/learning/mind_map/job.py` |
 | `tool.py` | none (single Claude call with `mind_map_tool.json`; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
@@ -274,8 +274,8 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `create.py` (core) | `backend/app/services/studio_services/quiz_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/quiz_jobs.py` |
+| `create.py` (core) | `backend/app/studio/learning/quiz/create.py` |
+| `job.py` | `backend/app/studio/learning/quiz/job.py` |
 | `tool.py` | none (single Claude call with `quiz_tool.json`; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
@@ -288,9 +288,9 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `generate.py` (core) | `backend/app/services/studio_services/audio_overview_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/audio_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/studio_audio_executor.py` (handles `write_script_section` — studio-owned; invokes sources-owned `read_source_content` through sources public surface) |
+| `generate.py` (core) | `backend/app/studio/media/audio/generate.py` |
+| `job.py` | `backend/app/studio/media/audio/job.py` |
+| `tool.py` | `backend/app/studio/media/audio/tool.py` (handles `write_script_section` — studio-owned; invokes sources-owned `read_source_content` through sources public surface) |
 | `run.py` | none (audio uses the tool-executor agentic loop directly) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -300,9 +300,9 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 
 | Layer | Current (from REGISTRY) |
 |---|---|
-| `generate.py` (core) | `backend/app/services/studio_services/video_service.py` |
-| `job.py` | `backend/app/services/studio_services/jobs/video_jobs.py` |
-| `tool.py` | `backend/app/services/tool_executors/video_executor.py` (studio-signal router: creates job + launches background generation from a chat `studio_signal`) |
+| `generate.py` (core) | `backend/app/studio/media/video/generate.py` |
+| `job.py` | `backend/app/studio/media/video/job.py` |
+| `tool.py` | `backend/app/studio/media/video/tool.py` (studio-signal router: creates job + launches background generation from a chat `studio_signal`) |
 | `run.py` | none (video is a single-call generator, not an agentic loop) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7 (studio_signal entrypoint); Contract 10 |
@@ -318,10 +318,10 @@ These modules live in the studio domain but are not item-owned. `REGISTRY.md` en
 |---|---|---|
 | `backend/app/api/studio/__init__.py` | Studio blueprint registrar and project-access guard. | Route file; route movement deferred under `D-001`. |
 | `backend/app/api/studio/logo_utils.py` | Brand-asset resolution helper consumed by `ads.py`, `blogs.py`, `infographics.py`, `social_posts.py`. | Studio-level brand-asset resolution support. Final placement (studio helper vs brand public surface) is decided by `NBB-506`; this file is not logo generation and is not item-owned. |
-| `backend/app/services/studio_services/studio_index_service.py` | Generic CRUD for the `studio_jobs` table; per-item `create_job`/`update_job`/`get_job`/`list_jobs`/`delete_job` wrappers. Writer of record for Contract 13. | Studio-level job index module (owned by `studio/` at studio-level, not inside an item directory). Final module name lands in `NBB-503` pilot; `NBB-210` owns `background/tasks.py` and must not be duplicated. |
-| `backend/app/services/studio_services/studio_processing/` | Empty package (`__init__.py` only) at base commit. | Flagged for retirement; `NBB-503` confirms and deletes. |
-| `backend/app/services/studio_services/jobs/` | Per-item `*_jobs.py` wiring (18 files; attributed row-by-row above). | Each file moves to its item's `<item>/job.py` under the per-item map above. |
-| `backend/app/services/tool_executors/studio_signal_executor.py` | Chat-side emitter that writes `studio_signals` rows (Contract 7) and routes to item-specific executors. | `studio/signal.py::emit(...)` per the executable naming rule. Studio-level, not item-specific. |
+| `backend/app/services/studio_services/studio_index_service.py` | Generic CRUD for the `studio_jobs` table; per-item `create_job`/`update_job`/`get_job`/`list_jobs`/`delete_job` wrappers. Writer of record for Contract 13. | Studio-level job index module (owned by `studio/` at studio-level, not inside an item directory). `NBB-210` owns `background/tasks.py` and must not be duplicated. |
+| Removed `studio_processing/` package | Empty package deleted during cleanup. | No runtime surface. |
+| Per-item job modules | Per-item `job.py` wiring lives in the item directories listed above. | No forwarding jobs package remains. |
+| `backend/app/studio/signal.py` | Chat-side emitter that writes `studio_signals` rows (Contract 7) and routes to item-specific executors. | `emit(...)` per the executable naming rule. Studio-level, not item-specific. |
 
 Studio-level tool JSON (from NBB-207C, for cross-reference): `backend/app/services/tools/chat_tools/studio_signal_tool.json` → `studio/signal/tools/`.
 
@@ -340,7 +340,7 @@ Every per-item row above is tied to these contracts. Shape definitions live in `
 | Contract | Source | Role in the layer map |
 |---|---|---|
 | Contract 13 — Studio job status / progress / result | `docs/contracts/README.md` § Contract 13 | Shape contract for `<item>/schema.py` request/progress/result wire shapes; writer of record is `studio_index_service.create_job` / `update_job` (today). |
-| Contract 7 — `studio_signals` / studio event shape | `docs/contracts/README.md` § Contract 7 | Shape for chat→studio routing that lands on a job; `studio_signal_executor.py::execute` → `studio/signal.py::emit(...)` is the studio-level entry point for the row writer side. |
+| Contract 7 — `studio_signals` / studio event shape | `docs/contracts/README.md` § Contract 7 | Shape for chat→studio routing that lands on a job; `studio/signal.py::emit(...)` is the studio-level entry point for the row writer side. |
 | Contract 10 — Background-task polling response | `docs/contracts/README.md` § Contract 10 | Envelope that merges `studio_jobs` (pending + processing) into the project task feed; `job.py` status transitions must preserve the enum (`pending | processing | ready | error | cancelled`) and the human-readable `progress` string. |
 
 Background ownership of record: `backend/app/background/tasks.py` (NBB-210). Studio items must not duplicate lifecycle state inside `<item>/job.py`; they go through `background/tasks.py`.

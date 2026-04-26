@@ -14,7 +14,7 @@ from app.services.integrations.google.video_service import google_video_service
 
 logger = logging.getLogger(__name__)
 from app.studio.media.video import prompt as video_prompt
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.services.integrations.supabase import storage_service
 
 
@@ -80,13 +80,13 @@ class VideoGenerator:
             )
             return prompt_result
 
-        video_prompt = prompt_result["prompt"]
+        generated_prompt = prompt_result["prompt"]
 
         # Update job with generated prompt
         studio_index_service.update_video_job(
             project_id, job_id,
             status_message="Generating video with Google Veo...",
-            generated_prompt=video_prompt
+            generated_prompt=generated_prompt
         )
 
         # Progress callback
@@ -98,7 +98,7 @@ class VideoGenerator:
 
         # Step 2: Generate video(s) using Google Veo (returns bytes)
         result = google_video_service.generate_video_bytes(
-            prompt=video_prompt,
+            prompt=generated_prompt,
             aspect_ratio=aspect_ratio,
             duration_seconds=duration_seconds,
             number_of_videos=number_of_videos,

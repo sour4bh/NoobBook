@@ -21,10 +21,10 @@ from app.sources.content import get_source_content
 from app.brand.asset.store import brand_asset_service
 from app.brand.config.store import brand_config_service
 from app.services.integrations.supabase import storage_service
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.studio.marketing.email.tool import email_tool_executor
 from app.projects.store import project_service
-from app.chat.message.store import message_service
+from app.chat.store import message_service
 import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)

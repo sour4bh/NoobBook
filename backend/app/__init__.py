@@ -69,7 +69,7 @@ from flask_socketio import SocketIO
 # Educational Note (NBB-208A): `config` here is `backend/config.py`, not the
 # `backend/app/config/` subpackage. Renaming the top-level module is a
 # separate backend-charter follow-up; do not shim here.
-from config import config
+from config import config as config_classes
 from app.utils.logger import setup_logging
 
 # Initialize extensions globally but without app context.
@@ -91,9 +91,9 @@ def create_app(config_name='development'):
     app = Flask(__name__)
 
     # Load configuration
-    app.config.from_object(config[config_name])
+    app.config.from_object(config_classes[config_name])
     setup_logging(app.config.get('LOG_LEVEL', 'DEBUG'))
-    config[config_name].init_app(app)
+    config_classes[config_name].init_app(app)
 
     # Ensure base directories exist before any routes access them
     from app.utils.path_utils import ensure_base_directories

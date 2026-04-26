@@ -14,39 +14,10 @@
  * context — the backend will still return 403.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '@/lib/api/client';
-
-// Permission category structure
-interface PermissionCategory {
-  enabled: boolean;
-  items: Record<string, boolean>;
-}
-
-export interface UserPermissions {
-  document_sources: PermissionCategory;
-  data_sources: PermissionCategory;
-  studio: PermissionCategory;
-  integrations: PermissionCategory;
-  chat_features: PermissionCategory;
-}
-
-interface PermissionsContextValue {
-  permissions: UserPermissions | null;
-  loading: boolean;
-  hasPermission: (category: string, item?: string) => boolean;
-  refreshPermissions: () => Promise<void>;
-}
-
-const PermissionsContext = createContext<PermissionsContextValue>({
-  permissions: null,
-  loading: true,
-  hasPermission: () => true, // Default to allow during loading
-  refreshPermissions: async () => {},
-});
-
-export const usePermissions = () => useContext(PermissionsContext);
+import { PermissionsContext, type UserPermissions } from './permissions';
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [permissions, setPermissions] = useState<UserPermissions | null>(null);

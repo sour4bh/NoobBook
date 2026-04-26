@@ -2,13 +2,13 @@
 Website Generator endpoints - AI-generated multi-page websites.
 
 Educational Note: Website generation demonstrates complex agent workflows:
-1. website_agent_executor orchestrates the entire process
+1. `studio/design/website/run.py` orchestrates the entire process
 2. Claude generates HTML, CSS, and JavaScript
 3. Gemini generates images for the site
 4. Complete package: multiple pages + assets
 
 Agent Architecture:
-- Uses website_agent_executor for orchestration
+- Uses the website run entrypoint for orchestration
 - Agent has tools for page creation, styling, scripting
 - Multi-page sites with navigation
 - Responsive design patterns
@@ -34,7 +34,7 @@ import re
 import zipfile
 from flask import jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.services.integrations.supabase import storage_service
 from app.auth.guards import require_permission
 import app.studio.design.website.run

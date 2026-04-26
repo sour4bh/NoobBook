@@ -211,10 +211,7 @@ def test_legacy_tool_category_directory_still_resolves(category: str) -> None:
     the only valid source.
 
     Existence is the contract: the directory must be discoverable under the
-    legacy tools dir and contain at least one JSON file. We intentionally
-    do not call `load_tools_from_category` here because unrelated preexisting
-    empty/placeholder JSONs (e.g., `chat_tools/compact_tool.json`) would
-    raise on decode and mask the NBB-207C-specific signal.
+    legacy tools dir and contain at least one loadable JSON file.
     """
     loader = _fresh_loader()
     legacy_dir = loader.tools_dir / category
@@ -226,6 +223,18 @@ def test_legacy_tool_category_directory_still_resolves(category: str) -> None:
     assert tool_files, (
         f"legacy category {category!r} has no JSON files after NBB-207C"
     )
+    tools = loader.load_tools_from_category(category)
+    assert tools, f"legacy category {category!r} did not load any tools"
+
+
+def test_chat_tools_category_loads_with_compact_tool() -> None:
+    """The compact tool inventory entry must not poison chat category loads."""
+    loader = _fresh_loader()
+
+    tools = loader.load_tools_from_category("chat_tools")
+    names = {tool["name"] for tool in tools}
+
+    assert "compact" in names
 
 
 def test_singleton_sees_registered_tool_paths() -> None:

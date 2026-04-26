@@ -3,7 +3,7 @@ Tests for cost_tracking.py.
 
 Covers:
 - _get_model_key: model string detection, case insensitivity, unknown defaults
-- _calculate_cost: exact pricing math for sonnet/haiku
+- _calculate_cost: exact pricing math for opus/sonnet/haiku
 - _ensure_cost_structure: None, empty, partial dicts, preserves existing
 - _get_default_costs: structure validation
 """
@@ -29,6 +29,9 @@ class TestGetModelKey:
     def test_haiku_full_id(self):
         assert _get_model_key("claude-haiku-3-20240307") == "haiku"
 
+    def test_opus_full_id(self):
+        assert _get_model_key("claude-opus-4-6") == "opus"
+
     def test_sonnet_short(self):
         assert _get_model_key("claude-sonnet-4-6") == "sonnet"
 
@@ -36,6 +39,7 @@ class TestGetModelKey:
         assert _get_model_key("claude-haiku-4-5") == "haiku"
 
     def test_case_insensitive(self):
+        assert _get_model_key("claude-OPUS-4-6") == "opus"
         assert _get_model_key("claude-SONNET-4-6") == "sonnet"
         assert _get_model_key("CLAUDE-HAIKU-3") == "haiku"
 
@@ -53,6 +57,18 @@ class TestGetModelKey:
 # ===========================================================================
 
 class TestCalculateCost:
+
+    def test_opus_input_only(self):
+        """Opus: $5/1M input tokens."""
+        assert _calculate_cost("opus", 1_000_000, 0) == pytest.approx(5.0)
+
+    def test_opus_output_only(self):
+        """Opus: $25/1M output tokens."""
+        assert _calculate_cost("opus", 0, 1_000_000) == pytest.approx(25.0)
+
+    def test_opus_combined(self):
+        """Opus: 1M in + 1M out = $5 + $25 = $30."""
+        assert _calculate_cost("opus", 1_000_000, 1_000_000) == pytest.approx(30.0)
 
     def test_sonnet_input_only(self):
         """Sonnet: $3/1M input tokens → 1M tokens = $3.00"""
@@ -88,7 +104,7 @@ class TestCalculateCost:
 
     def test_unknown_model_uses_sonnet_pricing(self):
         """Unknown model key falls back to sonnet pricing."""
-        assert _calculate_cost("opus", 1_000_000, 0) == pytest.approx(3.0)
+        assert _calculate_cost("unknown", 1_000_000, 0) == pytest.approx(3.0)
 
 
 # ===========================================================================
@@ -100,12 +116,13 @@ class TestGetDefaultCosts:
     def test_structure(self):
         costs = _get_default_costs()
         assert costs["total_cost"] == 0.0
+        assert "opus" in costs["by_model"]
         assert "sonnet" in costs["by_model"]
         assert "haiku" in costs["by_model"]
 
     def test_model_structure(self):
         costs = _get_default_costs()
-        for model in ["sonnet", "haiku"]:
+        for model in ["opus", "sonnet", "haiku"]:
             assert costs["by_model"][model]["input_tokens"] == 0
             assert costs["by_model"][model]["output_tokens"] == 0
             assert costs["by_model"][model]["cost"] == 0.0
@@ -120,6 +137,7 @@ class TestEnsureCostStructure:
     def test_none_returns_defaults(self):
         result = _ensure_cost_structure(None)
         assert result["total_cost"] == 0.0
+        assert "opus" in result["by_model"]
         assert "sonnet" in result["by_model"]
         assert "haiku" in result["by_model"]
 

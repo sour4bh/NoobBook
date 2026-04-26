@@ -18,9 +18,9 @@ from app.config.prompt_loader import prompt_loader
 from app.config.tool_loader import tool_loader
 from app.config import brand_context_loader
 import app.providers.anthropic.content
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.studio.documents.business_report.tool import business_report_tool_executor
-from app.chat.message.store import message_service
+from app.chat.store import message_service
 
 logger = logging.getLogger(__name__)
 

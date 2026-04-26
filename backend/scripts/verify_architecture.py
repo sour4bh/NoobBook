@@ -33,10 +33,8 @@ NBB-704B adds richer post-migration boundary checks now that domains exist:
 4. Chat publics-only rule. Code outside ``app.chat/`` must reach chat through
    the public surface declared in ``app.chat.__all__`` ({store, tools, schemas,
    send, stream, ChatEvent, ChatResponse}). Reaching deeper paths such as
-   ``app.chat.message.store`` is rejected. Inherited consumers of
-   ``app.chat.message.store.message_service`` are allowlisted as
-   ``(importer_rel_path, full_target_module)`` pairs awaiting the NBB-706 cleanup
-   pass that re-exports ``message_service`` from ``app.chat.store``.
+   ``app.chat.message.store`` is rejected; callers that need message
+   persistence import ``message_service`` from ``app.chat.store``.
 
 5. Inter-domain regression guard. ``app.auth/``, ``app.projects/``,
    ``app.connectors/``, ``app.brand/``, ``app.background/``, and ``app.settings/``
@@ -153,30 +151,6 @@ CHAT_PUBLIC_SUBMODULES: frozenset[str] = frozenset({
     "store",
     "tools",
     "schemas",
-})
-
-# NBB-704B rule 4 inherited consumers: every ``message_service`` reach into
-# ``app.chat.message.store`` from outside ``app.chat/``. NBB-706 drains this
-# list by re-exporting ``message_service`` from ``app.chat.store``; bounded
-# manual edits are not pre-authorized in this ticket. Encoded as
-# ``(importer_rel_path, full_target_module)`` so cosmetic line shifts in
-# importer files do not break the allowlist, while a *new* importer still
-# fires.
-CHAT_INTERNAL_REACH_ALLOWLIST: frozenset[Tuple[str, str]] = frozenset({
-    ("backend/app/services/ai_agents/web_agent_service.py", "app.chat.message.store"),
-    ("backend/app/services/data_services/__init__.py", "app.chat.message.store"),
-    ("backend/app/sources/analysis/csv/agent.py", "app.chat.message.store"),
-    ("backend/app/sources/analysis/database/agent.py", "app.chat.message.store"),
-    ("backend/app/sources/analysis/research/agent.py", "app.chat.message.store"),
-    ("backend/app/studio/design/component/build.py", "app.chat.message.store"),
-    ("backend/app/studio/design/website/build.py", "app.chat.message.store"),
-    ("backend/app/studio/design/wireframe/draw.py", "app.chat.message.store"),
-    ("backend/app/studio/documents/blog/write.py", "app.chat.message.store"),
-    ("backend/app/studio/documents/business_report/write.py", "app.chat.message.store"),
-    ("backend/app/studio/documents/prd/write.py", "app.chat.message.store"),
-    ("backend/app/studio/documents/presentation/compose.py", "app.chat.message.store"),
-    ("backend/app/studio/marketing/email/write.py", "app.chat.message.store"),
-    ("backend/app/studio/marketing/strategy/plan.py", "app.chat.message.store"),
 })
 
 # NBB-704B rule 5: roots that currently have zero cross-domain imports into
@@ -382,8 +356,7 @@ def check_chat_publics_only() -> List[Violation]:
     The chat public surface is ``app.chat`` itself plus the submodules listed
     in ``app.chat.__all__``. Any deeper path (``app.chat.message.store``,
     ``app.chat.loop``, ``app.chat.tool.policy``, ...) is a reach into chat
-    internals. Inherited consumers in
-    ``CHAT_INTERNAL_REACH_ALLOWLIST`` are suppressed; new importers fire.
+    internals.
     """
     violations: List[Violation] = []
     for path in sorted(APP_DIR.rglob("*.py")):
@@ -399,7 +372,6 @@ def check_chat_publics_only() -> List[Violation]:
         except SyntaxError as exc:
             violations.append(Violation(path, exc.lineno or 0, f"syntax error: {exc.msg}"))
             continue
-        rel = _rel_path(path)
         for lineno, module in _iter_import_modules(tree):
             parts = module.split(".")
             if len(parts) < 2 or parts[1] != "chat":
@@ -409,8 +381,6 @@ def check_chat_publics_only() -> List[Violation]:
                 continue
             second = parts[2]
             if second in CHAT_PUBLIC_SUBMODULES:
-                continue
-            if (rel, module) in CHAT_INTERNAL_REACH_ALLOWLIST:
                 continue
             violations.append(Violation(
                 path,

@@ -82,3 +82,27 @@ Concrete command and CI placement are deferred to `NBB-108B`; Vitest plus React 
 - query-token asset access contract
 
 **Suggested owner:** Contract/API owner.
+
+## D-006 - OAuth callback auth bypass
+
+**Status:** Deferred
+
+**Reason:** The API-wide `before_request` guard currently skips `/api/v1/auth/*` and `/api/v1/health`, but OAuth providers redirect into routes such as `/api/v1/google/callback`. Those callbacks cannot attach the app's bearer token header and should be validated by their own OAuth `state`/provider-token flow instead of the generic API JWT guard.
+
+**Suggested owner:** Auth/connectors owner.
+
+## D-007 - Dev-mode API middleware fallback
+
+**Status:** Deferred
+
+**Reason:** `NOOBBOOK_AUTH_REQUIRED=false` promotes a fallback identity in the domain auth layer, but the API blueprint middleware still calls `validate_token()` directly and returns 401 when no bearer token is present. Local single-user/dev mode therefore remains stricter at the transport boundary than the domain policy advertises.
+
+**Suggested owner:** Auth/API owner.
+
+## D-008 - Project membership access check
+
+**Status:** Deferred
+
+**Reason:** `NBB-201` consolidated project-access checks, but the canonical `verify_project_access()` path still calls `project_service.get_project(project_id, user_id=...)`, which both performs an owner-only lookup and mutates `last_accessed`. The follow-up should separate "can this user access the project?" from "load and mark this project opened", and should use the collaborative membership path when team access is re-enabled.
+
+**Suggested owner:** Auth/projects owner.

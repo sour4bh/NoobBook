@@ -30,7 +30,7 @@ import io
 import uuid
 from flask import jsonify, request, current_app, send_file
 from app.api.studio import studio_bp
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.studio.media.audio.generate import audio_overview_service
 from app.services.integrations.elevenlabs import tts_service
 from app.services.integrations.supabase import storage_service  # For downloading previous scripts during edits

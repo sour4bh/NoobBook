@@ -394,9 +394,9 @@ Paths in the table below describe current module locations during the structure 
 | **PPTX** | `ai_services/pptx_service.py` | Same pattern as PDF - slides as images in batches, `submit_slide_extraction` tool. | Real slides |
 | **Image** | `ai_services/image_service.py` | Single Codex vision call with `submit_image_extraction` tool. | 1 per image |
 | **URL** | `ai_agents/web_agent_service.py` | Agentic loop with `web_fetch`, `tavily_search` tools. | Single page |
-| **DOCX** | `utils/docx_utils.py` | No AI - python-docx extraction | Single page |
+| **DOCX** | `sources/docx/ops.py` | No AI - python-docx extraction | Single page |
 | **Audio** | `integrations/elevenlabs/audio_service.py` | No AI - ElevenLabs Scribe v1 transcription | Single page |
-| **Text** | `source_processing_service.py` | No AI - direct file read | Single page |
+| **Text** | `sources/pipeline.py` | No AI - direct file read | Single page |
 | **YouTube** | `integrations/youtube/youtube_service.py` | No AI - youtube-transcript-api | Single page |
 
 **Design**: Raw files preserved on error (retry without re-upload). Processing runs in background threads. Tool-based extraction ensures structured output.
@@ -596,8 +596,8 @@ This section describes the Codex-API integration pattern NoobBook uses: configur
 
 ```
 FOR BATCHED PROCESSING (PDF, PPTX):
-├── batching_utils.create_batches(items, DEFAULT_BATCH_SIZE)
-├── batching_utils.get_batch_info(items, batch_size)
+├── app.sources.extract.batching.create_batches(items, DEFAULT_BATCH_SIZE)
+├── app.sources.extract.batching.get_batch_info(items, batch_size)
 └── DEFAULT_BATCH_SIZE = 5                              # Standard batch size
 
 FOR RATE-LIMITED APIs:
@@ -613,9 +613,9 @@ FOR BINARY DATA:
 └── encoding_utils.encode_bytes_to_base64(data)         # Base64 encoding for API
 
 FOR FILE-TYPE SPECIFIC:
-├── pdf_utils.get_page_count(), get_all_page_bytes()    # PDF operations
-├── docx_utils.extract_text()                           # DOCX extraction
-└── pptx_utils.convert_to_pdf()                         # PPTX to PDF conversion
+├── app.sources.pdf.ops.get_page_count(), get_all_page_bytes()    # PDF operations
+├── app.sources.docx.ops.extract_text_from_docx()                 # DOCX extraction
+└── app.sources.pptx.ops.convert_pptx_to_pdf()                    # PPTX to PDF conversion
 ```
 
 ### Service Template
@@ -624,13 +624,16 @@ FOR FILE-TYPE SPECIFIC:
 """
 Service Name - Brief description of what this service does.
 """
-from app.config import prompt_loader, tool_loader, get_anthropic_config
-from app.services.integrations.Codex import claude_service
-from app.utils import claude_parsing_utils
+from app.config import get_anthropic_config
+from app.config.prompt_loader import prompt_loader
+from app.config.tool_loader import tool_loader
+from app.services.integrations.claude import claude_service
+from app.providers.anthropic import response_parser
+from app.providers.anthropic.content import build_tool_result_content
 from app.utils.path_utils import get_processed_dir
 from app.utils.rate_limit_utils import RateLimiter  # If rate limiting needed
-from app.utils.batching_utils import create_batches, DEFAULT_BATCH_SIZE  # If batching needed
-from app.services.data_services import message_service # if message storage required
+from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE  # If batching needed
+from app.chat.message.store import message_service  # If message storage is required
 
 
 class ServiceName:

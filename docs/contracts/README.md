@@ -37,7 +37,7 @@ for the migration. Framing (`event: <name>\ndata: <json>\n\n`) and response head
 `Connection: keep-alive`, `X-Accel-Buffering: no`) are frozen. Adding a new event kind
 requires a deferral entry in `DEFERRED.md` and a frontend change in the same merge.
 
-**Event catalog (exact wire names, from `main_chat_service.py`):**
+**Event catalog (exact wire names, from `app.chat.schemas.CHAT_EVENT_NAMES`):**
 
 | Event | Payload | Emitted by |
 |---|---|---|
@@ -346,8 +346,9 @@ extension map (`png|jpg|jpeg|gif|webp|svg` -> `image/*`), default `image/png`.
 
 ## Contract 6 - Query-token asset access
 
-**Backend owner:** `backend/app/utils/auth_middleware.py::get_current_user_id`
-(query-param fallback) and `backend/app/services/auth/rbac.py::_extract_bearer_token`.
+**Backend owner:** `backend/app/auth/access.py::get_current_user_id`
+(current request identity) and `backend/app/api/auth/middleware.py`
+(Bearer-token and query-token extraction).
 Call sites that inject the token into rendered HTML:
 - `backend/app/api/studio/emails.py::preview_email_template` (rewrites `src="..."` to append `?token=<jwt>`)
 - `backend/app/api/studio/websites.py` (same pattern for CSS/JS/image URLs)
@@ -399,11 +400,11 @@ There are two layered contracts here: the **tool input** Claude produces, and th
 **row shape** persisted in Supabase.
 
 **Backend owner:**
-- Tool input + row writer: `backend/app/services/tool_executors/studio_signal_executor.py::StudioSignalExecutor.execute` and `::_store_signals`
+- Tool input + row writer: `backend/app/studio/signal.py::StudioSignalExecutor.emit` and `::_store_signals`
 - Table: `studio_signals` in `backend/supabase/migrations/` (owned by the chat charter as a cross-table write)
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` (the chat detail response
-includes a `studio_signals` array per `backend/app/services/data_services/chat_service.py::_attach_studio_signals`)
+includes a `studio_signals` array per `backend/app/chat/store.py::get_chat`)
 
 **Compatibility expectation:** The 18-item `studio_item` enum (listed below) is frozen
 until `NBB-501A` runs. Layered optional fields for `blog` and `business_report` are
@@ -467,12 +468,12 @@ creation flips it.
 ```
 
 **Invalid example (runtime validation exists):** Any signal with a `studio_item` outside
-the enum is dropped by `StudioSignalExecutor.execute` with a warning log; the row is
+the enum is dropped by `StudioSignalExecutor.emit` with a warning log; the row is
 never written. An all-invalid input returns
 `{"success": false, "message": "No valid signals to store"}` to Claude.
 
 **Test plan:**
-- `backend/tests/test_studio_signal_executor.py` (new): call `.execute(...)` with (a)
+- `backend/tests/test_studio_signal_executor.py` (new): call `.emit(...)` with (a)
   valid enum + empty sources (asserts fallback source fill from
   `_get_fallback_source_ids`), (b) unknown `studio_item` (dropped, 0 rows inserted),
   (c) blog signal preserves `target_keyword` and `blog_type`, (d) business_report
@@ -537,9 +538,9 @@ produce an invalid persisted shape is to write outside `_apply_usage`; the
 ## Contract 9 - `messages.content` JSONB shape
 
 **Backend owner:**
-- Writer: `backend/app/services/data_services/message_service.py` (via
+- Writer: `backend/app/chat/message/store.py` (via
   `app.providers.anthropic.content.serialize_content_blocks` and `build_tool_result_content`)
-- Reader: `backend/app/services/data_services/message_service.py::build_api_messages`
+- Reader: `backend/app/chat/message/store.py::build_api_messages`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts`; the chat renderer parses
 `text` blocks for `[[cite:...]]` markers and ignores `tool_use`/`tool_result` blocks.
@@ -925,8 +926,8 @@ names NBB-205 as its shape owner.
 
 **Backend owner:**
 - Column: `backend/supabase/migrations/00013_chat_selected_sources.sql`
-- Write path: `backend/app/services/data_services/chat_service.py::update_chat`
-  (allowed_fields includes `selected_source_ids`, line 344)
+- Write path: `backend/app/chat/store.py::update_chat`
+  (allowed_fields includes `selected_source_ids`)
 - Read path: `app.chat.loop.ChatLoop._run_message_flow` + `context_loader.get_active_sources`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` plus the chat-view source

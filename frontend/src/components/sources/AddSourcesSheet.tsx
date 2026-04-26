@@ -17,7 +17,7 @@ import { McpTab } from './McpTab';
 import { FreshdeskTab } from './FreshdeskTab';
 import { JiraTab } from './JiraTab';
 import { MixpanelTab } from './MixpanelTab';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissions } from '@/contexts/permissions';
 import { MAX_SOURCES } from '../../lib/api/sources';
 
 interface AddSourcesSheetProps {

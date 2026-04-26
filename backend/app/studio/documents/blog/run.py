@@ -1,10 +1,9 @@
 """
-Blog Agent Executor - Handles studio signal execution for blog posts.
+Blog runner - handles studio-signal execution for blog posts.
 
-Educational Note: This executor is triggered by studio signals (from main chat)
-and launches the blog agent as a background task. Unlike web_agent_executor,
-this doesn't handle individual tool calls - those are handled inside
-blog_agent_service itself.
+Educational Note: This runner is triggered by studio signals (from main chat)
+and launches the blog writer as a background task. Tool calls are handled
+inside write.py.
 """
 
 import logging
@@ -17,14 +16,14 @@ logger = logging.getLogger(__name__)
 
 class BlogRunner:
     """
-    Executor for blog post generation via studio signals.
+    Runner for blog post generation via studio signals.
 
     Educational Note: The studio signal flow:
     1. User chats with AI about sources
     2. AI decides to activate studio (sends studio_signal tool call)
-    3. studio_signal_executor routes to this executor
-    4. We create a job and launch blog_agent as background task
-    5. Agent runs independently and updates job status
+    3. studio_signal routes to this runner
+    4. We create a job and launch the blog writer as a background task
+    5. The writer updates job status
     """
 
     def execute(
@@ -59,7 +58,7 @@ class BlogRunner:
         Returns:
             Job info with status and job_id for polling
         """
-        from app.services.studio_services import studio_index_service
+        import app.services.studio_services.studio_index_service as studio_index_service
         from app.background.tasks import task_service
         from app.studio.documents.blog.write import blog_agent_service
         from app.sources.catalog import source_service

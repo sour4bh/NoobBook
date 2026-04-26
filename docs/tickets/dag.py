@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CSV_PATH = ROOT / "tickets.csv"
+MOVE_PLAN_PATH = ROOT / "move-plan.csv"
 GRAPH_PATH = ROOT / "GRAPH.md"
 REPO_ROOT = ROOT.parent.parent
 
@@ -27,6 +28,39 @@ REMOVED_AGGREGATE_KEYS = (
     "NBB-705",
 )
 REMOVED_ACTIVE_KEYS = REMOVED_AGGREGATE_KEYS + ("NBB-404",)
+MOVE_PLAN_HEADER = (
+    "ticket",
+    "language",
+    "old_path",
+    "new_path",
+    "old_symbol",
+    "new_symbol",
+    "mode",
+    "tool",
+)
+MOVE_PLAN_MODES = frozenset({
+    "json_asset_move",
+    "python_module_move",
+    "python_module_remove",
+    "python_symbol_extract",
+    "python_symbol_move",
+    "python_symbol_remove",
+    "python_symbol_rename",
+    "text_reference_check",
+    "typescript_module_move",
+})
+
+
+def required_move_plan_fields(mode):
+    if mode in {"json_asset_move", "python_module_move", "typescript_module_move"}:
+        return ("old_path", "new_path")
+    if mode in {"python_symbol_move", "python_symbol_rename", "python_symbol_extract"}:
+        return ("old_path", "new_path", "old_symbol", "new_symbol")
+    if mode in {"python_module_remove", "text_reference_check"}:
+        return ("old_path",)
+    if mode == "python_symbol_remove":
+        return ("old_path", "old_symbol")
+    return ()
 
 
 def load_rows():
@@ -202,6 +236,42 @@ def validate(rows):
     return lines, issues == 0
 
 
+def validate_move_plan():
+    lines = []
+    issues = 0
+    with MOVE_PLAN_PATH.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        if tuple(reader.fieldnames or ()) != MOVE_PLAN_HEADER:
+            issues += 1
+            lines.append(
+                "MOVE-PLAN HEADER: expected "
+                f"{list(MOVE_PLAN_HEADER)}, got {reader.fieldnames}"
+            )
+        rows = list(reader)
+
+    for index, row in enumerate(rows, start=2):
+        if None in row:
+            issues += 1
+            lines.append(f"MOVE-PLAN ROW {index}: malformed extra columns {row[None]}")
+        for field in ("ticket", "language", "mode", "tool"):
+            if not (row.get(field) or "").strip():
+                issues += 1
+                lines.append(f"MOVE-PLAN ROW {index}: missing {field}")
+        mode = (row.get("mode") or "").strip()
+        if mode and mode not in MOVE_PLAN_MODES:
+            issues += 1
+            lines.append(f"MOVE-PLAN ROW {index}: unknown mode {mode!r}")
+            continue
+        for field in required_move_plan_fields(mode):
+            if not (row.get(field) or "").strip():
+                issues += 1
+                lines.append(f"MOVE-PLAN ROW {index}: {mode} missing {field}")
+
+    lines.append(f"Move-plan rows: {len(rows)}")
+    lines.append("Move-plan check done.")
+    return lines, issues == 0
+
+
 def render():
     rows = load_rows()
     tasks = task_rows(rows)
@@ -237,6 +307,11 @@ def main():
         for line in lines:
             print(line)
         if not ok:
+            exit_code = 1
+        move_plan_lines, move_plan_ok = validate_move_plan()
+        for line in move_plan_lines:
+            print(line)
+        if not move_plan_ok:
             exit_code = 1
 
     if args.write or not args.check:

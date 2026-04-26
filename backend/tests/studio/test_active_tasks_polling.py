@@ -32,18 +32,7 @@ def _bypass_jwt():
 
 @pytest.fixture
 def app():
-    """Build the Flask app with the JWT bypass already active.
-
-    Mirrors `tests/api/conftest.py`: importing `app.config` (transitively, via
-    any other test) rebinds the `config` name on the `app` package from the
-    config dict (in `backend/config.py`) to the submodule. Restore the dict
-    before each call so `create_app` can subscript it.
-    """
-    import app as _app_pkg
-    import config as _top_config
-
-    _app_pkg.config = _top_config.config
-
+    """Build the Flask app with the JWT bypass already active."""
     from app import create_app
     return create_app("testing")
 

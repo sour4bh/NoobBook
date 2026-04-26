@@ -197,12 +197,6 @@ def test_register_rejects_conflicting_redefinition():
 # (the value Claude actually sees in ``tool_choice``), and assert each
 # one has a registered capability.
 #
-# ``backend/app/services/tools/chat_tools/compact_tool.json`` is a
-# placeholder with 0 bytes, so ``json.load`` raises and we skip it
-# explicitly. The chat-orchestrator ``compact`` entry classifies the
-# placeholder defensively so the registry still answers a decision
-# when the JSON is fleshed out.
-#
 # Two JSON ``name`` values are reused across files (``query_runner``
 # in database_agent + freshdesk_agent, and ``web_search`` in link +
 # deep-research). The registry holds one canonical entry per category
@@ -265,15 +259,8 @@ def _discover_tool_json_inventory():
             if rel in seen_paths:
                 continue
             seen_paths.add(rel)
-            try:
-                with open(path) as fh:
-                    data = json.load(fh)
-            except json.JSONDecodeError:
-                # Empty placeholder JSON (compact_tool.json today);
-                # the central registry classifies the placeholder so
-                # the inventory still has it, but we cannot read its
-                # ``name`` from disk.
-                continue
+            with open(path) as fh:
+                data = json.load(fh)
             name = data.get("name")
             if not name:
                 continue
@@ -306,11 +293,8 @@ def test_every_tool_json_name_has_registered_capability(json_name, json_path):
     )
 
 
-def test_compact_placeholder_has_capability_entry():
-    """``compact_tool.json`` is a 0-byte placeholder so the disk-derived
-    test cannot read its ``name``. The chat-orchestrator entry still
-    classifies it so a future fleshed-out JSON has a policy decision
-    waiting for it."""
+def test_compact_tool_has_capability_entry():
+    """The chat-orchestrator compact tool has a policy decision."""
     tool_capability_policy.ensure_capabilities_loaded()
     assert tool_capability_policy.has("compact") is True
 

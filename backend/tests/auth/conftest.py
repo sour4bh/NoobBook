@@ -45,31 +45,13 @@ from app.services.integrations.supabase import supabase_client as _supabase_clie
 _supabase_client._client = MagicMock()
 _supabase_client._initialized = True
 
-import app as _app_pkg  # noqa: E402
-import config as _top_config  # backend/config.py  # noqa: E402
-
-# `backend/config.py` and `backend/app/config/` share a top-level name.
-# Importing the `app.config` submodule (which any of the other tests does
-# transitively) rebinds `config` inside the `app` package from the dict in
-# `backend/config.py` to the submodule. A later `create_app` call then
-# raises `'module' object is not subscriptable`. Restoring the dict before
-# importing `create_app` keeps auth tests independent of import order.
-# Flag-not-fix per SPRINT.md Blocker Log 2026-04-24.
-_app_pkg.config = _top_config.config
-
 from app import create_app  # noqa: E402
 from app.api.auth import middleware as _auth_middleware  # noqa: E402
 
 
 @pytest.fixture(scope="session")
 def auth_app():
-    """Flask app instance shared across auth tests in this package.
-
-    Re-applies the `config` rebinding right before `create_app` because
-    other tests may have imported `app.config` between conftest load and
-    fixture setup, re-shadowing the dict in the `app` package namespace.
-    """
-    _app_pkg.config = _top_config.config
+    """Flask app instance shared across auth tests in this package."""
     return create_app("testing")
 
 

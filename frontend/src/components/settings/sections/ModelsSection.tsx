@@ -11,7 +11,7 @@
  * and memory, etc.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -84,11 +84,7 @@ export const ModelsSection: React.FC = () => {
 
   const { success, error } = useToast();
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const response = await modelSettingsAPI.getSettings();
@@ -102,7 +98,11 @@ export const ModelsSection: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [error]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleModelChange = async (categoryId: string, value: string) => {
     const modelId = value === DEFAULT_MODEL_VALUE ? null : value;

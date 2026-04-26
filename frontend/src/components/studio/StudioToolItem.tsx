@@ -8,7 +8,7 @@
 import React from 'react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissions } from '@/contexts/permissions';
 import type { GenerationOption, StudioSignal, StudioItemId } from './types';
 
 interface StudioToolItemProps {

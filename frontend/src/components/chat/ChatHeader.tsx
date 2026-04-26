@@ -15,7 +15,7 @@ import {
 import { Sparkle, Plus, ChatCircle, CaretDown, Hash, Books, DownloadSimple, CircleNotch, CurrencyDollar } from '@phosphor-icons/react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Button } from '../ui/button';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissions } from '@/contexts/permissions';
 import type { Chat, ChatMetadata } from '../../lib/api/chats';
 import type { CostTracking } from '../../lib/api/projects';
 import type { UserUsage } from '../../lib/api/settings';

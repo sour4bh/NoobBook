@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Tuple
 from datetime import datetime
 
 from app.services.integrations.supabase import storage_service
-from app.services.studio_services import studio_index_service
+import app.services.studio_services.studio_index_service as studio_index_service
 from app.sources.analysis.csv.agent import csv_analyzer_agent
 
 logger = logging.getLogger(__name__)

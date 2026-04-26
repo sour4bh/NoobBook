@@ -1,11 +1,11 @@
 """
-Business Report Agent Executor - Handles studio signal execution for business reports.
+Business report runner - handles studio-signal execution for business reports.
 
-Educational Note: This executor is triggered by studio signals (from main chat)
-and launches the business_report_agent as a background task. The agent orchestrates
-data analysis (via csv_analyzer_agent) and report writing.
+Educational Note: This runner is triggered by studio signals (from main chat)
+and launches the business-report writer as a background task. The writer
+orchestrates data analysis and report writing.
 
-The key difference from other executors is that business reports can analyze
+The key difference from other runners is that business reports can analyze
 multiple CSV sources and incorporate context from non-CSV sources.
 """
 
@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 class BusinessReportRunner:
     """
-    Executor for business report generation via studio signals.
+    Runner for business report generation via studio signals.
 
     Educational Note: The studio signal flow:
     1. User chats with AI about sources (including CSV data)
     2. AI decides to generate a business report (sends studio_signal tool call)
-    3. studio_signal_executor routes to this executor
-    4. We create a job and launch business_report_agent as background task
-    5. Agent runs independently, calls csv_analyzer_agent for data, updates job status
+    3. studio_signal routes to this runner
+    4. We create a job and launch the business-report writer as a background task
+    5. The writer analyzes CSV data and updates job status
     """
 
     def execute(
@@ -62,7 +62,7 @@ class BusinessReportRunner:
         Returns:
             Job info with status and job_id for polling
         """
-        from app.services.studio_services import studio_index_service
+        import app.services.studio_services.studio_index_service as studio_index_service
         from app.background.tasks import task_service
         from app.studio.documents.business_report.write import business_report_agent_service
         from app.sources.catalog import source_service

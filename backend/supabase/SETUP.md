@@ -312,11 +312,8 @@ Most startup failures are due to missing secrets. All five service secrets are r
 ### Storage policies conflict
 
 ```sql
-DROP POLICY IF EXISTS "Allow all on raw-files" ON storage.objects;
-DROP POLICY IF EXISTS "Allow all on processed-files" ON storage.objects;
-DROP POLICY IF EXISTS "Allow all on chunks" ON storage.objects;
-DROP POLICY IF EXISTS "Allow all on studio-outputs" ON storage.objects;
-DROP POLICY IF EXISTS "Allow all on brand-assets" ON storage.objects;
+-- Re-run backend/supabase/migrations/00021_storage_owner_paths.sql.
+-- It removes old permissive policies and recreates owner-prefix policies.
 ```
 
 ### Connection refused

@@ -47,5 +47,8 @@ def patch_storage_client(mock_supabase):
     ), patch(
         "app.providers.supabase.storage.is_supabase_enabled",
         return_value=True,
+    ), patch(
+        "app.providers.supabase.storage.get_project_storage_owner_id",
+        return_value="user-1",
     ):
         yield mock_client, mock_bucket

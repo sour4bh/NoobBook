@@ -8,7 +8,7 @@ When Claude cites a source with [[cite:chunk_id]], the frontend fetches
 the chunk content to display in a tooltip/popover.
 
 Chunk files are stored in Supabase Storage at:
-    chunks/{project_id}/{source_id}/{chunk_id}.txt
+    chunks/{user_id}/{project_id}/{source_id}/{chunk_id}.txt
 
 Each chunk file contains the chunk text content.
 """

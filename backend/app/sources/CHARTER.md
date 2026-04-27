@@ -18,11 +18,11 @@
 
 | Bucket | Object path (runtime) | Serving route | Notes |
 |---|---|---|---|
-| `raw-files` | `{project_id}/{source_id}/{filename}` | `GET /api/v1/projects/{project_id}/sources/{source_id}/download` -> redirect to signed URL | See "Known inconsistency" in `backend/supabase/STORAGE_CONTRACTS.md`. |
-| `processed-files` | `{project_id}/{source_id}/{source_id}.txt` | Internal reads during ingestion/search | Same inconsistency. |
-| `chunks` | `{project_id}/{source_id}/{chunk_id}.txt` | `GET /api/v1/projects/{project_id}/citations/{chunk_id}` returns chunk content for citation tooltips | Same inconsistency. |
+| `raw-files` | `{user_id}/{project_id}/{source_id}/{filename}` | `GET /api/v1/projects/{project_id}/sources/{source_id}/download` -> redirect to signed URL | Runtime builder and storage RLS agree after `00021_storage_owner_paths.sql`. |
+| `processed-files` | `{user_id}/{project_id}/{source_id}/{source_id}.txt` | Internal reads during ingestion/search | Runtime builder and storage RLS agree after `00021_storage_owner_paths.sql`. |
+| `chunks` | `{user_id}/{project_id}/{source_id}/{chunk_id}.txt` | `GET /api/v1/projects/{project_id}/citations/{chunk_id}` returns chunk content for citation tooltips | Chunk id format remains `{source_id}_page_{page}_chunk_{n}`. |
 
-Path builder module: `backend/app/providers/supabase/storage.py` (`_build_path`). Do not introduce new path builders for these buckets in sibling modules.
+Path builder module: `backend/app/providers/supabase/storage.py` (`_build_source_path`). Do not introduce new path builders for these buckets in sibling modules.
 
 ## JSONB contracts owned here (shape lives in NBB-205)
 
@@ -37,7 +37,7 @@ Path builder module: `backend/app/providers/supabase/storage.py` (`_build_path`)
 - Entry guard: `@before_request` enforcement in `backend/app/__init__.py` calls `project_service.has_project_access(project_id, user_id)` for every `/api/v1/projects/{id}/sources/...` and `/api/v1/projects/{id}/citations/{chunk_id}` route.
 - RLS defence-in-depth (hosted): `00003_rls_policies.sql` gates `sources` and `chunks` via project-ownership subqueries. A missed guard in a new route is still blocked by RLS in hosted deployments.
 - Self-hosted mode has no RLS on `sources`/`chunks`; the project guard is the only barrier.
-- Raw file download cross-user protection: the `GET .../download` route looks up the source metadata first (which is RLS-gated in hosted mode) before requesting a signed URL. In self-hosted mode the project guard blocks cross-user access before the metadata lookup runs. The storage-layer RLS on `raw-files` is **advisory** for this bucket because runtime paths do not include `{user_id}/` and service-role writes bypass RLS — see "Known inconsistency" in `STORAGE_CONTRACTS.md`.
+- Raw file download cross-user protection: the `GET .../download` route runs the project guard before looking up source metadata or requesting a signed URL. Storage object keys also start with `{user_id}/` after `NBB-914`, so hosted storage RLS matches the runtime path shape.
 
 ## Data-move pre-flight (NBB-402, NBB-403, NBB-702)
 

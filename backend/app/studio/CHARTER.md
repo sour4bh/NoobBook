@@ -17,7 +17,7 @@
 
 | Bucket | Object path (runtime) | Serving route | Notes |
 |---|---|---|---|
-| `studio-outputs` | `{project_id}/{job_type}/{job_id}/{filename}` (see note) | `GET /api/v1/projects/{project_id}/studio/<category>/...` routes in `backend/app/api/studio/` return signed URLs via `storage_service.get_studio_signed_url` or public URLs via `get_studio_public_url` | Migration-defined helper `generate_studio_output_path` uses `{user_id}/{project_id}/studio/{studio_signal_id}/{filename}`. Runtime builder uses `{project_id}/{job_type}/{job_id}/{filename}`. See "Known inconsistency" in `STORAGE_CONTRACTS.md`. NBB-502/NBB-503 should reconcile when the job layer is locked. |
+| `studio-outputs` | `{user_id}/{project_id}/studio/{job_type}/{job_id}/{filename}` and `{user_id}/{project_id}/ai-images/{filename}` | `GET /api/v1/projects/{project_id}/studio/<category>/...` routes in `backend/app/api/studio/` return signed URLs or stream bytes through backend routes; CSV analysis images are served at `/api/v1/projects/{project_id}/ai-images/{filename}` | Runtime builders and storage RLS agree after `00021_storage_owner_paths.sql`. |
 
 Path builder: `backend/app/providers/supabase/storage.py::_build_studio_path`. Do not introduce new path builders for this bucket elsewhere.
 
@@ -34,11 +34,11 @@ Path builder: `backend/app/providers/supabase/storage.py::_build_studio_path`. D
 - Entry guard: `@before_request` enforcement in `backend/app/__init__.py` calls `project_service.has_project_access(project_id, user_id)` for every `/api/v1/projects/{id}/studio/...` route.
 - RLS defence-in-depth (hosted, `studio_signals`): `00003_rls_policies.sql` uses chat -> project -> user ownership subqueries. A missed guard in a signal route is still blocked at the DB layer in hosted deployments.
 - `studio_jobs` has no RLS in either deployment. Cross-user protection depends entirely on the route-level project guard. Keep every studio-jobs read/write path behind a project-scoped route until NBB-502 decides the RLS model.
-- Signed URL issuance for `studio-outputs` happens inside the project-scoped route. Do not expose a URL generator that does not first run the project guard.
+- Signed URL issuance and byte streaming for `studio-outputs` happens inside project-scoped routes. Do not expose a URL generator or streaming route that does not first run the project guard.
 
 ## Data-move pre-flight (NBB-502, NBB-503, NBB-704B)
 
-1. Reconciling `studio-outputs` object paths with `generate_studio_output_path` (migration helper) is NBB-502/NBB-503 work. Do not change the runtime builder without a migration path.
+1. Preserve the `studio-outputs` object-path contract from `00021_storage_owner_paths.sql`; any path change needs a migration and a storage-object backfill.
 2. When NBB-501B maps studio items, every new category route must be added to the serving-route table in `STORAGE_CONTRACTS.md`.
 3. `studio_jobs` background integration is owned by `NBB-210` / `background/`; do not duplicate job lifecycle state inside studio item code.
 4. If NBB-502 adds RLS to `studio_jobs`, update this file and `OWNERS.md` in the same PR.

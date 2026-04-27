@@ -81,6 +81,7 @@ def process_embeddings(
 
         logger.info("Created %d chunks for %s", len(chunks), source_name)
 
+        owner_user_id = storage_service.get_project_storage_owner_id(project_id)
         uploaded_count = 0
         for chunk in chunks:
             storage_path = storage_service.upload_chunk(
@@ -88,6 +89,7 @@ def process_embeddings(
                 source_id=source_id,
                 chunk_id=chunk.chunk_id,
                 content=chunk.text,
+                owner_user_id=owner_user_id,
             )
             if storage_path:
                 uploaded_count += 1

@@ -91,7 +91,7 @@ class BusinessReportDispatcher:
 
         Educational Note: Claude sometimes passes the source NAME (e.g. "customers-100.csv")
         instead of the UUID as source_id. This causes storage downloads to fail with 404
-        because the storage path uses UUIDs: {project_id}/{source_id}/{source_id}.csv.
+        because the storage path uses UUIDs: {user_id}/{project_id}/{source_id}/{source_id}.csv.
         We resolve names to UUIDs by looking up sources in the project.
 
         Args:

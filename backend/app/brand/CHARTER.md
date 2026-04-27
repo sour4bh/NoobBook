@@ -17,7 +17,7 @@
 
 | Bucket | Object path (runtime) | Serving route | Notes |
 |---|---|---|---|
-| `brand-assets` | `{user_id}/brand/{asset_id}/{filename}` | `GET /api/v1/brand/...` routes in `backend/app/api/brand/routes.py` return signed URLs via `storage_service.get_brand_asset_url` | This is the only bucket where runtime path + migration helper (`generate_brand_asset_path` in 00010) agree with the `auth.uid()::text == folder[1]` storage policy. Storage RLS is primary in hosted mode. |
+| `brand-assets` | `{user_id}/brand/{asset_id}/{filename}` | `GET /api/v1/brand/...` routes in `backend/app/api/brand/routes.py` stream bytes through `storage_service.download_brand_asset` | Runtime path and migration helper (`generate_brand_asset_path` in 00010) agree with the `auth.uid()::text == folder[1]` storage policy; `00021_storage_owner_paths.sql` removes the permissive self-hosted policy. |
 
 Path builder: `backend/app/providers/supabase/storage.py::_build_brand_path`. Do not introduce new path builders for this bucket elsewhere.
 
@@ -38,7 +38,7 @@ Path builder: `backend/app/providers/supabase/storage.py::_build_brand_path`. Do
 
 - Entry guard: brand routes are user-scoped (not project-scoped). They rely on the authenticated identity set by the auth stack (`get_request_identity` in `backend/app/auth/identity.py`); the `@before_request` project-access guard does not apply because the URL prefix is `/api/v1/brand/...`, not `/api/v1/projects/{id}/...`. Any new brand route that takes a `{project_id}` must add the project guard.
 - RLS of record (hosted): `brand_assets` and `brand_config` policies in `00010_brand_to_user_level.sql` use `user_id = auth.uid()`.
-- Self-hosted mode has no RLS on these tables; the backend-authenticated user id is the only barrier. Brand bucket storage RLS is `Allow all on brand-assets` (init.sql), so the backend guard must not be skipped.
+- Self-hosted mode has no RLS on these tables; the backend-authenticated user id is the only table barrier. Brand bucket storage policy still requires the first object segment to equal `auth.uid()` when clients access storage directly.
 
 ## Data-move pre-flight (NBB-209D)
 

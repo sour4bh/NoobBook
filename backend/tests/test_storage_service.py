@@ -11,7 +11,12 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from app.providers.supabase import storage_service
-from app.providers.supabase.storage import _LIST_OPTIONS
+from app.providers.supabase.storage import (
+    _LIST_OPTIONS,
+    _build_ai_image_path,
+    _build_source_path,
+    _build_studio_path,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -26,6 +31,31 @@ def _file_entry(name: str, file_id: str = "some-uuid") -> dict:
 def _folder_entry(name: str) -> dict:
     """Simulate a Supabase Storage folder entry (id is None)."""
     return {"name": name, "id": None}
+
+
+class TestOwnedStoragePaths:
+    def test_source_paths_start_with_user_and_project(self):
+        path = _build_source_path(
+            "project-1",
+            "source-1",
+            "document.pdf",
+            owner_user_id="user-1",
+        )
+
+        assert path == "user-1/project-1/source-1/document.pdf"
+
+    @patch(
+        "app.providers.supabase.storage.get_project_storage_owner_id",
+        return_value="user-2",
+    )
+    def test_studio_and_generated_image_paths_start_with_user(self, _owner):
+        assert (
+            _build_studio_path("project-2", "websites", "job-1", "index.html")
+            == "user-2/project-2/studio/websites/job-1/index.html"
+        )
+        assert _build_ai_image_path("project-2", "chart.png") == (
+            "user-2/project-2/ai-images/chart.png"
+        )
 
 
 # ===========================================================================
@@ -169,8 +199,8 @@ class TestDeleteStudioJobFiles:
 
         assert result is True
         removed = mock_bucket.remove.call_args[0][0]
-        assert "p1/websites/j1/index.html" in removed
-        assert "p1/websites/j1/assets/style.css" in removed
+        assert "user-1/p1/studio/websites/j1/index.html" in removed
+        assert "user-1/p1/studio/websites/j1/assets/style.css" in removed
 
     def test_deeply_nested(self, patch_storage_client):
         """Three levels deep: root → assets/ → images/ → pic.png"""
@@ -186,7 +216,7 @@ class TestDeleteStudioJobFiles:
 
         assert result is True
         removed = mock_bucket.remove.call_args[0][0]
-        assert "p1/websites/j1/assets/images/pic.png" in removed
+        assert "user-1/p1/studio/websites/j1/assets/images/pic.png" in removed
         assert len(removed) == 1
 
 

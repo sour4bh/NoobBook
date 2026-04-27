@@ -8,7 +8,8 @@ Files are organized in buckets:
 - chunks: Text chunks for RAG search
 - studio-outputs: Generated content (audio, video, documents)
 
-File paths follow the pattern: {project_id}/{source_id}/{filename}
+Source file paths follow: {user_id}/{project_id}/{source_id}/{filename}
+Studio output paths follow: {user_id}/{project_id}/studio/{job_type}/{job_id}/{filename}
 """
 import logging
 from typing import Optional, BinaryIO, List, Dict, Any
@@ -41,9 +42,41 @@ def _get_client():
     return get_supabase()
 
 
-def _build_path(project_id: str, source_id: str, filename: str) -> str:
-    """Build storage path: project_id/source_id/filename"""
-    return f"{project_id}/{source_id}/{filename}"
+def get_project_storage_owner_id(project_id: str) -> str:
+    """Return the owning user id used as the first storage path segment."""
+    response = (
+        _get_client()
+        .table("projects")
+        .select("user_id")
+        .eq("id", project_id)
+        .execute()
+    )
+    if not response.data:
+        raise ValueError(f"Cannot resolve storage owner for project {project_id}")
+    owner_user_id = response.data[0].get("user_id")
+    if not owner_user_id:
+        raise ValueError(f"Project {project_id} has no storage owner")
+    return str(owner_user_id)
+
+
+def _build_source_path(
+    project_id: str,
+    source_id: str,
+    filename: str,
+    owner_user_id: Optional[str] = None,
+) -> str:
+    """Build source storage path: user_id/project_id/source_id/filename."""
+    uid = owner_user_id or get_project_storage_owner_id(project_id)
+    return f"{uid}/{project_id}/{source_id}/{filename}"
+
+
+def _build_source_prefix(
+    project_id: str,
+    source_id: str,
+    owner_user_id: Optional[str] = None,
+) -> str:
+    uid = owner_user_id or get_project_storage_owner_id(project_id)
+    return f"{uid}/{project_id}/{source_id}"
 
 
 def _upsert_file(client, bucket: str, path: str, file_data, file_options: dict) -> str:
@@ -105,7 +138,7 @@ def upload_raw_file(
         Storage path if successful, None otherwise
     """
     client = _get_client()
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         client.storage.from_(BUCKET_RAW).upload(
@@ -132,7 +165,7 @@ def download_raw_file(project_id: str, source_id: str, filename: str) -> Optiona
         File bytes or None if not found
     """
     client = _get_client()
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         response = client.storage.from_(BUCKET_RAW).download(path)
@@ -145,7 +178,7 @@ def download_raw_file(project_id: str, source_id: str, filename: str) -> Optiona
 def delete_raw_file(project_id: str, source_id: str, filename: str) -> bool:
     """Delete a raw file from storage."""
     client = _get_client()
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         client.storage.from_(BUCKET_RAW).remove([path])
@@ -169,7 +202,7 @@ def get_raw_file_url(project_id: str, source_id: str, filename: str, expires_in:
         Signed URL or None
     """
     client = _get_client()
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         response = client.storage.from_(BUCKET_RAW).create_signed_url(path, expires_in)
@@ -201,7 +234,7 @@ def upload_processed_file(
     """
     client = _get_client()
     filename = f"{source_id}.txt"
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         client.storage.from_(BUCKET_PROCESSED).upload(
@@ -228,7 +261,7 @@ def download_processed_file(project_id: str, source_id: str) -> Optional[str]:
     """
     client = _get_client()
     filename = f"{source_id}.txt"
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         response = client.storage.from_(BUCKET_PROCESSED).download(path)
@@ -242,7 +275,7 @@ def delete_processed_file(project_id: str, source_id: str) -> bool:
     """Delete a processed file from storage."""
     client = _get_client()
     filename = f"{source_id}.txt"
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         client.storage.from_(BUCKET_PROCESSED).remove([path])
@@ -260,7 +293,8 @@ def upload_chunk(
     project_id: str,
     source_id: str,
     chunk_id: str,
-    content: str
+    content: str,
+    owner_user_id: Optional[str] = None,
 ) -> Optional[str]:
     """
     Upload a text chunk to storage.
@@ -276,7 +310,7 @@ def upload_chunk(
     """
     client = _get_client()
     filename = f"{chunk_id}.txt"
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename, owner_user_id)
 
     try:
         client.storage.from_(BUCKET_CHUNKS).upload(
@@ -304,7 +338,7 @@ def download_chunk(project_id: str, source_id: str, chunk_id: str) -> Optional[s
     """
     client = _get_client()
     filename = f"{chunk_id}.txt"
-    path = _build_path(project_id, source_id, filename)
+    path = _build_source_path(project_id, source_id, filename)
 
     try:
         response = client.storage.from_(BUCKET_CHUNKS).download(path)
@@ -330,7 +364,7 @@ def list_source_chunks(project_id: str, source_id: str) -> List[Dict[str, Any]]:
         List of chunk dicts with chunk_id, text, page_number, source_id
     """
     client = _get_client()
-    prefix = f"{project_id}/{source_id}"
+    prefix = _build_source_prefix(project_id, source_id)
 
     try:
         # List all files in the source's chunk folder
@@ -402,7 +436,7 @@ def delete_source_chunks(project_id: str, source_id: str) -> bool:
         True if successful
     """
     client = _get_client()
-    prefix = f"{project_id}/{source_id}/"
+    prefix = f"{_build_source_prefix(project_id, source_id)}/"
 
     try:
         # List all files with prefix
@@ -422,13 +456,18 @@ def delete_source_chunks(project_id: str, source_id: str) -> bool:
 # STUDIO OUTPUTS (Generated content - PRDs, blogs, emails, etc.)
 # =============================================================================
 
+def _build_studio_prefix(project_id: str, job_type: str, job_id: str) -> str:
+    uid = get_project_storage_owner_id(project_id)
+    return f"{uid}/{project_id}/studio/{job_type}/{job_id}"
+
+
 def _build_studio_path(project_id: str, job_type: str, job_id: str, filename: str) -> str:
     """
     Build storage path for studio outputs.
-    Pattern: {project_id}/{job_type}/{job_id}/{filename}
-    Example: abc123/prds/def456/def456.md
+    Pattern: {user_id}/{project_id}/studio/{job_type}/{job_id}/{filename}
+    Example: user123/proj123/studio/prds/job456/job456.md
     """
-    return f"{project_id}/{job_type}/{job_id}/{filename}"
+    return f"{_build_studio_prefix(project_id, job_type, job_id)}/{filename}"
 
 
 def upload_studio_file(
@@ -566,7 +605,7 @@ def delete_studio_job_files(project_id: str, job_type: str, job_id: str) -> bool
         True if successful
     """
     client = _get_client()
-    root_prefix = f"{project_id}/{job_type}/{job_id}"
+    root_prefix = _build_studio_prefix(project_id, job_type, job_id)
 
     try:
         # Iteratively scan folders to collect all file paths
@@ -614,7 +653,7 @@ def list_studio_job_files(project_id: str, job_type: str, job_id: str) -> List[D
         or empty list on error
     """
     client = _get_client()
-    root_prefix = f"{project_id}/{job_type}/{job_id}"
+    root_prefix = _build_studio_prefix(project_id, job_type, job_id)
 
     try:
         # Iteratively scan folders to collect all files
@@ -773,6 +812,11 @@ def get_studio_signed_url(
         return None
 
 
+def _build_ai_image_path(project_id: str, filename: str) -> str:
+    uid = get_project_storage_owner_id(project_id)
+    return f"{uid}/{project_id}/ai-images/{filename}"
+
+
 # =============================================================================
 # AI IMAGES (Generated charts/plots from analysis)
 # =============================================================================
@@ -788,7 +832,7 @@ def upload_ai_image(
 
     Educational Note: AI-generated images (e.g., matplotlib charts from
     CSV analysis) are stored in Supabase Storage instead of local disk.
-    Path pattern: {project_id}/ai-images/{filename}
+    Path pattern: {user_id}/{project_id}/ai-images/{filename}
 
     Args:
         project_id: The project UUID
@@ -800,7 +844,7 @@ def upload_ai_image(
         Storage path if successful, None otherwise
     """
     client = _get_client()
-    path = f"{project_id}/ai-images/{filename}"
+    path = _build_ai_image_path(project_id, filename)
 
     try:
         return _upsert_file(
@@ -825,7 +869,7 @@ def download_ai_image(project_id: str, filename: str) -> Optional[bytes]:
         Image bytes or None if not found
     """
     client = _get_client()
-    path = f"{project_id}/ai-images/{filename}"
+    path = _build_ai_image_path(project_id, filename)
 
     try:
         response = client.storage.from_(BUCKET_STUDIO).download(path)
@@ -852,7 +896,7 @@ def get_ai_image_url(
         Signed URL or None
     """
     client = _get_client()
-    path = f"{project_id}/ai-images/{filename}"
+    path = _build_ai_image_path(project_id, filename)
 
     try:
         response = client.storage.from_(BUCKET_STUDIO).create_signed_url(path, expires_in)

@@ -463,38 +463,90 @@ VALUES (
 ) ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================
--- STORAGE POLICIES (Single-user mode - allow all)
+-- STORAGE POLICIES
 -- ============================================================================
 DO $$
 BEGIN
-  -- Raw files
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on raw-files') THEN
-    CREATE POLICY "Allow all on raw-files" ON storage.objects FOR ALL
-    USING (bucket_id = 'raw-files') WITH CHECK (bucket_id = 'raw-files');
+  -- Runtime object paths start with user_id for every bucket.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can upload raw files to own projects') THEN
+    CREATE POLICY "Users can upload raw files to own projects" ON storage.objects FOR INSERT
+    WITH CHECK (bucket_id = 'raw-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read raw files from own projects') THEN
+    CREATE POLICY "Users can read raw files from own projects" ON storage.objects FOR SELECT
+    USING (bucket_id = 'raw-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update raw files in own projects') THEN
+    CREATE POLICY "Users can update raw files in own projects" ON storage.objects FOR UPDATE
+    USING (bucket_id = 'raw-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete raw files from own projects') THEN
+    CREATE POLICY "Users can delete raw files from own projects" ON storage.objects FOR DELETE
+    USING (bucket_id = 'raw-files' AND auth.uid()::text = (storage.foldername(name))[1]);
   END IF;
 
-  -- Processed files
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on processed-files') THEN
-    CREATE POLICY "Allow all on processed-files" ON storage.objects FOR ALL
-    USING (bucket_id = 'processed-files') WITH CHECK (bucket_id = 'processed-files');
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can upload processed files to own projects') THEN
+    CREATE POLICY "Users can upload processed files to own projects" ON storage.objects FOR INSERT
+    WITH CHECK (bucket_id = 'processed-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read processed files from own projects') THEN
+    CREATE POLICY "Users can read processed files from own projects" ON storage.objects FOR SELECT
+    USING (bucket_id = 'processed-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update processed files in own projects') THEN
+    CREATE POLICY "Users can update processed files in own projects" ON storage.objects FOR UPDATE
+    USING (bucket_id = 'processed-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete processed files from own projects') THEN
+    CREATE POLICY "Users can delete processed files from own projects" ON storage.objects FOR DELETE
+    USING (bucket_id = 'processed-files' AND auth.uid()::text = (storage.foldername(name))[1]);
   END IF;
 
-  -- Chunks
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on chunks') THEN
-    CREATE POLICY "Allow all on chunks" ON storage.objects FOR ALL
-    USING (bucket_id = 'chunks') WITH CHECK (bucket_id = 'chunks');
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can upload chunks to own projects') THEN
+    CREATE POLICY "Users can upload chunks to own projects" ON storage.objects FOR INSERT
+    WITH CHECK (bucket_id = 'chunks' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read chunks from own projects') THEN
+    CREATE POLICY "Users can read chunks from own projects" ON storage.objects FOR SELECT
+    USING (bucket_id = 'chunks' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete chunks from own projects') THEN
+    CREATE POLICY "Users can delete chunks from own projects" ON storage.objects FOR DELETE
+    USING (bucket_id = 'chunks' AND auth.uid()::text = (storage.foldername(name))[1]);
   END IF;
 
-  -- Studio outputs
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on studio-outputs') THEN
-    CREATE POLICY "Allow all on studio-outputs" ON storage.objects FOR ALL
-    USING (bucket_id = 'studio-outputs') WITH CHECK (bucket_id = 'studio-outputs');
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can upload studio outputs to own projects') THEN
+    CREATE POLICY "Users can upload studio outputs to own projects" ON storage.objects FOR INSERT
+    WITH CHECK (bucket_id = 'studio-outputs' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read studio outputs from own projects') THEN
+    CREATE POLICY "Users can read studio outputs from own projects" ON storage.objects FOR SELECT
+    USING (bucket_id = 'studio-outputs' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update studio outputs in own projects') THEN
+    CREATE POLICY "Users can update studio outputs in own projects" ON storage.objects FOR UPDATE
+    USING (bucket_id = 'studio-outputs' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete studio outputs from own projects') THEN
+    CREATE POLICY "Users can delete studio outputs from own projects" ON storage.objects FOR DELETE
+    USING (bucket_id = 'studio-outputs' AND auth.uid()::text = (storage.foldername(name))[1]);
   END IF;
 
-  -- Brand assets
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on brand-assets') THEN
-    CREATE POLICY "Allow all on brand-assets" ON storage.objects FOR ALL
-    USING (bucket_id = 'brand-assets') WITH CHECK (bucket_id = 'brand-assets');
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can upload brand assets to own account') THEN
+    CREATE POLICY "Users can upload brand assets to own account" ON storage.objects FOR INSERT
+    WITH CHECK (bucket_id = 'brand-assets' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read brand assets from own account') THEN
+    CREATE POLICY "Users can read brand assets from own account" ON storage.objects FOR SELECT
+    USING (bucket_id = 'brand-assets' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update brand assets in own account') THEN
+    CREATE POLICY "Users can update brand assets in own account" ON storage.objects FOR UPDATE
+    USING (bucket_id = 'brand-assets' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete brand assets from own account') THEN
+    CREATE POLICY "Users can delete brand assets from own account" ON storage.objects FOR DELETE
+    USING (bucket_id = 'brand-assets' AND auth.uid()::text = (storage.foldername(name))[1]);
   END IF;
 END $$;
 

@@ -7,14 +7,15 @@ responses. They do not own product behavior, persistence, or cross-domain
 orchestration. Moving route modules into domain packages is tracked by D-001
 and is out of scope for this migration.
 
-Allowed imports: domain public surfaces (`auth/`, `projects/`, `chat/`,
-`sources/`, `studio/`, `brand/`, `settings/`, `connectors/`, `background/`)
-and lightweight Flask-layer helpers. Route modules must not import another
-domain's internals.
+Allowed imports: domain public surfaces (`auth/`, `workspaces/`, `projects/`,
+`chat/`, `sources/`, `studio/`, `brand/`, `settings/`, `connectors/`,
+`background/`) and lightweight Flask-layer helpers. Route modules must not
+import another domain's internals.
 
 Blueprint Architecture:
 - api_bp: Main API blueprint (registered at /api/v1 in app factory)
   - auth_bp: Authentication (signup, login, logout, session)
+  - workspaces_bp: Workspace listing, member listing, and signed invites
   - projects_bp: Project CRUD, costs, memory
   - chats_bp: Chat CRUD operations
   - messages_bp: Message sending (AI interaction)
@@ -36,6 +37,7 @@ from app.api.auth.middleware import validate_token  # noqa: E402
 from app.auth.identity import get_request_identity, is_auth_required  # noqa: E402
 
 from app.api.auth import auth_bp
+from app.api.workspaces import workspaces_bp
 from app.api.chats import chats_bp
 from app.api.messages import messages_bp
 from app.api.prompts import prompts_bp
@@ -101,6 +103,7 @@ def authenticate_request():
 # Register nested blueprints with the main api blueprint
 # No url_prefix needed - routes already have full paths
 api_bp.register_blueprint(auth_bp)
+api_bp.register_blueprint(workspaces_bp)
 api_bp.register_blueprint(chats_bp)
 api_bp.register_blueprint(messages_bp)
 api_bp.register_blueprint(prompts_bp)

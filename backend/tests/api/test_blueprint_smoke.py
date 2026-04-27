@@ -24,6 +24,7 @@ CHAT_ID = "00000000-0000-0000-0000-000000000001"
 # (blueprint_name, http_method, path)
 REPRESENTATIVE_ROUTES = [
     ("auth", "POST", "/api/v1/auth/signin"),
+    ("workspaces", "GET", "/api/v1/workspaces"),
     ("projects", "GET", "/api/v1/projects"),
     ("chats", "GET", f"/api/v1/projects/{PROJECT_ID}/chats"),
     (

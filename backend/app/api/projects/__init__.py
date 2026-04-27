@@ -15,6 +15,8 @@ This blueprint demonstrates RESTful API design:
 - PUT    /projects/<id>      - Update (resource)
 - DELETE /projects/<id>      - Delete (resource)
 - POST   /projects/<id>/open - Action endpoint (mark as opened)
+- GET/POST/PUT/DELETE /projects/<id>/members - Private project sharing
+- POST   /projects/<id>/invites - Invite by email with optional project access
 
 Plus analytics endpoints:
 - GET /projects/<id>/costs   - API cost breakdown
@@ -30,3 +32,4 @@ from app.api.projects import routes  # noqa: F401
 from app.api.projects import costs  # noqa: F401
 from app.api.projects import memory  # noqa: F401
 from app.api.projects import active_tasks  # noqa: F401
+from app.api.projects import members  # noqa: F401

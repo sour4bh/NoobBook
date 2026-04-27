@@ -18,6 +18,7 @@ PROJECT_OWNER = "owner"
 PROJECT_EDITOR = "editor"
 PROJECT_VIEWER = "viewer"
 PROJECT_EDIT_ROLES = {PROJECT_OWNER, PROJECT_EDITOR}
+PROJECT_ROLES = {PROJECT_OWNER, PROJECT_EDITOR, PROJECT_VIEWER}
 
 
 # Default user ID for single-user mode (fallback when no auth token provided).
@@ -687,6 +688,151 @@ class ProjectStore:
     def can_manage_project(self, project_id: str, user_id: str) -> bool:
         """Check if a user can manage project sharing and deletion."""
         return self.get_project_role(project_id, user_id) == PROJECT_OWNER
+
+    def list_project_members(
+        self,
+        project_id: str,
+        requester_user_id: str,
+    ) -> List[Dict[str, Any]]:
+        """List explicit private-project members."""
+        if not self.has_project_access(project_id, requester_user_id):
+            raise PermissionError("Project access required")
+        response = (
+            self.supabase.table("project_members")
+            .select("user_id, role, created_at, updated_at")
+            .eq("project_id", project_id)
+            .execute()
+        )
+        rows = response.data or []
+        emails = self._emails_by_user_id([str(row["user_id"]) for row in rows if row.get("user_id")])
+        return [
+            {
+                "user_id": str(row["user_id"]),
+                "email": emails.get(str(row["user_id"])),
+                "role": row.get("role") or PROJECT_VIEWER,
+                "created_at": row.get("created_at"),
+                "updated_at": row.get("updated_at"),
+            }
+            for row in rows
+        ]
+
+    def add_project_member(
+        self,
+        project_id: str,
+        target_user_id: str,
+        role: str,
+        requester_user_id: str,
+    ) -> Dict[str, Any]:
+        """Add an existing workspace member to a private project."""
+        if role not in PROJECT_ROLES:
+            raise ValueError("role must be owner, editor, or viewer")
+        if not self.can_manage_project(project_id, requester_user_id):
+            raise PermissionError("Project owner role required")
+        project = self.get_project(project_id, user_id=requester_user_id)
+        if not project:
+            raise ValueError("Project not found")
+        workspace_id = project.get("workspace_id")
+        if not workspace_id or not self.has_workspace_access(workspace_id, target_user_id):
+            raise PermissionError("User must be a workspace member before project sharing")
+
+        response = (
+            self.supabase.table("project_members")
+            .upsert(
+                {
+                    "project_id": project_id,
+                    "user_id": target_user_id,
+                    "role": role,
+                },
+                on_conflict="project_id,user_id",
+            )
+            .execute()
+        )
+        row = response.data[0] if response.data else {
+            "user_id": target_user_id,
+            "role": role,
+            "created_at": None,
+            "updated_at": None,
+        }
+        row["email"] = self._emails_by_user_id([target_user_id]).get(target_user_id)
+        return row
+
+    def update_project_member_role(
+        self,
+        project_id: str,
+        target_user_id: str,
+        role: str,
+        requester_user_id: str,
+    ) -> Dict[str, Any]:
+        """Update a private-project member role."""
+        if role not in PROJECT_ROLES:
+            raise ValueError("role must be owner, editor, or viewer")
+        if not self.can_manage_project(project_id, requester_user_id):
+            raise PermissionError("Project owner role required")
+        current_role = self.get_project_role(project_id, target_user_id)
+        if current_role is None:
+            raise ValueError("Project member not found")
+        if current_role == PROJECT_OWNER and role != PROJECT_OWNER:
+            self._ensure_another_project_owner(project_id, target_user_id)
+
+        response = (
+            self.supabase.table("project_members")
+            .update({"role": role})
+            .eq("project_id", project_id)
+            .eq("user_id", target_user_id)
+            .execute()
+        )
+        if not response.data:
+            raise ValueError("Project member not found")
+        row = response.data[0]
+        row["email"] = self._emails_by_user_id([target_user_id]).get(target_user_id)
+        return row
+
+    def remove_project_member(
+        self,
+        project_id: str,
+        target_user_id: str,
+        requester_user_id: str,
+    ) -> bool:
+        """Remove a private-project member."""
+        if not self.can_manage_project(project_id, requester_user_id):
+            raise PermissionError("Project owner role required")
+        current_role = self.get_project_role(project_id, target_user_id)
+        if current_role is None:
+            return False
+        if current_role == PROJECT_OWNER:
+            self._ensure_another_project_owner(project_id, target_user_id)
+        self.supabase.table("project_members").delete().eq(
+            "project_id", project_id
+        ).eq("user_id", target_user_id).execute()
+        return True
+
+    def _ensure_another_project_owner(self, project_id: str, excluded_user_id: str) -> None:
+        response = (
+            self.supabase.table("project_members")
+            .select("user_id")
+            .eq("project_id", project_id)
+            .eq("role", PROJECT_OWNER)
+            .neq("user_id", excluded_user_id)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            raise ValueError("Project must keep at least one owner")
+
+    def _emails_by_user_id(self, user_ids: List[str]) -> Dict[str, Optional[str]]:
+        if not user_ids:
+            return {}
+        response = (
+            self.supabase.table("users")
+            .select("id, email")
+            .in_("id", user_ids)
+            .execute()
+        )
+        return {
+            str(row["id"]): row.get("email")
+            for row in response.data or []
+            if row.get("id")
+        }
 
 
 # Singleton instance

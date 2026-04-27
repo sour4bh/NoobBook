@@ -21,6 +21,7 @@ EXPECTED_BLUEPRINTS = {
     "google",
     "transcription",
     "settings",
+    "workspaces",
     "sources",
     "studio",
     "brand",

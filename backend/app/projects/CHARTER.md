@@ -10,8 +10,8 @@
 
 | Table | Defined in | Access enforcement | Notes |
 |---|---|---|---|
-| `projects` | `backend/supabase/migrations/00001_initial_schema.sql`, `00003_rls_policies.sql` | Hosted: RLS `user_id = auth.uid()` for select/insert/update/delete. Self-hosted: backend guard `project_service.has_project_access`. Both layers coexist in hosted mode. | Project row is the ownership root for every project-scoped table. |
-| `project_members` | `backend/supabase/migrations/00006_user_roles.sql` | RLS on role-gated actions (owner/admin + `can_invite` for inserts). Backend guard augments in self-hosted mode. | Multi-user collaboration; `has_project_access` must be amended if collaboration is re-enabled in self-hosted. |
+| `projects` | `backend/supabase/migrations/00001_initial_schema.sql`, `00003_rls_policies.sql`, `00023_workspace_membership.sql` | Hosted: RLS checks explicit `project_members` membership through `user_has_project_access`. Self-hosted: backend guard `project_service.has_project_access` (runtime switch lands in NBB-1004). | Project row belongs to a workspace through `workspace_id`, but workspace membership alone is not project access. |
+| `project_members` | `backend/supabase/migrations/00006_user_roles.sql`, rewritten by `00023_workspace_membership.sql` | Hosted: RLS lets project members view membership and project owners manage membership. Backend guard/API checks augment in self-hosted mode. | Private project access roles are `owner`, `editor`, and `viewer`. |
 
 Auxiliary tables defined elsewhere but keyed to `project_id`:
 
@@ -32,8 +32,8 @@ Auxiliary tables defined elsewhere but keyed to `project_id`:
 ## Access guard of record
 
 - Entry guard: `@before_request` enforcement in `backend/app/__init__.py` calls `project_service.has_project_access(project_id, user_id)` for every `/api/v1/projects/{id}/...` route.
-- Ownership query: `backend/app/projects/store.py::has_project_access` performs a bare `id=? AND user_id=?` lookup against the `projects` table. It does **not** currently consult `project_members`; extend this (or call `user_has_project_access()` SQL helper from migration 00006) when multi-user collaboration is re-enabled.
-- RLS defence-in-depth (hosted): `migrations/00003_rls_policies.sql` gates `projects` by `auth.uid() = user_id`.
+- Runtime guard transition: `NBB-1002` adds the durable schema and helper SQL. `NBB-1004` must switch `backend/app/projects/store.py::has_project_access` and project CRUD from `projects.user_id` owner checks to explicit `project_members` roles.
+- RLS defence-in-depth (hosted): `migrations/00023_workspace_membership.sql` gates `projects` and project-owned child tables through private project membership.
 
 ## Data-move pre-flight (any `NBB-209*` ticket touching project data)
 

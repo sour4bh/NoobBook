@@ -487,7 +487,8 @@ VALUES (
 -- ============================================================================
 DO $$
 BEGIN
-  -- Runtime object paths start with user_id for every bucket.
+  -- Early bootstrap owner-prefix policies. NBB-010 replaces these below for
+  -- project-owned buckets once workspace/project membership helpers exist.
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can upload raw files to own projects') THEN
     CREATE POLICY "Users can upload raw files to own projects" ON storage.objects FOR INSERT
     WITH CHECK (bucket_id = 'raw-files' AND auth.uid()::text = (storage.foldername(name))[1]);
@@ -607,3 +608,390 @@ CREATE TRIGGER trigger_studio_jobs_updated_at
     BEFORE UPDATE ON studio_jobs
     FOR EACH ROW
     EXECUTE FUNCTION update_studio_jobs_updated_at();
+
+-- ============================================================================
+-- WORKSPACE MEMBERSHIP (NBB-010)
+-- ============================================================================
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workspace_role') THEN
+    CREATE TYPE workspace_role AS ENUM ('owner', 'admin', 'member');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'project_role') THEN
+    CREATE TYPE project_role AS ENUM ('owner', 'editor', 'viewer');
+  END IF;
+END $$;
+
+COMMENT ON COLUMN users.role IS 'Global instance role: admin or user. Workspace ownership lives in workspace_members.';
+
+CREATE TABLE IF NOT EXISTS workspaces (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  personal_owner_user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT workspaces_name_not_empty CHECK (length(trim(name)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspaces_owner_user_id ON workspaces(owner_user_id);
+
+CREATE TABLE IF NOT EXISTS workspace_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role workspace_role NOT NULL DEFAULT 'member',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_workspace_member UNIQUE (workspace_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace_id ON workspace_members(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_members_user_id ON workspace_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_members_role ON workspace_members(role);
+
+CREATE TABLE IF NOT EXISTS project_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role project_role NOT NULL DEFAULT 'viewer',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_project_member UNIQUE (project_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_members_project_id ON project_members(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_user_id ON project_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_role ON project_members(role);
+
+CREATE TABLE IF NOT EXISTS workspace_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  workspace_role workspace_role NOT NULL DEFAULT 'member',
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  project_role project_role,
+  token_hash TEXT NOT NULL UNIQUE,
+  invited_by_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT workspace_invites_email_not_empty CHECK (length(trim(email)) > 0),
+  CONSTRAINT workspace_invites_project_role_requires_project CHECK (
+    (project_id IS NULL AND project_role IS NULL)
+    OR (project_id IS NOT NULL AND project_role IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_invites_workspace_id ON workspace_invites(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_invites_email ON workspace_invites(lower(email));
+CREATE INDEX IF NOT EXISTS idx_workspace_invites_project_id ON workspace_invites(project_id);
+
+CREATE TABLE IF NOT EXISTS workspace_provider_secrets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  key TEXT NOT NULL,
+  encrypted_value TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT workspace_provider_secrets_key UNIQUE (workspace_id, provider, key),
+  CONSTRAINT workspace_provider_secrets_provider_not_empty CHECK (length(trim(provider)) > 0),
+  CONSTRAINT workspace_provider_secrets_key_not_empty CHECK (length(trim(key)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_provider_secrets_workspace_id ON workspace_provider_secrets(workspace_id);
+
+ALTER TABLE projects
+  ADD COLUMN IF NOT EXISTS workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS idx_projects_workspace_id ON projects(workspace_id);
+
+INSERT INTO workspaces (name, owner_user_id, personal_owner_user_id)
+SELECT
+  COALESCE(NULLIF(split_part(email, '@', 1), ''), 'Personal') || '''s Workspace',
+  id,
+  id
+FROM users
+ON CONFLICT (personal_owner_user_id) DO NOTHING;
+
+INSERT INTO workspace_members (workspace_id, user_id, role)
+SELECT id, owner_user_id, 'owner'::workspace_role
+FROM workspaces
+ON CONFLICT (workspace_id, user_id) DO NOTHING;
+
+UPDATE projects
+SET workspace_id = workspaces.id
+FROM workspaces
+WHERE projects.workspace_id IS NULL
+  AND workspaces.personal_owner_user_id = projects.user_id;
+
+INSERT INTO project_members (project_id, user_id, role)
+SELECT id, user_id, 'owner'::project_role
+FROM projects
+ON CONFLICT (project_id, user_id) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION user_has_workspace_access(
+  p_workspace_id UUID,
+  p_user_id UUID DEFAULT auth.uid()
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM workspace_members
+    WHERE workspace_id = p_workspace_id AND user_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION user_can_manage_workspace(
+  p_workspace_id UUID,
+  p_user_id UUID DEFAULT auth.uid()
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM workspace_members
+    WHERE workspace_id = p_workspace_id
+      AND user_id = p_user_id
+      AND role IN ('owner', 'admin')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION user_project_role(
+  p_project_id UUID,
+  p_user_id UUID DEFAULT auth.uid()
+)
+RETURNS project_role AS $$
+DECLARE
+  v_role project_role;
+BEGIN
+  SELECT role INTO v_role
+  FROM project_members
+  WHERE project_id = p_project_id AND user_id = p_user_id;
+  RETURN v_role;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION user_has_project_access(
+  p_project_id UUID,
+  p_user_id UUID DEFAULT auth.uid()
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN user_project_role(p_project_id, p_user_id) IS NOT NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION user_can_edit_project(
+  p_project_id UUID,
+  p_user_id UUID DEFAULT auth.uid()
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN user_project_role(p_project_id, p_user_id) IN ('owner', 'editor');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION user_can_manage_project(
+  p_project_id UUID,
+  p_user_id UUID DEFAULT auth.uid()
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN user_project_role(p_project_id, p_user_id) = 'owner';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION generate_raw_file_path(
+  p_workspace_id UUID,
+  p_project_id UUID,
+  p_source_id UUID,
+  p_filename TEXT
+)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN p_workspace_id || '/' || p_project_id || '/' || p_source_id || '/' || p_filename;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION generate_processed_file_path(
+  p_workspace_id UUID,
+  p_project_id UUID,
+  p_source_id UUID,
+  p_filename TEXT
+)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN p_workspace_id || '/' || p_project_id || '/' || p_source_id || '/' || p_filename;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION generate_chunk_file_path(
+  p_workspace_id UUID,
+  p_project_id UUID,
+  p_source_id UUID,
+  p_chunk_id TEXT
+)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN p_workspace_id || '/' || p_project_id || '/' || p_source_id || '/' || p_chunk_id || '.txt';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION generate_studio_output_path(
+  p_workspace_id UUID,
+  p_project_id UUID,
+  p_job_type TEXT,
+  p_job_id UUID,
+  p_filename TEXT
+)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN p_workspace_id || '/' || p_project_id || '/studio/' || p_job_type || '/' || p_job_id || '/' || p_filename;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION generate_ai_image_path(
+  p_workspace_id UUID,
+  p_project_id UUID,
+  p_filename TEXT
+)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN p_workspace_id || '/' || p_project_id || '/ai-images/' || p_filename;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Replace owner-prefix storage policies for project-owned buckets with
+-- workspace/project-aware policies. Brand assets remain user-prefixed until
+-- workspace brand ownership moves in NBB-1006.
+DROP POLICY IF EXISTS "Users can upload raw files to own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read raw files from own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update raw files from own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update raw files in own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete raw files from own projects" ON storage.objects;
+
+CREATE POLICY "Project editors can upload raw files"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'raw-files'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project members can read raw files"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'raw-files'
+    AND user_has_project_access(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project editors can update raw files"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'raw-files'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project editors can delete raw files"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'raw-files'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Users can upload processed files to own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read processed files from own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update processed files in own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete processed files from own projects" ON storage.objects;
+
+CREATE POLICY "Project editors can upload processed files"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'processed-files'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project members can read processed files"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'processed-files'
+    AND user_has_project_access(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project editors can update processed files"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'processed-files'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project editors can delete processed files"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'processed-files'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Users can upload chunks to own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read chunks from own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete chunks from own projects" ON storage.objects;
+
+CREATE POLICY "Project editors can upload chunks"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'chunks'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project members can read chunks"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'chunks'
+    AND user_has_project_access(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project editors can delete chunks"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'chunks'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Users can upload studio outputs to own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read studio outputs from own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update studio outputs in own projects" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete studio outputs from own projects" ON storage.objects;
+
+CREATE POLICY "Project editors can upload studio outputs"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'studio-outputs'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project members can read studio outputs"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'studio-outputs'
+    AND user_has_project_access(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project editors can update studio outputs"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'studio-outputs'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );
+
+CREATE POLICY "Project editors can delete studio outputs"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'studio-outputs'
+    AND user_can_edit_project(NULLIF((storage.foldername(name))[2], '')::uuid, auth.uid())
+  );

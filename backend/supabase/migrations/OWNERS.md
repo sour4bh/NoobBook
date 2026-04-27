@@ -42,13 +42,14 @@
 | `00020_background_task_ownership.sql` | `background_tasks.project_id`, `background_tasks.user_id`, backfill, helper indexes, ownership policies | Yes (`background_tasks`) | No | `backend/app/background/CHARTER.md` |
 | `00021_storage_owner_paths.sql` | Owner-prefix storage path backfill, first-folder storage policies, updated path helper functions | Storage policies only | Yes (raw, processed, chunks, studio, brand buckets) | `backend/supabase/STORAGE_CONTRACTS.md`, `backend/app/sources/CHARTER.md`, `backend/app/studio/CHARTER.md`, `backend/app/brand/CHARTER.md` |
 | `00022_oauth_state_nonces.sql` | `oauth_states` one-time nonce table for provider OAuth callbacks | Yes (`oauth_states`) | No | `backend/app/providers/google/auth.py`, `backend/app/api/google/oauth.py` |
+| `00023_workspace_membership.sql` | `workspaces`, `workspace_members`, private `project_members` roles, `workspace_invites`, `workspace_provider_secrets`, `projects.workspace_id`, workspace-aware storage paths and helpers | Yes (workspace/project membership + project-owned tables) | Yes (raw, processed, chunks, studio buckets) | `docs/tickets/epics/NBB-010.md`, `backend/supabase/STORAGE_CONTRACTS.md`, `backend/app/projects/CHARTER.md` |
 
 ## Two deployment modes (important for validation)
 
 NoobBook ships against two different enforcement stacks. The inventory below assumes deployment awareness:
 
 1. **Supabase-hosted (multi-user, SaaS) mode** uses the migrations in this directory as-is. RLS policies in `00003` and `00006`/`00007`/`00010` are the primary access guard for user-scoped tables. `auth.uid()` returns the authenticated user's id.
-2. **Self-hosted Docker / single-user mode** applies `backend/supabase/init.sql` on first boot. That file creates the same tables and owner-prefix storage policies, but does **not** enable RLS on the core tables. In this mode the backend project guard (`@before_request` enforce in `backend/app/__init__.py` calling `project_service.has_project_access()`) is the only table access barrier.
+2. **Self-hosted Docker / single-user mode** applies `backend/supabase/init.sql` on first boot. That file creates the same tables and, after `NBB-010`, the same workspace/project-aware storage policy shape for project-owned buckets. It does **not** enable RLS on the core tables. In this mode the backend project guard (`@before_request` enforce in `backend/app/__init__.py` calling `project_service.has_project_access()`) is the only table access barrier.
 
 Both modes are live. Migration changes must keep both modes consistent or state explicitly which mode is affected.
 
@@ -60,17 +61,26 @@ For every project-owned table, "Enforced by" names the guard actually rejecting 
 
 | Table | Ownership | Enforced by (hosted mode) | Enforced by (self-hosted mode) | Touched by migration |
 |---|---|---|---|---|
-| `projects` | `projects/` | RLS (`user_id = auth.uid()`) + backend guard | Backend guard (`has_project_access`) | 00001, 00003 |
-| `sources` | `sources/` | RLS (project ownership subquery) + backend guard | Backend guard (route-level project_id path) | 00001, 00003 |
-| `chunks` | `sources/` (indexing slice) | RLS (source -> project ownership subquery) + backend guard | Backend guard | 00001, 00003 |
-| `chats` | `chat/` | RLS (project ownership subquery) + backend guard | Backend guard | 00001, 00003, 00013 (selected_source_ids), 00018 (costs) |
-| `messages` | `chat/` | RLS (chat -> project ownership subquery) + backend guard | Backend guard | 00001, 00003 |
+| `projects` | `projects/` | RLS (`user_has_project_access(id, auth.uid())`) + backend guard | Backend guard (`has_project_access`) | 00001, 00003, 00023 |
+| `sources` | `sources/` | RLS (`user_has_project_access(project_id, auth.uid())`) + backend guard | Backend guard (route-level project_id path) | 00001, 00003, 00023 |
+| `chunks` | `sources/` (indexing slice) | RLS (source -> explicit project membership) + backend guard | Backend guard | 00001, 00003, 00023 |
+| `chats` | `chat/` | RLS (`user_has_project_access(project_id, auth.uid())`) + backend guard | Backend guard | 00001, 00003, 00013 (selected_source_ids), 00018 (costs), 00023 |
+| `messages` | `chat/` | RLS (chat -> explicit project membership) + backend guard | Backend guard | 00001, 00003, 00023 |
 | `studio_signals` | `studio/` (signal slice) | RLS (chat -> project ownership subquery) + backend guard | Backend guard | 00001, 00003 |
 | `studio_jobs` | `studio/` | **Backend guard only.** No RLS enabled by 00009. | Backend guard | 00009 |
 | `background_tasks` | `background/` | RLS (polymorphic target_type -> project ownership) + backend guard | Backend guard | 00001, 00003, 00012 |
 | `brand_assets` | `brand/` | RLS (`user_id = auth.uid()`; user-scoped after 00010) | Backend guard | 00007, 00010 |
 | `brand_config` | `brand/` | RLS (`user_id = auth.uid()`; user-scoped after 00010) | Backend guard | 00007, 00010 |
-| `project_members` | `projects/` (membership) | RLS (owner/admin role + invite flag) | Backend guard | 00006 |
+| `project_members` | `projects/` (membership) | RLS (project owner manages; project members can view) | Backend guard | 00006, 00023 |
+
+## Workspace-scoped table access model
+
+| Table | Ownership | Enforced by (hosted mode) | Enforced by (self-hosted mode) | Touched by migration |
+|---|---|---|---|---|
+| `workspaces` | `workspaces/` (NBB-010 owner) | RLS through `workspace_members` | Backend guard/API membership checks | 00023 |
+| `workspace_members` | `workspaces/` | RLS (`owner/admin` manages; members view) | Backend guard/API membership checks | 00023 |
+| `workspace_invites` | `workspaces/` | RLS (`owner/admin` manages); invite acceptance uses signed token through backend | Backend guard/API membership checks | 00023 |
+| `workspace_provider_secrets` | `settings/` + `providers/` | RLS (`owner/admin` manages) plus backend encryption | Backend guard/API membership checks | 00023 |
 
 ## User-scoped table access model
 

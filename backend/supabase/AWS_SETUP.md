@@ -111,7 +111,7 @@ bash docker/stop.sh
 bash docker/setup.sh                           # Idempotent, skips existing .env
 
 # Update to latest code
-git pull origin develop
+git pull origin main
 docker compose up -d --build                   # Rebuild with new code
 
 # Full reset (destroys all data)

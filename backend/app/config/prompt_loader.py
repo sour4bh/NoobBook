@@ -99,14 +99,10 @@ class PromptLoader:
 
     def __init__(self):
         """Initialize the prompt service."""
-        self.prompts_dir = Config.DATA_DIR / "prompts"
         self.projects_dir = Config.PROJECTS_DIR
 
-        # Ensure prompts directory exists
-        self.prompts_dir.mkdir(exist_ok=True, parents=True)
-
     def _resolve_prompt_file(self, prompt_name: str, filename: str) -> Optional[Path]:
-        """Find a prompt file by consulting the registry then legacy dir.
+        """Find a prompt file by consulting the registry.
 
         Returns the first existing candidate path, or `None` if none exist.
         `None` preserves the long-standing public contract of callers like
@@ -114,9 +110,7 @@ class PromptLoader:
         as a soft miss.
         """
         try:
-            return asset_registry.resolve_prompt_path(
-                prompt_name, filename, self.prompts_dir
-            )
+            return asset_registry.resolve_prompt_path(prompt_name, filename)
         except asset_registry.AssetNotFoundError:
             return None
 
@@ -131,10 +125,11 @@ class PromptLoader:
         Returns:
             Dict with all prompt config fields
         """
-        default_prompt_file = (
-            self._resolve_prompt_file("default", "default_prompt.json")
-            or self.prompts_dir / "default_prompt.json"
-        )
+        default_prompt_file = self._resolve_prompt_file("default", "default_prompt.json")
+        if default_prompt_file is None:
+            raise FileNotFoundError(
+                "Default prompt is not registered or missing: default_prompt.json"
+            )
 
         with open(default_prompt_file, 'r') as f:
             prompt_data = json.load(f)
@@ -275,14 +270,18 @@ class PromptLoader:
         Returns:
             True if successful
         """
-        default_prompt_file = self.prompts_dir / "default_prompt.json"
-
         try:
-            prompt_data = {"prompt": prompt}
+            default_prompt_file = asset_registry.resolve_prompt_path(
+                "default", "default_prompt.json"
+            )
+            with open(default_prompt_file, "r") as f:
+                prompt_data = json.load(f)
+            prompt_data["system_prompt"] = prompt
+            prompt_data.pop("prompt", None)
             with open(default_prompt_file, 'w') as f:
                 json.dump(prompt_data, f, indent=2)
             return True
-        except IOError:
+        except (asset_registry.AssetNotFoundError, json.JSONDecodeError, IOError):
             return False
 
     def get_agent_prompt(self, agent_name: str) -> Optional[str]:
@@ -290,7 +289,8 @@ class PromptLoader:
         Load a prompt for a specific agent.
 
         Educational Note: Agents (like web_agent, pdf_agent, etc.) have
-        their own specialized prompts stored in data/prompts/{agent_name}_prompt.json
+        their own specialized prompts stored in registered domain prompt
+        directories.
 
         Args:
             agent_name: Name of the agent (e.g., "web_agent")
@@ -342,16 +342,11 @@ class PromptLoader:
 
     def list_all_prompts(self) -> list[Dict[str, Any]]:
         """
-        List all prompt configurations from the prompts directory.
+        List all registered prompt configurations.
 
-        Educational Note: This dynamically reads all *_prompt.json files
-        from the prompts directory, making it easy to add new prompts
-        without code changes.
-
-        During the NBB-207B migration this also reads every domain-owned
-        prompt directory registered in `asset_registry`, so prompts that have
-        moved next to their owning feature are still exposed by the
-        `/prompts/all` route. Registered paths win over legacy duplicates.
+        Educational Note: This dynamically reads all registered domain-owned
+        *_prompt.json files, making it easy to add new prompts through the
+        asset registry without a legacy global prompt directory.
 
         Returns:
             List of prompt config dicts with all fields
@@ -359,8 +354,6 @@ class PromptLoader:
         prompts: list[Dict[str, Any]] = []
         seen_filenames: set[str] = set()
 
-        # Registered domain-owned directories first so the registered copy wins
-        # over any stale legacy leftover during a partial migration.
         registered_dirs = [
             directory
             for _prompt_name, directory in asset_registry.iter_registered_prompt_dirs()
@@ -370,9 +363,6 @@ class PromptLoader:
                 continue
             for prompt_file in sorted(directory.glob("*_prompt.json")):
                 self._append_prompt_file(prompt_file, prompts, seen_filenames)
-
-        for prompt_file in sorted(self.prompts_dir.glob("*_prompt.json")):
-            self._append_prompt_file(prompt_file, prompts, seen_filenames)
 
         return prompts
 

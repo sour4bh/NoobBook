@@ -20,7 +20,7 @@ That document is the source of truth for:
 - `projects.costs` and `chats.costs` JSONB shape
 - `messages.content` JSONB block array shape
 - background-task polling envelope (`/projects/<id>/active-tasks`)
-- tool-schema JSON contract under `backend/app/services/tools/`
+- tool-schema JSON contract through domain-owned `tools/` directories and the backend asset registry
 - source kind / MIME / status enums
 - studio job status / progress / result flattening
 - permissions JSON contract (`users.permissions` shape)

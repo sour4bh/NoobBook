@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from app.sources.docx.ops import extract_text_from_docx
-from app.utils.text import build_processed_output
+from app.sources.text import build_processed_output
 from app.sources.tokens import needs_embedding, count_tokens
 from app.providers.supabase import storage_service
 from app.sources.embedding import process_embeddings

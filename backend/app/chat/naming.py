@@ -30,7 +30,7 @@ def _get_prompt_config() -> Dict[str, Any]:
     if _prompt_config is None:
         cfg = prompt_loader.get_prompt_config("chat_naming")
         if cfg is None:
-            raise ValueError("chat_naming_prompt.json not found in data/prompts/")
+            raise ValueError("chat_naming_prompt.json not registered or missing")
         _prompt_config = cfg
     return _prompt_config
 

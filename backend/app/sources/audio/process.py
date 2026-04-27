@@ -10,12 +10,13 @@ stored in Supabase Storage for RAG retrieval.
 """
 import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from app.providers.supabase import storage_service
-from app.sources.tokens import needs_embedding
+from app.sources.tokens import count_tokens, needs_embedding
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary
+from app.sources.text import build_processed_output
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,16 @@ def process_audio(
     )
 
     if result.get("success"):
-        # Get processed content from result
-        processed_content = result.get("processed_content", "")
+        transcript_text = result.get("transcript_text", "")
+        processed_content = _build_processed_content(
+            transcript_text=transcript_text,
+            audio_name=raw_file_path.name,
+            model_used=result.get("model_used", ""),
+            detected_language_code=result.get("detected_language_code"),
+            detected_language_name=result.get("detected_language_name"),
+            diarization_enabled=bool(result.get("diarization_enabled")),
+        )
+        token_count = count_tokens(processed_content)
 
         # Upload processed content to Supabase Storage
         storage_path = storage_service.upload_processed_file(
@@ -83,7 +92,7 @@ def process_audio(
             "processor": "audio_service",
             "model_used": result.get("model_used"),
             "character_count": result.get("character_count"),
-            "token_count": result.get("token_count"),
+            "token_count": token_count,
             "detected_language_code": result.get("detected_language_code"),
             "detected_language_name": result.get("detected_language_name"),
             "diarization_enabled": result.get("diarization_enabled"),
@@ -184,3 +193,35 @@ def _generate_summary(
     except Exception as e:
         logger.exception("Summary generation failed for source %s", source_id)
         return {}
+
+
+def _build_processed_content(
+    transcript_text: str,
+    audio_name: str,
+    model_used: str,
+    detected_language_code: Optional[str] = None,
+    detected_language_name: Optional[str] = None,
+    diarization_enabled: bool = True,
+) -> str:
+    pages = [transcript_text]
+    language = ""
+    if detected_language_code:
+        language = (
+            f"{detected_language_name} ({detected_language_code})"
+            if detected_language_name
+            else detected_language_code
+        )
+    metadata = {
+        "model_used": model_used,
+        "language": language,
+        "duration": "",
+        "diarization_enabled": diarization_enabled,
+        "character_count": len(transcript_text),
+        "token_count": count_tokens(transcript_text),
+    }
+    return build_processed_output(
+        pages=pages,
+        source_type="AUDIO",
+        source_name=audio_name,
+        metadata=metadata,
+    )

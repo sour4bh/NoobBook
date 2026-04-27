@@ -27,6 +27,7 @@ Generated from `docs/tickets/tickets.csv` by `python docs/tickets/dag.py --write
 | 18 | `NBB-807` |
 | 19 | `NBB-810` |
 | 20 | `NBB-811` |
+| 21 | `NBB-812` |
 
 ## Mermaid Task Dependency DAG
 
@@ -246,6 +247,8 @@ flowchart LR
   NBB809 --> NBB810
   NBB811["NBB-811"]:::p1
   NBB810 --> NBB811
+  NBB812["NBB-812"]:::p1
+  NBB811 --> NBB812
 ```
 
 ## Mermaid Milestone Bar Chart
@@ -333,4 +336,5 @@ gantt
   NBB-807 L :2026-01-19, 1d
   NBB-810 L :2026-01-20, 1d
   NBB-811 M :2026-01-21, 1d
+  NBB-812 M :2026-01-22, 1d
 ```

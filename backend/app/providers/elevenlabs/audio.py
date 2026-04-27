@@ -13,7 +13,9 @@ Key Features:
 - Auto language detection (100+ languages supported)
 
 Processing Flow:
-    Audio file → ElevenLabs API → Transcript text → Split into pages → Save
+    Audio file → ElevenLabs API → Transcript text
+
+The source domain owns processed-output formatting, page markers, and storage.
 
 Supported Languages (sample):
     English (eng), Hindi (hin), Spanish (spa), French (fra), German (deu),
@@ -29,22 +31,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-import tiktoken
-
 logger = logging.getLogger(__name__)
-
-_encoder = tiktoken.get_encoding("cl100k_base")
-
-
-def _count_tokens(text: str) -> int:
-    if not text:
-        return 0
-    try:
-        return len(_encoder.encode(text))
-    except Exception as e:
-        logger.warning("tiktoken encoding failed, using estimation: %s", e)
-        return len(text) // 4
-
 
 # Supported language codes for ElevenLabs Speech-to-Text
 # Educational Note: Pass None for auto-detection, or one of these codes to force a language
@@ -196,27 +183,13 @@ class AudioService:
 
             logger.info("Detected language: %s (%s)", detected_language_name, detected_language_code)
 
-            # Build the processed content
-            processed_content = self._build_processed_content(
-                transcript_text=transcript_text,
-                audio_name=audio_path.name,
-                transcription=transcription,
-                detected_language_code=detected_language_code,
-                detected_language_name=detected_language_name,
-                diarization_enabled=diarize
-            )
+            logger.info("Transcript generated: %s chars", len(transcript_text))
 
-            # Calculate token count
-            token_count = _count_tokens(processed_content)
-
-            logger.info("Transcript generated: %s chars, %s tokens", len(transcript_text), token_count)
-
-            # Return processed content for processor to upload to Supabase Storage
+            # Return raw transcription data; the source domain owns processed-output formatting.
             return {
                 "success": True,
-                "processed_content": processed_content,
+                "transcript_text": transcript_text,
                 "character_count": len(transcript_text),
-                "token_count": token_count,
                 "detected_language_code": detected_language_code,
                 "detected_language_name": detected_language_name,
                 "model_used": self.TRANSCRIPTION_MODEL,
@@ -326,67 +299,6 @@ class AudioService:
             lines.append(f"{speaker_label}: {' '.join(current_text)}")
 
         return "\n".join(lines) if lines else None
-
-    def _build_processed_content(
-        self,
-        transcript_text: str,
-        audio_name: str,
-        transcription,
-        detected_language_code: Optional[str] = None,
-        detected_language_name: Optional[str] = None,
-        diarization_enabled: bool = True
-    ) -> str:
-        """
-        Build processed content using centralized build_processed_output.
-
-        Educational Note: We use the centralized build_processed_output function
-        to ensure consistent header format across all source types. The audio
-        service provides the metadata it knows about (language, model, etc.)
-        and build_processed_output handles token counting and page splitting.
-
-        Args:
-            transcript_text: The full transcript text
-            audio_name: Original audio filename
-            transcription: ElevenLabs transcription response for metadata
-            detected_language_code: Language code (e.g., "eng") from ElevenLabs
-            detected_language_name: Human-readable language name (e.g., "English")
-            diarization_enabled: Whether speaker diarization was enabled
-
-        Returns:
-            Formatted content with standardized header and AUDIO PAGE markers
-        """
-        from app.utils.text import build_processed_output
-
-        # Audio transcripts don't have logical page boundaries
-        # Pass entire transcript as single page, let token-based chunking handle splits
-        pages = [transcript_text]
-
-        # Build language display string
-        language = ""
-        if detected_language_code:
-            language = f"{detected_language_name} ({detected_language_code})" if detected_language_name else detected_language_code
-
-        # Calculate token count for the full transcript
-        token_count = _count_tokens(transcript_text)
-
-        # Build metadata dict with all keys audio service can provide
-        # Educational Note: duration is not available from ElevenLabs transcription API
-        metadata = {
-            "model_used": self.TRANSCRIPTION_MODEL,
-            "language": language,
-            "duration": "",  # Not available from ElevenLabs transcription response
-            "diarization_enabled": diarization_enabled,
-            "character_count": len(transcript_text),
-            "token_count": token_count
-        }
-
-        # Use centralized build_processed_output for consistent format
-        return build_processed_output(
-            pages=pages,
-            source_type="AUDIO",
-            source_name=audio_name,
-            metadata=metadata
-        )
 
     def is_configured(self) -> bool:
         """

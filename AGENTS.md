@@ -257,17 +257,23 @@ All user data is stored in Supabase with Row-Level Security (RLS) for multi-user
 
 #### Local Files (Configuration & Debug Only)
 
-Paths below describe current on-disk locations during the structure migration. `backend/data/prompts/` is a frozen destination in `STRUCTURE.md`; do not add new prompt JSON there. Tool JSON now lives in domain-owned `tools/` directories and resolves through `backend/app/config/asset_registry.py`; do not add a legacy tool directory.
+Paths below describe current on-disk locations after the structure migration.
+`backend/data/prompts/`, `backend/app/services/`, and `backend/app/utils/` are
+retired no-return roots in `STRUCTURE.md`; do not add files there. Prompt and
+tool JSON now live in domain-owned `prompts/` and `tools/` directories and
+resolve through `backend/app/config/asset_registry.py`.
 
 ```
 data/
-├── prompts/                      # System prompt configurations (not user data)
-│   ├── default_prompt.json
-│   ├── pdf_extraction_prompt.json
-│   ├── memory_prompt.json
-│   └── ...                       # Other prompt configs
 └── projects/{id}/agents/         # Debug logs only (optional)
     └── web_agent/{execution_id}.json
+
+app/**/prompts/                   # Domain-owned prompt configurations
+├── chat/prompts/default_prompt.json
+├── chat/memory/prompts/memory_prompt.json
+├── sources/{pdf,pptx,image,link}/prompts/
+├── sources/analysis/{csv,database,freshdesk,research}/prompts/
+└── studio/**/prompts/
 
 app/**/tools/                     # Domain-owned tool definitions (JSON schemas)
 ├── chat/tools/source_search_tool.json
@@ -627,8 +633,8 @@ from app.config.tool_loader import tool_loader
 from app.providers.anthropic.messages import claude_service
 from app.providers.anthropic import response_parser
 from app.providers.anthropic.content import build_tool_result_content
-from app.utils.path_utils import get_processed_dir
-from app.utils.rate_limit_utils import RateLimiter  # If rate limiting needed
+from app.base.paths import get_processed_dir
+from app.providers.anthropic.rate import RateLimiter  # If rate limiting needed
 from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE  # If batching needed
 from app.chat.message.store import message_service  # If message storage is required
 

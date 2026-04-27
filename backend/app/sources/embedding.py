@@ -23,7 +23,8 @@ from app.providers.openai import embeddings as openai_embeddings
 from app.providers.pinecone import pinecone_service
 from app.providers.supabase import storage_service
 from app.sources.tokens import needs_embedding
-from app.utils.text import (
+from app.sources.text import (
+    clean_text_for_embedding,
     chunks_to_pinecone_format,
     parse_extracted_text,
 )
@@ -92,7 +93,7 @@ def process_embeddings(
                 uploaded_count += 1
         logger.info("Uploaded %d chunks to Supabase Storage", uploaded_count)
 
-        chunk_texts = [chunk.text for chunk in chunks]
+        chunk_texts = [clean_text_for_embedding(chunk.text) for chunk in chunks]
         embeddings = openai_embeddings.create_embeddings_batch(chunk_texts)
         logger.info("Created %d embeddings", len(embeddings))
 
@@ -158,7 +159,9 @@ def search_similar(
         return []
 
     try:
-        query_embedding = openai_embeddings.create_embedding(query_text)
+        query_embedding = openai_embeddings.create_embedding(
+            clean_text_for_embedding(query_text)
+        )
         pinecone_filter = (
             {"source_id": {"$eq": source_filter}} if source_filter else None
         )

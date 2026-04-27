@@ -31,8 +31,8 @@ import logging
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
-from app.utils.text.cleaning import clean_text_for_embedding
-from app.utils.text.page_markers import ANY_PAGE_PATTERN, find_all_markers, get_page_number
+from app.sources.text.cleaning import clean_text_for_embedding
+from app.sources.text.page_markers import ANY_PAGE_PATTERN, find_all_markers, get_page_number
 from app.sources.tokens import count_tokens, get_chunk_config
 
 

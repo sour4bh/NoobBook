@@ -32,14 +32,14 @@ Two CI guardrails run on every push/PR:
 
 `verify_architecture.py` enforces five rules:
 
-1. **Root registry and services no-return.** Every tracked top-level child of
+1. **Root registry and retired-root no-return.** Every tracked top-level child of
    `backend/app/` must be a canonical backend root from `STRUCTURE.md`'s
-   NBB-104 table. The remaining legacy `utils/` root and the `config/` package
-   are known migration state.
-   `services/` is retired by NBB-811.
-   Any tracked file under `backend/app/services/`, any `app.services.*`
-   reference in backend app code or tests, or current docs that present
-   `services/` as live architecture fail the check.
+   NBB-104 table. The `config/` package is known migration state for the
+   `backend/config.py` vs `backend/app/config/` follow-up. `services/` is
+   retired by NBB-811; `utils/` and `data/prompts/` are retired by NBB-812.
+   Any tracked file under those retired roots, any `app.services.*` or
+   `app.utils.*` reference in backend app code or tests, or current docs that
+   present retired roots as live architecture fail the check.
 2. **`providers/` is a leaf.** Modules under `backend/app/providers/` must
    not import from `app.api`, `app.connectors`, or any domain root (`auth`,
    `projects`, `chat`, `sources`, `studio`, `brand`, `background`,
@@ -54,10 +54,7 @@ Two CI guardrails run on every push/PR:
    through the public surface declared in `app.chat.__all__` (`store`,
    `tools`, `schemas`, `send`, `stream`, `ChatEvent`, `ChatResponse`).
    Reaching deeper paths such as `app.chat.message.store` or
-   `app.chat.loop` is rejected. Inherited consumers of
-   `app.chat.message.store.message_service` are allowlisted in the script
-   as `(importer_path, target_module)` pairs awaiting the NBB-706 cleanup
-   pass that re-exports `message_service` from `app.chat.store`.
+   `app.chat.loop` is rejected.
 5. **Independent roots stay independent.** `auth/`, `projects/`,
    `connectors/`, `brand/`, `background/`, and `settings/` may not import
    from `app.chat`, `app.sources`, or `app.studio`. The empirically-zero

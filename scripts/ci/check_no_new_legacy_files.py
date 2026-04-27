@@ -2,9 +2,8 @@
 Fail when a new file is added under a frozen legacy destination.
 
 Frozen destinations are the migration sources named in `STRUCTURE.md` and the
-`NBB-103` ticket body. Existing files in those paths stay readable during the
-migration, but new files must not land there unless an explicit allowlist row
-names them.
+`NBB-103` ticket body. Some prefixes are now fully retired no-return roots. New
+files must not land there unless an explicit allowlist row names them.
 
 Usage:
     python scripts/ci/check_no_new_legacy_files.py --base origin/main

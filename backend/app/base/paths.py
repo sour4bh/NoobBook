@@ -1,11 +1,9 @@
-# Cross-cutting: canonical filesystem path helper. Approved exception to utils dissolution (NBB-705E). Do not re-home without updating NBB-705E and the dependency-direction rules in NBB-104.
 """
-Path Utils - Centralized path management for project directories.
+Base Paths - Centralized path management for runtime directories.
 
 Educational Note: This utility provides a single source of truth for all
 project-related local paths. Most user data lives in Supabase (PostgreSQL +
 Storage), but some local directories are still used for:
-- Prompt configurations (data/prompts/)
 - Agent debug logs (data/projects/{id}/agents/)
 - Temp file staging during source processing
 - Background task tracking (data/tasks/)
@@ -18,7 +16,6 @@ Local Directory Structure:
     │       └── agents/
     │           └── web_agent/         # Agent execution logs (debug)
     │               └── {execution_id}.json
-    ├── prompts/                       # AI prompt configurations
     └── tasks/                         # Background task tracking
 
 User data (projects, sources, chats, messages, memory, costs) is stored
@@ -56,18 +53,6 @@ def get_projects_base_dir() -> Path:
     Auto-creates if it doesn't exist.
     """
     path = Config.PROJECTS_DIR
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def get_prompts_dir() -> Path:
-    """
-    Get the prompts directory.
-
-    Educational Note: Contains JSON files with prompt configurations
-    for different AI tasks (default, pdf_extraction, memory, etc.)
-    """
-    path = Config.DATA_DIR / "prompts"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -375,6 +360,5 @@ def ensure_base_directories() -> None:
     """
     get_data_dir()
     get_projects_base_dir()
-    get_prompts_dir()
     get_tasks_dir()
     logger.info("Base directories initialized")

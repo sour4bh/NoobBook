@@ -10,7 +10,7 @@ responds in conversations. This blueprint manages:
    - Stored in local project config files
 
 2. Default Prompt:
-   - Global fallback stored in data/prompts/default_prompt.json
+   - Global fallback stored in registered default prompt JSON
    - Used when projects don't have custom prompts
 
 Why System Prompts Matter:

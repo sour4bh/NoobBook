@@ -17,10 +17,10 @@ auth, RBAC, project access, Supabase, or integrations must update this file.
      structural issue, flagged (not fixed) per the Decision Log entry dated
      2026-04-24. Renaming `backend/config.py` belongs to a backend-charter
      follow-up ticket; `NBB-208A` must not introduce a rename or shim.
-2. Logging setup via `app.utils.logger.setup_logging`.
+2. Logging setup via `app.base.logging.setup_logging`.
 3. `config[config_name].init_app(app)` runs env-dependent init (directory
    creation, etc.) through the Config class.
-4. `ensure_base_directories()` from `app.utils.path_utils` creates runtime
+4. `ensure_base_directories()` from `app.base.paths` creates runtime
    filesystem paths before routes fire.
 5. Flask extensions:
    - `CORS(app, origins=...)` — allowed origins driven by `CORS_ALLOWED_ORIGINS`.
@@ -70,7 +70,7 @@ from flask_socketio import SocketIO
 # `backend/app/config/` subpackage. Renaming the top-level module is a
 # separate backend-charter follow-up; do not shim here.
 from config import config as config_classes
-from app.utils.logger import setup_logging
+from app.base.logging import setup_logging
 
 # Initialize extensions globally but without app context.
 # Use gevent in production (for Gunicorn), threading in development (for Werkzeug).
@@ -96,7 +96,7 @@ def create_app(config_name='development'):
     config_classes[config_name].init_app(app)
 
     # Ensure base directories exist before any routes access them
-    from app.utils.path_utils import ensure_base_directories
+    from app.base.paths import ensure_base_directories
     ensure_base_directories()
 
     # Initialize extensions with app context

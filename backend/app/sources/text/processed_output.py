@@ -39,7 +39,7 @@ The page markers (=== TYPE PAGE N of M ===) are recognized by:
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from app.utils.text.page_markers import build_page_marker, SOURCE_TYPE_DISPLAY
+from app.sources.text.page_markers import build_page_marker, SOURCE_TYPE_DISPLAY
 
 
 # Standard metadata keys per source type (all keys always present)

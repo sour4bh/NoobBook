@@ -23,7 +23,7 @@ from app.sources.analysis.jira.upload import add_jira_source
 from app.sources.analysis.mcp.upload import add_mcp_source
 from app.sources.analysis.mixpanel.upload import add_mixpanel_source
 from app.sources.analysis.research.upload import upload_research
-from app.utils.path_utils import (
+from app.base.paths import (
     get_raw_dir,
     get_processed_dir,
     get_chunks_dir

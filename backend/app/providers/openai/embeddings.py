@@ -16,8 +16,6 @@ from typing import List, Optional
 
 from openai import OpenAI
 
-from app.utils.text import clean_text_for_embedding
-
 DEFAULT_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536
 
@@ -44,14 +42,13 @@ def _get_client() -> OpenAI:
 def create_embedding(text: str, model: str = DEFAULT_MODEL) -> List[float]:
     """Create a single embedding vector for `text`.
 
-    Empty text raises `ValueError`. Text is cleaned via
-    `clean_text_for_embedding` before sending.
+    Empty text raises `ValueError`. Callers own any domain-specific text
+    cleaning before invoking the raw provider client.
     """
-    clean_text = clean_text_for_embedding(text)
-    if not clean_text:
+    if not text:
         raise ValueError("Cannot create embedding for empty text")
     client = _get_client()
-    response = client.embeddings.create(model=model, input=clean_text)
+    response = client.embeddings.create(model=model, input=text)
     return response.data[0].embedding
 
 
@@ -61,10 +58,9 @@ def create_embeddings_batch(
 ) -> List[List[float]]:
     """Create embeddings for `texts` in a single batched API call.
 
-    Each text is cleaned; empty cleaned texts are replaced with a zero
-    vector of `EMBEDDING_DIMENSIONS` length so the output list matches
-    the input length and order. OpenAI supports up to 2048 texts per
-    batch request.
+    Empty texts are replaced with a zero vector of `EMBEDDING_DIMENSIONS`
+    length so the output list matches the input length and order. OpenAI
+    supports up to 2048 texts per batch request.
     """
     if not texts:
         return []
@@ -72,9 +68,8 @@ def create_embeddings_batch(
     cleaned_texts: List[str] = []
     valid_indices: List[int] = []
     for i, text in enumerate(texts):
-        clean = clean_text_for_embedding(text)
-        if clean:
-            cleaned_texts.append(clean)
+        if text:
+            cleaned_texts.append(text)
             valid_indices.append(i)
 
     if not cleaned_texts:

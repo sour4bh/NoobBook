@@ -97,7 +97,7 @@ reader as the validator.
 ## Contract 2 - Citation marker and lookup format
 
 **Backend owner:**
-- Marker producer: Claude model output (system prompt in `backend/data/prompts/default_prompt.json`)
+- Marker producer: Claude model output (system prompt in registered default prompt JSON)
 - Chunk ID format: `backend/app/sources/citations.py::parse_chunk_id` (regex `^(.+)_page_(\d+)_chunk_(\d+)$`)
 - Lookup endpoint: `backend/app/api/sources/content.py::get_citation_content` at
   `GET /api/v1/projects/<project_id>/citations/<chunk_id>`

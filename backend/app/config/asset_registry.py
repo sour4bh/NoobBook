@@ -2,12 +2,8 @@
 Asset registry for prompt JSON and tool JSON search paths.
 
 This module is the single source of truth for where prompt and tool JSON files
-live during the structure migration. Domain tickets (NBB-207B for prompts,
-NBB-207C for tool schemas) register domain-owned destinations here.
-`prompt_loader` consults the registry first, then falls back to the current
-legacy prompt location:
-
-    - prompts: `backend/data/prompts/<name>_prompt.json`
+live. Domain tickets register domain-owned destinations here; loaders resolve
+assets through the registry only.
 
 Tool schemas are registry-only after NBB-810. Category API compatibility is
 preserved by mapping legacy category/name keys to domain-owned files here, not
@@ -20,19 +16,18 @@ from typing import Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 
-# prompt_name -> ordered list of directories to search before the legacy path.
+# prompt_name -> ordered list of directories to search.
 # `prompt_name` matches the argument to `prompt_loader.get_prompt_config`
 # (e.g., "memory" for `memory_prompt.json`) and the file stem used by
 # `get_agent_prompt`.
 _prompt_dirs: Dict[str, List[Path]] = {}
 
-# (category, tool_name) -> ordered list of directories to search before the
-# legacy path for a single tool JSON.
+# (category, tool_name) -> ordered list of directories to search for a single
+# tool JSON.
 _tool_file_dirs: Dict[Tuple[str, str], List[Path]] = {}
 
-# category -> ordered list of directories to search before the legacy path
-# when a whole category has moved. `load_tools_from_category` and
-# `load_tools_for_agent` consult these.
+# category -> ordered list of directories to search when a whole category has
+# moved. `load_tools_from_category` and `load_tools_for_agent` consult these.
 _tool_category_dirs: Dict[str, List[Path]] = {}
 
 
@@ -47,9 +42,9 @@ class AssetNotFoundError(FileNotFoundError):
 def register_prompt_path(prompt_name: str, directory: Path) -> None:
     """Register a domain-owned directory for a single prompt.
 
-    Registered paths are searched in registration order, before the legacy
-    `backend/data/prompts/` location. A registered directory that does not
-    contain the expected file falls back transparently to the next candidate.
+    Registered paths are searched in registration order. A registered
+    directory that does not contain the expected file falls through to the next
+    candidate.
     """
     _prompt_dirs.setdefault(prompt_name, []).append(Path(directory))
 
@@ -74,18 +69,14 @@ def register_tool_category(category: str, directory: Path) -> None:
     _tool_category_dirs.setdefault(category, []).append(Path(directory))
 
 
-def iter_prompt_candidate_paths(
-    prompt_name: str, filename: str, legacy_dir: Path
-) -> List[Path]:
+def iter_prompt_candidate_paths(prompt_name: str, filename: str) -> List[Path]:
     """Return candidate prompt file paths in priority order.
 
-    Registered domain-owned directories come first, legacy last.
+    Prompts are registry-only after NBB-812.
     """
-    candidates: List[Path] = [
+    return [
         directory / filename for directory in _prompt_dirs.get(prompt_name, [])
     ]
-    candidates.append(legacy_dir / filename)
-    return candidates
 
 
 def iter_tool_candidate_paths(
@@ -139,20 +130,20 @@ def iter_tool_file_candidate_paths(category: str) -> List[Path]:
     return candidates
 
 
-def resolve_prompt_path(prompt_name: str, filename: str, legacy_dir: Path) -> Path:
+def resolve_prompt_path(prompt_name: str, filename: str) -> Path:
     """Return the first existing candidate prompt file, or raise.
 
     Internal resolver used by loaders that want an explicit miss signal. Public
     loader methods may still convert the raise into their existing contract
     (e.g., `get_prompt_config` returning `None`).
     """
-    for candidate in iter_prompt_candidate_paths(prompt_name, filename, legacy_dir):
+    for candidate in iter_prompt_candidate_paths(prompt_name, filename):
         if candidate.exists():
             return candidate
     raise AssetNotFoundError(
         f"Prompt asset not found: name={prompt_name!r}, filename={filename!r}. "
-        f"Searched registered directories for {prompt_name!r} and legacy "
-        f"directory {legacy_dir}."
+        f"Searched registered directories for {prompt_name!r}. Prompts are "
+        f"registry-only after NBB-812."
     )
 
 
@@ -200,13 +191,21 @@ def _snapshot() -> Dict[str, Dict]:
     }
 
 
-# Prompts that have moved to domain-owned homes (NBB-207B). The map lives here
+# Prompts that have moved to domain-owned homes. The map lives here
 # so it can be replayed after `_reset_for_tests()` during tests that need the
 # production configuration restored.
 #
 # Key: prompt_name (the argument passed to `prompt_loader.get_prompt_config`).
 # Value: directory path relative to `backend/app/`.
 _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
+    "default": "chat/prompts",
+    "chat_naming": "chat/prompts",
+    "memory": "chat/memory/prompts",
+    "summary": "sources/prompts",
+    "csv_analyzer_agent": "sources/analysis/csv/prompts",
+    "csv_processor": "sources/analysis/csv/prompts",
+    "database_analyzer_agent": "sources/analysis/database/prompts",
+    "freshdesk_analyzer_agent": "sources/analysis/freshdesk/prompts",
     "pdf_extraction": "sources/pdf/prompts",
     "pptx_extraction": "sources/pptx/prompts",
     "image_extraction": "sources/image/prompts",
@@ -323,7 +322,7 @@ _PRODUCTION_TOOL_FILE_PATHS: Dict[Tuple[str, str], str] = {
 
 
 def register_production_asset_paths() -> None:
-    """Register every domain-owned prompt/tool JSON path landed by NBB-207B/C.
+    """Register every domain-owned prompt/tool JSON path.
 
     Called from `app.config` package init so `prompt_loader`/`tool_loader`
     singletons see the registered paths before any consumer imports them.

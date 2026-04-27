@@ -19,6 +19,7 @@ from app.providers.openai import embeddings as openai_embeddings
 from app.providers.pinecone import pinecone_service
 from app.providers.supabase import storage_service
 from app.sources.catalog import source_service
+from app.sources.text import clean_text_for_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +315,9 @@ class SourceSearchExecutor:
                 return []
 
             # Create query embedding
-            query_vector = openai_embeddings.create_embedding(query)
+            query_vector = openai_embeddings.create_embedding(
+                clean_text_for_embedding(query)
+            )
 
             # Search Pinecone with source_id filter
             results = pinecone_service.search(

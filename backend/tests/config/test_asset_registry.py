@@ -2,9 +2,7 @@
 Tests for the prompt/tool asset registry shims (NBB-207A).
 
 These assert that:
-- Existing prompt loader callers still resolve legacy prompt JSON paths
-  unchanged.
-- A registered domain-owned prompt directory resolves before the legacy path.
+- Prompt loader callers resolve registered prompt JSON paths.
 - Tool JSON resolves through the registry only after NBB-810.
 - A fully missing asset raises a clear, identifiable error through the
   internal resolvers.
@@ -55,9 +53,8 @@ def _write_tool(dir_path: Path, filename: str, name: str) -> Path:
     return path
 
 
-def _loader_with_prompts_dir(tmp_path: Path) -> PromptLoader:
+def _loader_with_projects_dir(tmp_path: Path) -> PromptLoader:
     loader = PromptLoader()
-    loader.prompts_dir = tmp_path
     loader.projects_dir = tmp_path / "projects"
     loader.projects_dir.mkdir(parents=True, exist_ok=True)
     return loader
@@ -72,60 +69,39 @@ def _loader_with_tools_dir(tmp_path: Path) -> ToolLoader:
 # -- Prompt loader -----------------------------------------------------------
 
 
-def test_prompt_legacy_path_resolves_unchanged(tmp_path):
-    legacy = tmp_path / "prompts"
+def test_prompt_registered_path_resolves(tmp_path):
+    owned = tmp_path / "chat" / "memory" / "prompts"
     _write_prompt(
-        legacy,
+        owned,
         "memory_prompt.json",
         {
             "model": "claude-sonnet",
             "temperature": 0.0,
             "max_tokens": 1,
-            "system_prompt": "legacy memory prompt",
+            "system_prompt": "registered memory prompt",
         },
     )
-    loader = _loader_with_prompts_dir(legacy)
-
-    config = loader.get_prompt_config("memory")
-
-    assert config is not None
-    assert config["system_prompt"] == "legacy memory prompt"
-
-
-def test_prompt_registered_path_wins_over_legacy(tmp_path):
-    legacy = tmp_path / "prompts"
-    owned = tmp_path / "chat" / "memory" / "prompts"
-    _write_prompt(legacy, "memory_prompt.json", {"system_prompt": "legacy"})
-    _write_prompt(owned, "memory_prompt.json", {"system_prompt": "owned"})
     asset_registry.register_prompt_path("memory", owned)
-
-    loader = _loader_with_prompts_dir(legacy)
+    loader = _loader_with_projects_dir(tmp_path)
 
     config = loader.get_prompt_config("memory")
 
     assert config is not None
-    assert config["system_prompt"] == "owned"
+    assert config["system_prompt"] == "registered memory prompt"
 
 
-def test_prompt_registered_path_missing_file_falls_back_to_legacy(tmp_path):
-    legacy = tmp_path / "prompts"
+def test_prompt_registered_path_missing_file_returns_none(tmp_path):
     owned = tmp_path / "chat" / "memory" / "prompts"
     owned.mkdir(parents=True, exist_ok=True)  # directory exists, file does not
-    _write_prompt(legacy, "memory_prompt.json", {"system_prompt": "legacy"})
     asset_registry.register_prompt_path("memory", owned)
 
-    loader = _loader_with_prompts_dir(legacy)
+    loader = _loader_with_projects_dir(tmp_path)
 
-    config = loader.get_prompt_config("memory")
-
-    assert config is not None
-    assert config["system_prompt"] == "legacy"
+    assert loader.get_prompt_config("memory") is None
 
 
 def test_prompt_missing_everywhere_returns_none_via_public_api(tmp_path):
-    legacy = tmp_path / "prompts"
-    legacy.mkdir(parents=True, exist_ok=True)
-    loader = _loader_with_prompts_dir(legacy)
+    loader = _loader_with_projects_dir(tmp_path)
 
     # `get_prompt_config` preserves its historical "soft miss" contract so
     # `model_loader.get_default_models_for_category` keeps working.
@@ -133,18 +109,11 @@ def test_prompt_missing_everywhere_returns_none_via_public_api(tmp_path):
 
 
 def test_prompt_missing_everywhere_raises_through_internal_resolver(tmp_path):
-    legacy = tmp_path / "prompts"
-    legacy.mkdir(parents=True, exist_ok=True)
-
     with pytest.raises(AssetNotFoundError) as err:
-        asset_registry.resolve_prompt_path(
-            "does_not_exist", "does_not_exist_prompt.json", legacy
-        )
+        asset_registry.resolve_prompt_path("does_not_exist", "does_not_exist_prompt.json")
 
-    # The error should clearly identify both the key and the legacy dir it
-    # searched, so a human reading a traceback can tell why it missed.
     assert "does_not_exist" in str(err.value)
-    assert str(legacy) in str(err.value)
+    assert "registry-only" in str(err.value)
 
 
 # -- Tool loader -------------------------------------------------------------

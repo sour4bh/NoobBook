@@ -11,7 +11,7 @@ Covers:
 import pytest
 from unittest.mock import patch
 
-from app.utils.text.chunking import (
+from app.sources.text.chunking import (
     parse_processed_text,
     _split_text_into_token_chunks,
     _split_into_sentences,

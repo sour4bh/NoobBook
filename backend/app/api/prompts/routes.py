@@ -6,7 +6,7 @@ These endpoints let users customize how Claude responds in their projects.
 
 The prompt hierarchy:
 1. Project custom prompt (if set) -> Used for all chats in project
-2. Default prompt (fallback) -> data/prompts/default_prompt.json
+2. Default prompt (fallback) -> registered default prompt JSON
 
 Routes:
 - GET  /projects/<id>/prompt  - Get project's effective prompt
@@ -118,7 +118,7 @@ def get_default_prompt():
 
     Educational Note: This is the fallback prompt used when
     projects don't have custom prompts. It's stored in
-    data/prompts/default_prompt.json.
+    registered default prompt JSON.
 
     Response:
         {
@@ -148,7 +148,7 @@ def list_all_prompts():
     List all prompt configurations.
 
     Educational Note: This dynamically reads all prompt files from
-    data/prompts/ directory. Adding new prompt files automatically
+    registered prompt directories. Adding new prompt files automatically
     makes them visible in the UI.
 
     Response:

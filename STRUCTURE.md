@@ -25,23 +25,23 @@ The backend root list is finalized. Every backend file belongs under exactly one
 | `backend/app/connectors/` | Product-level configured external capabilities, user/project connection stores, permission-gated tool surfaces. |
 | `backend/app/providers/` | Low-level external API clients, SDK wrappers, auth primitives, storage adapters, and runtime IO adapters. |
 | `backend/app/background/` | Task lifecycle, cancellation, active-task status, and execution-log ownership. |
-| `backend/app/base/` | Empty unless a charter exception proves 3+ domain consumers and no better owner. |
+| `backend/app/base/` | Cross-domain primitives with 3+ domain consumers and no better owner. Current members: runtime paths and logging setup. |
 
 Each root's `__init__.py` carries the full charter (owner scope, allowed import direction, migration sources). Read the charter before adding a file to a root.
 
 Legacy roots are not approved destinations. `backend/app/services/` has been
-drained and must remain empty of tracked files after NBB-811; `backend/app/utils/`
-remains a frozen legacy root while its approved exceptions are settled by
-`NBB-705A` through `NBB-705E`.
+drained and must remain empty of tracked files after NBB-811. `backend/app/utils/`
+and `backend/data/prompts/` are retired by NBB-812; their surviving behavior and
+assets now live under canonical roots.
 
 ## Base and Shared Charters (NBB-104)
 
 | Directory family | Charter |
 |---|---|
-| `backend/app/base/` | Reserved for truly cross-domain primitives with 3+ domain consumers and no better owner. `base/` ships empty at the end of Epic 001. No file lands in `base/` without a PR note explaining why no domain owns it. |
+| `backend/app/base/` | Reserved for truly cross-domain primitives with 3+ domain consumers and no better owner. `base.paths` and `base.logging` are the NBB-812 homes for the final app-wide utility residents; new files still require a PR note explaining why no domain owns them. |
 | `backend/app/<domain>/shared/` | Allowed only after that domain has 3+ concrete slices using the same behavior. The shared code must name the boundary it serves, for example `studio/shared/` or `sources/analysis/shared/`. |
 | Preemptive `shared/` directories | Forbidden. A directory cannot exist only to reserve a future convenience bucket. |
-| Generic helpers in `base/` or `shared/` | Forbidden. Rehome to the owning domain, provider/client boundary, connector capability, or the approved `utils/` exceptions from `NBB-705E`. |
+| Generic helpers in `base/` or `shared/` | Forbidden. Rehome to the owning domain, provider/client boundary, or connector capability. |
 
 ## Dependency Direction (NBB-104)
 
@@ -82,13 +82,14 @@ The following paths are frozen. New files must not be added to them unless they 
 - `frontend/src/components/hooks/` (directory removed by `NBB-602`; entry retained for the legacy-files guardrail)
 
 These paths are frozen no-return locations. Some remain only as historical
-migration sources or guardrail entries; `backend/app/services/` must not regain
-tracked files or `app.services.*` imports. Do not add new files to them and do
-not describe them as the preferred home for new work.
+migration sources or guardrail entries; `backend/app/services/`,
+`backend/app/utils/`, and `backend/data/prompts/` must not regain tracked files.
+`app.services.*` and `app.utils.*` imports are forbidden. Do not add new files
+to these paths and do not describe them as the preferred home for new work.
 
 `NBB-103` enforces the frozen list in CI. `NBB-811` adds the final services
-no-return gate: any tracked `backend/app/services/` file or `app.services.*`
-import fails the architecture check.
+no-return gate. `NBB-812` extends the gate to `backend/app/utils/`,
+`backend/data/prompts/`, and `app.utils.*` imports.
 
 ## Allowed Destinations
 
@@ -96,7 +97,7 @@ New backend behavior lands under its domain root from the Canonical Backend Root
 table above. Historical migration sources named in root charters are not live
 destinations; read the charter before adding or moving a file.
 
-External clients and SDK wrappers follow the providers/connectors split defined by `NBB-206`. Background task behavior lives under the background owner defined by `NBB-210`. Prompt JSON and tool JSON wait for `NBB-207A` loader support; existing JSON assets do not move until then.
+External clients and SDK wrappers follow the providers/connectors split defined by `NBB-206`. Background task behavior lives under the background owner defined by `NBB-210`. Prompt JSON and tool JSON live in domain-owned directories and resolve through the asset registry; `backend/data/prompts/` and `backend/app/services/tools/` are retired.
 
 ## Placement Checklist (canonical)
 

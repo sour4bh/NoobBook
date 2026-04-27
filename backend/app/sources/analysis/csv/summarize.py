@@ -49,7 +49,7 @@ class CSVService:
         if self._prompt_config is None:
             self._prompt_config = prompt_loader.get_prompt_config("csv_processor")
             if self._prompt_config is None:
-                raise ValueError("csv_processor.json not found in data/prompts/")
+                raise ValueError("csv_processor_prompt.json not registered or missing")
         return self._prompt_config
 
     def _get_tools(self) -> list:

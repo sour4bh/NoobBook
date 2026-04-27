@@ -25,7 +25,7 @@ def _get_prompt_config() -> Dict[str, Any]:
     if _prompt_config is None:
         _prompt_config = prompt_loader.get_prompt_config("memory")
         if _prompt_config is None:
-            raise ValueError("memory_prompt.json not found in data/prompts/")
+            raise ValueError("memory_prompt.json not registered or missing")
     return _prompt_config
 
 

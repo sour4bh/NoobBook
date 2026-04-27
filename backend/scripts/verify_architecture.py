@@ -4,11 +4,11 @@ Architecture checks for the NoobBook structure migration (NBB-704A + NBB-704B).
 NBB-704A established two narrow rules that hold long before migration finishes:
 
 1. Backend root registry. Every tracked top-level child of ``backend/app/``
-   must be a canonical root from ``STRUCTURE.md`` (NBB-104). The legacy
-   ``utils`` root and the existing ``config`` package are tolerated as known
-   migration state; ``services`` is retired by NBB-811 and may not return. New
-   roots outside the approved list fail. This catches a contributor inventing a
-   new mechanism bucket such as ``backend/app/agents/``.
+   must be a canonical root from ``STRUCTURE.md`` (NBB-104). The existing
+   ``config`` package is tolerated as known migration state; ``services`` is
+   retired by NBB-811, and ``utils`` plus ``data/prompts`` are retired by
+   NBB-812. New roots outside the approved list fail. This catches a
+   contributor inventing a new mechanism bucket such as ``backend/app/agents/``.
 
 2. Import direction at the external edge (NBB-104, NBB-206).
    - ``backend/app/providers/`` is a leaf. It must not import from ``app.api``,
@@ -54,7 +54,9 @@ script stays stdlib-only by design.
 NBB-811 adds the services no-return rules: no current tracked file under
 ``backend/app/services``, no ``app.services.*`` references in backend app code
 or backend tests, and no current docs that present ``services/`` as a live
-destination instead of a historical migration source.
+destination instead of a historical migration source. NBB-812 extends the
+tracked-file and import gates to ``backend/app/utils``, ``backend/data/prompts``,
+and ``app.utils.*`` references.
 
 Usage:
     python backend/scripts/verify_architecture.py
@@ -101,13 +103,6 @@ DOMAIN_ROOTS: frozenset[str] = frozenset({
     "settings",
 })
 
-# Legacy roots NBB-103 still allows to read from during the migration. The
-# services root is intentionally absent after NBB-811; any current tracked file
-# under ``backend/app/services`` is a no-return violation.
-LEGACY_ROOTS: frozenset[str] = frozenset({
-    "utils",
-})
-
 # Non-canonical roots tolerated for reasons tracked elsewhere. ``config`` is
 # the ``backend/config.py`` vs ``backend/app/config/`` name-collision noted in
 # the sprint Blocker Log; its structural fix is flagged for a follow-up
@@ -115,6 +110,37 @@ LEGACY_ROOTS: frozenset[str] = frozenset({
 TOLERATED_ROOTS: frozenset[str] = frozenset({
     "config",
 })
+
+RETIRED_PATHS: Tuple[Tuple[str, str], ...] = (
+    (
+        "backend/app/services",
+        "backend/app/services is retired by NBB-811. Move this file to an "
+        "owning canonical root; no app.services compatibility shim is allowed.",
+    ),
+    (
+        "backend/app/utils",
+        "backend/app/utils is retired by NBB-812. Move this file to an owning "
+        "canonical root; no app.utils compatibility shim is allowed.",
+    ),
+    (
+        "backend/data/prompts",
+        "backend/data/prompts is retired by NBB-812. Move this prompt asset to "
+        "an owning registered prompt directory.",
+    ),
+)
+
+RETIRED_IMPORTS: Tuple[Tuple[str, str], ...] = (
+    (
+        "app.services.",
+        "app.services imports are forbidden after NBB-811. Import from the "
+        "owning canonical root instead.",
+    ),
+    (
+        "app.utils.",
+        "app.utils imports are forbidden after NBB-812. Import from app.base "
+        "or the owning domain root instead.",
+    ),
+)
 
 # providers/ is a leaf; it must not depend on api, connectors, or any domain.
 PROVIDERS_FORBIDDEN_PREFIXES: Tuple[str, ...] = tuple(
@@ -279,7 +305,7 @@ class Violation:
 
 def check_root_registry() -> List[Violation]:
     """Flag top-level children of ``backend/app/`` outside the approved set."""
-    approved = CANONICAL_ROOTS | LEGACY_ROOTS | TOLERATED_ROOTS
+    approved = CANONICAL_ROOTS | TOLERATED_ROOTS
     violations: List[Violation] = []
     tracked_files, error = _git_ls_files("backend/app")
     if error is not None:
@@ -337,28 +363,21 @@ def _git_ls_files(*pathspecs: str) -> Tuple[List[str], Optional[str]]:
     return [line for line in result.stdout.splitlines() if line], None
 
 
-def check_no_services_root() -> List[Violation]:
-    """NBB-811: services is gone; no tracked file may live under it."""
-    tracked_files, error = _git_ls_files("backend/app/services")
-    if error is not None:
-        return [Violation(None, 0, error)]
+def check_no_retired_paths() -> List[Violation]:
+    """NBB-811/NBB-812: retired roots cannot contain tracked files."""
     violations: List[Violation] = []
-    for rel_path in tracked_files:
-        path = REPO_ROOT / rel_path
-        violations.append(Violation(
-            path,
-            0,
-            (
-                "backend/app/services is retired by NBB-811. Move this file "
-                "to an owning canonical root; no app.services compatibility "
-                "shim is allowed."
-            ),
-        ))
+    for pathspec, message in RETIRED_PATHS:
+        tracked_files, error = _git_ls_files(pathspec)
+        if error is not None:
+            violations.append(Violation(None, 0, error))
+            continue
+        for rel_path in tracked_files:
+            violations.append(Violation(REPO_ROOT / rel_path, 0, message))
     return violations
 
 
-def check_no_app_services_imports() -> List[Violation]:
-    """NBB-811: app.services imports may not return in backend code or tests."""
+def check_no_retired_imports() -> List[Violation]:
+    """NBB-811/NBB-812: retired app imports may not return."""
     violations: List[Violation] = []
     roots = (APP_DIR, BACKEND_DIR / "tests")
     for root in roots:
@@ -371,16 +390,10 @@ def check_no_app_services_imports() -> List[Violation]:
                 violations.append(Violation(path, 0, f"cannot read file: {exc}"))
                 continue
             for index, line in enumerate(lines, start=1):
-                if "app.services." not in line:
-                    continue
-                violations.append(Violation(
-                    path,
-                    index,
-                    (
-                        "app.services imports are forbidden after NBB-811. "
-                        "Import from the owning canonical root instead."
-                    ),
-                ))
+                for token, message in RETIRED_IMPORTS:
+                    if token not in line:
+                        continue
+                    violations.append(Violation(path, index, message))
     return violations
 
 
@@ -663,8 +676,8 @@ def main() -> int:
 
     violations: List[Violation] = []
     violations.extend(check_root_registry())
-    violations.extend(check_no_services_root())
-    violations.extend(check_no_app_services_imports())
+    violations.extend(check_no_retired_paths())
+    violations.extend(check_no_retired_imports())
     violations.extend(check_no_live_services_docs())
     violations.extend(check_providers_imports())
     violations.extend(check_connectors_imports())

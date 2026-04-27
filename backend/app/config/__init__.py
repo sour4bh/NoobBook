@@ -27,9 +27,8 @@ from app.config.asset_registry import (
     register_tool_path,
 )
 
-# Register every domain-owned prompt/tool JSON path (NBB-207B/C) before the
-# loader singletons import — otherwise the first `get_prompt_config` call
-# could miss the registered directory and fall through to the legacy path.
+# Register every domain-owned prompt/tool JSON path before loader singletons
+# import; prompt and tool loaders are registry-only after NBB-810/NBB-812.
 asset_registry.register_production_asset_paths()
 
 from app.config.context_loader import context_loader

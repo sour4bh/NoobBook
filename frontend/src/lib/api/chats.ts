@@ -108,7 +108,7 @@ export interface StreamMessageResult {
 }
 
 /**
- * Educational Note: Prompt configuration from data/prompts/*.json files.
+ * Educational Note: Prompt configuration from registered prompt JSON files.
  * Each prompt defines model settings and the actual prompt text.
  * Note: Some prompts use user_message, others use user_message_template.
  */
@@ -469,7 +469,7 @@ class ChatsAPI {
 
   /**
    * Get all prompt configurations
-   * Educational Note: Returns all prompts from the data/prompts/ directory.
+   * Educational Note: Returns all prompts from the registered prompt directories.
    * Each prompt includes model, temperature, max_tokens, system_prompt, and user_message.
    */
   async getAllPrompts(): Promise<PromptConfig[]> {

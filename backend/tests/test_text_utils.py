@@ -12,17 +12,17 @@ Covers:
 """
 import pytest
 
-from app.utils.text.processed_output import (
+from app.sources.text.processed_output import (
     build_processed_output,
     _format_token_count,
     SOURCE_METADATA_KEYS,
 )
-from app.utils.text.cleaning import (
+from app.sources.text.cleaning import (
     clean_text_for_embedding,
     clean_chunk_text,
     normalize_whitespace,
 )
-from app.utils.text.page_markers import (
+from app.sources.text.page_markers import (
     build_page_marker,
     find_all_markers,
     get_page_number,

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 
 from config import Config
-from app.utils.path_utils import get_web_agent_dir, get_agents_dir
+from app.base.paths import get_web_agent_dir, get_agents_dir
 import logging
 
 from app.providers.supabase import get_supabase, is_supabase_enabled

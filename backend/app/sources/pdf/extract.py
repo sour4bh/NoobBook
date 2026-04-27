@@ -37,7 +37,7 @@ from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE
 from app.providers.anthropic.media import encode_bytes_to_base64
 from app.sources.pdf.ops import get_page_count, get_all_page_bytes
 from app.providers.anthropic.rate import RateLimiter
-from app.utils.text import build_processed_output
+from app.sources.text import build_processed_output
 from app.sources.tokens import count_tokens
 from app.background.tasks import task_service
 import app.providers.anthropic.response_parser

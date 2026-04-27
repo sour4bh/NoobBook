@@ -18,13 +18,13 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 | `NBB-501A/B` through `NBB-507` | Studio migration tasks |
 | `NBB-601` through `NBB-604` | Frontend tightening tasks |
 | `NBB-701` through `NBB-706`, including split tasks `NBB-704A/B/C` and `NBB-705A-E` | Verification and cleanup tasks |
-| `NBB-801` through `NBB-811` | Post-sprint services eradication and final boundary-enforcement tasks |
+| `NBB-801` through `NBB-812` | Post-sprint services eradication and final frozen-root enforcement tasks |
 
 ## Core Policies
 
 - `backend/app/api` remains the transport boundary in this migration. Route files parse HTTP, run guards, call domain public surfaces, and format responses. Route movement is tracked in `DEFERRED.md`.
 - New backend code should move toward domain roots rather than mechanism buckets such as `services/`, `utils/`, `ai_agents/`, `ai_services/`, `tool_executors/`, `services/tools/`, or `backend/data/prompts/`.
-- Prompt JSON and tool JSON may not move until `NBB-207A` lands loader registry/shims. Prompt ownership is `NBB-207B`; tool-schema ownership is `NBB-207C`.
+- Prompt JSON and tool JSON live in domain-owned directories and resolve through the asset registry. `backend/data/prompts/` and `backend/app/services/tools/` are retired no-return roots.
 - `platform/files/` and `providers/files/` are not dumping grounds. Low-level external API clients and SDK wrappers belong under `providers/`; configured product capabilities belong under `connectors/`; source format operations belong under `sources/`; studio export/screenshot support belongs under `studio/`.
 - `base/` and every `shared/` family require narrow charters from `NBB-104`.
 - Temporary shims are allowed during migration, but `NBB-706` must remove forwarding-only modules unless a documented compatibility boundary remains.
@@ -65,7 +65,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | Epic 005 Studio | Taxonomy starts after `NBB-104` and `NBB-207C`; registry and implementation work wait on exact task deps for route smokes, contracts, provider/connector boundaries, prompt/tool ownership, and background ownership |
 | Epic 006 Frontend | `NBB-105` and `NBB-108A`; `NBB-108B` may run in parallel if frontend tests are chosen |
 | Epic 007 Cleanup | Some split tasks, especially `NBB-704A` and `NBB-705C`, intentionally run early as owner-specific guardrails/drains; `NBB-706` is the final cleanup gate and waits for `NBB-704C` type/AST safety checks |
-| Epic 008 Services eradication | Starts after `NBB-706`; drains every remaining tracked `backend/app/services/` resident and ends with a verifier rule that rejects new `app.services.*` imports or files |
+| Epic 008 Services eradication | Starts after `NBB-706`; drains every remaining tracked `backend/app/services/` resident and ends with verifier rules that reject retired services/utils/prompt roots and `app.services.*` / `app.utils.*` imports |
 
 ## Epics
 
@@ -114,7 +114,7 @@ python docs/tickets/dag.py --check --write
 - no empty-`utils/` criterion appears without approved exceptions
 - no unresolved studio category placeholder remains
 - no `base/` or `shared/` proposal appears without a linked charter
-- no prompt/tool JSON move appears before `NBB-207A`
+- no prompt/tool JSON move lands outside a registered domain-owned prompt/tool directory
 - no permanent forwarding-only wrapper is accepted
 - every task body includes `**Primary write scope:**`
 
@@ -122,13 +122,13 @@ See `TRACEABILITY.md` for old-ticket and finding mappings. See `DEFERRED.md` for
 
 ## Move bookkeeping
 
-Structural movement tickets (NBB-209A–E, 304, 402, 705A–D, 803–810, and partially 403, 504–507, 602–604) execute Python and TypeScript moves through the **refactory** Claude Code plugin — `mcp__refactory__move_module`, `mcp__refactory__move_symbol`, and `mcp__refactory__rename_symbol`. Refactory's `validate_imports` catches import-statement breakage after a move, but string references in docs and tests need a separate pass. `NBB-706` is verification and manual cleanup only; it does not call refactory execution tools and does not append rows to `move-plan.csv`. `NBB-811` is final enforcement cleanup after all `NBB-008` moves land.
+Structural movement tickets (NBB-209A–E, 304, 402, 705A–D, 803–812, and partially 403, 504–507, 602–604) execute Python and TypeScript moves through the **refactory** Claude Code plugin when the move shape is safe — `mcp__refactory__move_module`, `mcp__refactory__move_symbol`, and `mcp__refactory__rename_symbol`. Refactory's `validate_imports` catches import-statement breakage after a move, but string references in docs and tests need a separate pass. Manual moves are allowed when the ticket records a bounded reason and preserves behavior with tests. `NBB-706` is verification and manual cleanup only; it does not call refactory execution tools and does not append rows to `move-plan.csv`. `NBB-811` and `NBB-812` are final enforcement cleanup after all `NBB-008` behavior moves land.
 
 `docs/tickets/move-plan.csv` is an append-only audit log of every move. Read-only metadata, not a driver script — refactory does the execution during the ticket's turn. Purpose: consolidated audit ("where did `utils/pdf_utils.py` land?") across 11+ mover tickets.
 
 Columns (no spaces, standard CSV): `ticket,language,old_path,new_path,old_symbol,new_symbol,mode,tool`
 
-Modes: `python_module_move`, `typescript_module_move`, `python_symbol_rename`, `python_symbol_move`, `python_symbol_extract`, `python_symbol_remove`, `python_module_remove`, `json_asset_move`, `text_reference_check`.
+Modes: `python_module_move`, `typescript_module_move`, `python_symbol_rename`, `python_symbol_move`, `python_symbol_extract`, `python_symbol_remove`, `python_module_remove`, `json_asset_move`, `json_asset_remove`, `text_reference_check`.
 
 Helpers for cases refactory does not cover (owned by `NBB-103`):
 
@@ -145,7 +145,7 @@ Agent convention for every move:
 
 1. Confirm the refactory MCP tools are available in the session; if not, the plugin is not loaded — see [`REFACTORY_SETUP.md`](REFACTORY_SETUP.md).
 2. For `move_symbol` rows only: `touch` the target file before the first preview call.
-3. Call the refactory tool with absolute `project_root=<worktree root>` and omit `apply` to preview.
+3. Call the refactory tool with absolute `project_root=<worktree>/backend` and omit `apply` to preview.
 4. Call the same refactory operation with `apply=true` to mutate.
 5. Append one row per move to `move-plan.csv` with the ticket id.
 6. Run `string_ref_scan.py <old_path>` and resolve any hits.

@@ -24,10 +24,11 @@ from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
 from app.auth.identity import get_request_identity
 from app.connectors.mcp.connection.store import mcp_connection_service, DEFAULT_USER_ID
-from app.auth.guards import require_admin
+from app.auth.guards import require_admin, require_permission
 
 
 @settings_bp.route("/settings/mcp", methods=["GET"])
+@require_permission("integrations", "mcp")
 def list_mcp_connections():
     """List MCP connections available to the current user (masked)."""
     try:
@@ -196,6 +197,7 @@ def validate_mcp_connection():
 
 
 @settings_bp.route("/settings/mcp/<connection_id>/resources", methods=["GET"])
+@require_permission("integrations", "mcp")
 def list_mcp_resources(connection_id: str):
     """List available resources from an MCP server (live call)."""
     try:
@@ -227,6 +229,7 @@ def list_mcp_resources(connection_id: str):
 
 
 @settings_bp.route("/settings/mcp/<connection_id>/tools", methods=["GET"])
+@require_permission("integrations", "mcp")
 def list_mcp_tools(connection_id: str):
     """
     Discover tools from an MCP server (live call + cache).

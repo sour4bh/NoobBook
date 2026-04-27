@@ -555,6 +555,7 @@ def add_mixpanel_source_endpoint(project_id: str):
 
 
 @sources_bp.route('/projects/<project_id>/sources/mcp', methods=['POST'])
+@require_permission("integrations", "mcp")
 def add_mcp_source(project_id: str):
     """
     Add an MCP source (external data via MCP server) to a project.

@@ -22,6 +22,7 @@ Routes:
 """
 from flask import jsonify, current_app
 from app.api.transcription import transcription_bp
+from app.auth.guards import require_permission
 from app.providers.elevenlabs import TranscriptionService
 
 # Initialize service (lazy loads API key from env)
@@ -29,6 +30,8 @@ transcription_service = TranscriptionService()
 
 
 @transcription_bp.route('/transcription/config', methods=['GET'])
+@require_permission("chat_features", "voice_input")
+@require_permission("integrations", "elevenlabs")
 def get_transcription_config():
     """
     Get ElevenLabs configuration for real-time transcription.
@@ -80,6 +83,8 @@ def get_transcription_config():
 
 
 @transcription_bp.route('/transcription/status', methods=['GET'])
+@require_permission("chat_features", "voice_input")
+@require_permission("integrations", "elevenlabs")
 def get_transcription_status():
     """
     Check if ElevenLabs transcription is configured.

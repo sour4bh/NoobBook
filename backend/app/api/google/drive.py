@@ -50,6 +50,7 @@ def _get_current_user_id() -> Optional[str]:
 
 
 @google_bp.route('/google/files', methods=['GET'])
+@require_permission("document_sources", "google_drive")
 def google_list_files():
     """
     List files from Google Drive.

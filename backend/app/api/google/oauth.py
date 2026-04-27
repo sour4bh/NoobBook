@@ -30,6 +30,7 @@ from flask import jsonify, request, redirect, current_app
 from app.api.google import google_bp
 from app.providers.google.auth import google_auth_service
 from app.auth.identity import get_request_identity
+from app.auth.guards import require_permission
 
 
 def _get_current_user_id() -> str:
@@ -48,6 +49,7 @@ def _get_current_user_id() -> str:
 
 
 @google_bp.route('/google/status', methods=['GET'])
+@require_permission("document_sources", "google_drive")
 def google_status():
     """
     Check Google Drive configuration and connection status.
@@ -85,6 +87,7 @@ def google_status():
 
 
 @google_bp.route('/google/auth', methods=['GET'])
+@require_permission("document_sources", "google_drive")
 def google_auth():
     """
     Start Google OAuth flow by returning the authorization URL.
@@ -194,6 +197,7 @@ def google_callback():
 
 
 @google_bp.route('/google/disconnect', methods=['POST'])
+@require_permission("document_sources", "google_drive")
 def google_disconnect():
     """
     Disconnect Google Drive by removing stored tokens.

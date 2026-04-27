@@ -15,7 +15,7 @@ Routes:
 """
 from flask import jsonify, request, current_app
 from app.api.prompts import prompts_bp
-from app.config.prompt_loader import prompt_loader
+from app.config.prompt import prompt_loader
 
 
 @prompts_bp.route('/projects/<project_id>/prompt', methods=['GET'])

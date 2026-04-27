@@ -1,14 +1,86 @@
 {
   "name": "run_analysis",
-  "description": "Execute Python code to analyze the data. The dataset is pre-loaded as a pandas DataFrame named 'df'. You have access to pandas, numpy, matplotlib, and seaborn. Run any analysis queries needed to answer the user question. Do not modify or delete the source file. Assign your final output to 'result'.",
+  "description": "Run a validated declarative table-analysis operation on the CSV data. Use inspect to understand columns, filter/sort to retrieve rows, aggregate for grouped metrics, and chart for simple bar/line/histogram plots. Do not provide Python code.",
   "input_schema": {
     "type": "object",
     "properties": {
-      "code": {
-        "type": "string",
-        "description": "Python code to execute. DataFrame is available as 'df'. Assign final output to 'result'."
+      "operation": {
+        "type": "object",
+        "description": "One analysis operation. Use either operation or operations.",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["inspect", "filter", "aggregate", "sort", "chart"]
+          },
+          "columns": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "column": {"type": "string"},
+                "operator": {
+                  "type": "string",
+                  "enum": ["eq", "ne", "gt", "gte", "lt", "lte", "contains", "in"]
+                },
+                "value": {}
+              },
+              "required": ["column", "operator", "value"]
+            }
+          },
+          "group_by": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "column": {"type": "string"},
+                "function": {
+                  "type": "string",
+                  "enum": ["count", "sum", "mean", "median", "min", "max", "nunique"]
+                },
+                "name": {"type": "string"}
+              },
+              "required": ["function"]
+            }
+          },
+          "sort": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "column": {"type": "string"},
+                "direction": {"type": "string", "enum": ["asc", "desc"]}
+              },
+              "required": ["column"]
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "chart_type": {
+            "type": "string",
+            "enum": ["bar", "line", "histogram"]
+          },
+          "x": {"type": "string"},
+          "y": {"type": "string"},
+          "title": {"type": "string"}
+        },
+        "required": ["kind"]
+      },
+      "operations": {
+        "type": "array",
+        "description": "Sequential operations. Use this instead of operation when more than one step is needed.",
+        "items": {"$ref": "#/properties/operation"}
       }
-    },
-    "required": ["code"]
+    }
   }
 }

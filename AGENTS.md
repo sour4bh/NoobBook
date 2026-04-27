@@ -261,7 +261,7 @@ Paths below describe current on-disk locations after the structure migration.
 `backend/data/prompts/`, `backend/app/services/`, and `backend/app/utils/` are
 retired no-return roots in `STRUCTURE.md`; do not add files there. Prompt and
 tool JSON now live in domain-owned `prompts/` and `tools/` directories and
-resolve through `backend/app/config/asset_registry.py`.
+resolve through `backend/app/config/asset.py`.
 
 ```
 data/
@@ -444,7 +444,7 @@ Execution logs saved to `data/projects/{id}/agents/web_agent/{execution_id}.json
 
 ## Source Summaries
 
-AI-generated summaries (150-200 tokens via Haiku) help chat AI understand documents at a glance. Summaries included in system prompt via `context_loader.py`. For large sources, samples 8 evenly distributed chunks.
+AI-generated summaries (150-200 tokens via Haiku) help chat AI understand documents at a glance. Summaries are included in system prompts via `app.config.context.context_loader`. For large sources, samples 8 evenly distributed chunks.
 
 ## Chat Auto-Naming
 
@@ -452,7 +452,7 @@ Background task generates 1-5 word title via Haiku after first message. Non-bloc
 
 ## Main Chat Architecture
 
-**RAG agentic loop** for source-aware conversations. System prompt includes dynamic source context + memory via `context_loader.py`.
+**RAG agentic loop** for source-aware conversations. System prompt includes dynamic source context + memory via `app.config.context.context_loader`.
 
 ### Tool Use Loop
 ```
@@ -544,11 +544,11 @@ Per-project API cost tracking. Pricing: Sonnet ($3/$15 per 1M in/out), Haiku ($1
 - **User Memory** (Supabase `users.memory` column): Global preferences across all projects
 - **Project Memory** (Supabase `projects.memory` column): Project-specific context
 
-**Flow**: Codex calls `store_memory` → returns immediately (non-blocking) → background task uses Haiku to merge new + existing memory (max 150 tokens) → saved to Supabase → included in future system prompts via `context_loader.py`.
+**Flow**: Codex calls `store_memory` → returns immediately (non-blocking) → background task uses Haiku to merge new + existing memory (max 150 tokens) → saved to Supabase → included in future system prompts via `app.config.context.context_loader`.
 
 ## Tier Configuration
 
-Centralized rate limiting in `app/config/tier_loader.py`. Set via `ANTHROPIC_TIER` in .env (1-4).
+Centralized provider/rate configuration in `app/config/provider.py`. Set via `ANTHROPIC_TIER` in .env (1-4).
 
 | Tier | Workers | Pages/min | Use Case |
 |------|---------|-----------|----------|
@@ -628,8 +628,8 @@ FOR FILE-TYPE SPECIFIC:
 Service Name - Brief description of what this service does.
 """
 from app.config import get_anthropic_config
-from app.config.prompt_loader import prompt_loader
-from app.config.tool_loader import tool_loader
+from app.config.prompt import prompt_loader
+from app.config.tool import tool_loader
 from app.providers.anthropic.messages import claude_service
 from app.providers.anthropic import response_parser
 from app.providers.anthropic.content import build_tool_result_content
@@ -684,7 +684,7 @@ service_name = ServiceName()
 
 ### What NOT to Do
 
-- **Never** duplicate configuration loading logic - use `prompt_loader`, `tool_loader`, `tier_loader`
+- **Never** duplicate configuration loading logic - use `prompt_loader`, `tool_loader`, and provider config helpers
 - **Never** hardcode paths - use `app.base.paths` functions
 - **Never** parse Codex responses manually - use `response_parser`
 - **Never** implement custom rate limiting - use `RateLimiter` class

@@ -28,16 +28,6 @@ os.environ.setdefault(
     "eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNzAwMDAwMDAwfQ."
     "dummy-signature-for-tests",
 )
-# `app.before_request` short-circuits every `/api/v1/*` request with a 401
-# before URL dispatch runs when `NOOBBOOK_AUTH_REQUIRED=true`. That mask
-# hides the registration-breakage signal we want (404 → registered route
-# broke). Disabling the app-level check leaves the `api_bp.before_request`
-# JWT guard in place, so protected routes still return 401 for
-# unauthenticated callers (what the ticket asks the smoke tests to
-# assert). Auth is *not* bypassed — the blueprint-level guard still runs
-# and still fails closed.
-os.environ.setdefault("NOOBBOOK_AUTH_REQUIRED", "false")
-
 # Replace the Supabase singleton before any app import. The startup hook in
 # `task_service._cleanup_stale_tasks` (see `backend/app/background/tasks.py`)
 # otherwise attempts a real network call to Supabase during `create_app`.
@@ -56,6 +46,7 @@ def blueprint_app():
 
 
 @pytest.fixture()
-def blueprint_client(blueprint_app):
+def blueprint_client(blueprint_app, monkeypatch):
     """Flask test client for route smoke tests."""
+    monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "false")
     return blueprint_app.test_client()

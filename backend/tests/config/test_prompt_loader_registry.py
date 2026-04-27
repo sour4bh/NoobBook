@@ -5,15 +5,15 @@ These assert that registered domain-owned prompt paths resolve end-to-end and
 `/prompts/all` sees every registered prompt. They use the real on-disk prompt
 files so the expected production wiring is exercised, not a synthetic fixture.
 
-The sibling `test_asset_registry.py` autouse fixture resets the registry
+The sibling `test_asset.py` autouse fixture resets the registry
 before and after each test; these tests explicitly re-invoke
 `register_production_asset_paths()` after reset so they see the state a
 running backend sees at startup.
 """
 import pytest
 
-from app.config import asset_registry
-from app.config.prompt_loader import PromptLoader, prompt_loader
+import app.config.asset as asset
+from app.config.prompt import PromptLoader, prompt_loader
 
 
 # Prompts moved to domain-owned homes.
@@ -37,16 +37,16 @@ MOVED_PROMPTS = [
 def _restore_production_registry():
     """Replay production registrations after the sibling reset fixture runs.
 
-    The autouse fixture in `test_asset_registry.py` calls
+    The autouse fixture in `test_asset.py` calls
     `_reset_for_tests()` between every test in this directory, including this
     file. Production registration happens exactly once at `app.config`
     import, so once the reset fires the real paths are gone for the rest of
     the session. Replay them here to restore the state under test.
     """
-    asset_registry._reset_for_tests()
-    asset_registry.register_production_asset_paths()
+    asset._reset_for_tests()
+    asset.register_production_asset_paths()
     yield
-    asset_registry._reset_for_tests()
+    asset._reset_for_tests()
 
 
 def _fresh_loader() -> PromptLoader:

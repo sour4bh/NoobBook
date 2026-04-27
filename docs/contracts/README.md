@@ -169,7 +169,7 @@ GET /api/v1/projects/p1/citations/abc_chunk_2
 **Backend owner:**
 - Serialization: `backend/app/providers/anthropic/content.py::serialize_content_blocks` and
   `::build_tool_result_content`
-- Schema loading: `backend/app/config/tool_loader.py`
+- Schema loading: `backend/app/config/tool.py`
 
 **Frontend consumer:** The chat renderer indirectly via `messages.content` blocks
 returned inside the saved message row. No direct tool-call UI today.
@@ -654,9 +654,9 @@ three required envelope keys.
 ## Contract 11 - Tool-schema JSON contract
 
 **Backend owner:**
-- Loader: `backend/app/config/tool_loader.py` (NBB-207A)
+- Loader: `backend/app/config/tool.py` (NBB-207A)
 - Registered asset paths: domain-owned `tools/` directories mapped by
-  `backend/app/config/asset_registry.py`
+  `backend/app/config/asset.py`
 
 **Frontend consumer:** None directly. Tool schemas are consumed by Claude; the
 frontend sees their effects through `tool_use` / `tool_result` blocks (Contract 3).
@@ -698,7 +698,7 @@ missing `name` or malformed `input_schema` surfaces as a 400 from Claude on the 
 call that includes the tool; our loader does not currently pre-validate shape.
 
 **Test plan:**
-- Extend `backend/tests/test_tool_loader.py` (owned by NBB-207A) with a per-file
+- Extend `backend/tests/config/test_tool_loader_registry.py` (owned by NBB-207A) with a per-file
   structural check: every registered tool `*.json` must parse as JSON and carry
   `name`, `description`, and `input_schema.type == "object"`. Place
   the NBB-205-owned assertion in `backend/tests/test_tool_schema_contract.py` (new) so
@@ -932,7 +932,7 @@ names NBB-205 as its shape owner.
 - Column: `backend/supabase/migrations/00013_chat_selected_sources.sql`
 - Write path: `backend/app/chat/store.py::update_chat`
   (allowed_fields includes `selected_source_ids`)
-- Read path: `app.chat.loop.ChatLoop._run_message_flow` + `context_loader.get_active_sources`
+- Read path: `app.chat.loop.ChatLoop._run_message_flow` + `app.config.context.context_loader.get_active_sources`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` plus the chat-view source
 picker. Updates via `PUT /api/v1/projects/<id>/chats/<chat_id>`.
@@ -957,7 +957,7 @@ into `[]` silently breaks legacy chats.
 ```
 
 **Invalid example:** No runtime enum validator; any non-null/non-array write would
-break `context_loader.get_active_sources`. `chat_service.update_chat` only whitelists
+break `app.config.context.context_loader.get_active_sources`. `chat_service.update_chat` only whitelists
 the column, it does not type-check its value. Downstream the read path treats
 non-list + non-null as a bug and will raise. In practice the upstream writers
 (chat-edit endpoint and source picker UI) are the shape guards.
@@ -966,7 +966,7 @@ non-list + non-null as a bug and will raise. In practice the upstream writers
 - `backend/tests/test_selected_source_ids_contract.py` (new). Three cases:
   (a) `NULL` stored -> `app.chat.loop.ChatLoop._run_message_flow` reads all `ready + active` sources;
   (b) `[]` stored -> zero sources in context;
-  (c) `["<id>"]` stored -> exactly that subset reaches `context_loader`.
+  (c) `["<id>"]` stored -> exactly that subset reaches `app.config.context.context_loader`.
   Reuse the NBB-106 route-smoke test app + a mock for
   `app.chat.loop.ChatLoop._call_claude`.
 

@@ -8,7 +8,7 @@ Separation of Concerns:
 - chat_service.py: Chat CRUD (this file)
 - claude_service.py: Claude API interactions
 - message_service.py: Message persistence
-- prompt_loader.py: Prompt management
+- app.config.prompt: Prompt management
 """
 import logging
 from datetime import datetime

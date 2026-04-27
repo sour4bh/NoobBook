@@ -27,8 +27,8 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-from config import Config
-from app.config import asset_registry
+from app.config.runtime import Config
+import app.config.asset as asset
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class PromptConfig(dict):
 
     def _resolved_model(self) -> Optional[Any]:
         # Lazy import to avoid circular dependency at module load time
-        from app.config.model_loader import get_model_override_for_prompt
+        from app.config.model import get_model_override_for_prompt
 
         prompt_name = object.__getattribute__(self, "_prompt_name")
         if not prompt_name:
@@ -110,8 +110,8 @@ class PromptLoader:
         as a soft miss.
         """
         try:
-            return asset_registry.resolve_prompt_path(prompt_name, filename)
-        except asset_registry.AssetNotFoundError:
+            return asset.resolve_prompt_path(prompt_name, filename)
+        except asset.AssetNotFoundError:
             return None
 
     def get_default_prompt_config(self) -> Dict[str, Any]:
@@ -271,7 +271,7 @@ class PromptLoader:
             True if successful
         """
         try:
-            default_prompt_file = asset_registry.resolve_prompt_path(
+            default_prompt_file = asset.resolve_prompt_path(
                 "default", "default_prompt.json"
             )
             with open(default_prompt_file, "r") as f:
@@ -281,7 +281,7 @@ class PromptLoader:
             with open(default_prompt_file, 'w') as f:
                 json.dump(prompt_data, f, indent=2)
             return True
-        except (asset_registry.AssetNotFoundError, json.JSONDecodeError, IOError):
+        except (asset.AssetNotFoundError, json.JSONDecodeError, IOError):
             return False
 
     def get_agent_prompt(self, agent_name: str) -> Optional[str]:
@@ -356,7 +356,7 @@ class PromptLoader:
 
         registered_dirs = [
             directory
-            for _prompt_name, directory in asset_registry.iter_registered_prompt_dirs()
+            for _prompt_name, directory in asset.iter_registered_prompt_dirs()
         ]
         for directory in registered_dirs:
             if not directory.is_dir():

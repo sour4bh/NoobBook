@@ -19,8 +19,8 @@ from datetime import datetime
 from app.providers.anthropic import claude_service
 from app.providers.google.imagen import imagen_service
 import app.studio.jobs.store as studio_index_service
-from app.config.prompt_loader import prompt_loader
-from app.config import brand_context_loader
+from app.config.prompt import prompt_loader
+from app.config.brand import brand_context_loader
 from app.providers.supabase import storage_service
 
 

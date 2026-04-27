@@ -23,8 +23,8 @@ from app.providers.anthropic import claude_service
 from app.providers.elevenlabs import tts_service
 import app.studio.jobs.store as studio_index_service
 from app.studio.media.audio.tool import studio_audio_executor
-from app.config.prompt_loader import prompt_loader
-from app.config.tool_loader import tool_loader
+from app.config.prompt import prompt_loader
+from app.config.tool import tool_loader
 from app.providers.supabase import storage_service
 from app.sources import index
 import app.providers.anthropic.response_parser

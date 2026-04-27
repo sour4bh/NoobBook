@@ -9,7 +9,8 @@ immediately.
 from datetime import date
 from typing import List, Optional
 
-from app.config import brand_context_loader, context_loader
+from app.config.brand import brand_context_loader
+from app.config.context import context_loader
 
 
 def build_system_prompt(

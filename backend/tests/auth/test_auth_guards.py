@@ -9,13 +9,10 @@ Scope:
 - Unauthenticated requests to protected routes return 401.
 - `/api/v1/auth/*` and `/api/v1/health` bypass the JWT guard.
 - Admin-only routes distinguish 401 (unauthenticated) from 403 (wrong role).
-- `NOOBBOOK_AUTH_REQUIRED=false` dev/single-user behavior is documented.
-
-Auth is *not* bypassed in dev-mode tests at the HTTP layer: the
-`api_bp.before_request` JWT guard still requires a valid token for any
-route outside `/auth/*` and `/health`. The dev-mode case instead targets
-`rbac.require_auth` / `rbac.require_admin`, which honor `is_auth_required()`.
+- `NOOBBOOK_AUTH_REQUIRED=false` dev/single-user behavior reaches the API
+  transport layer and attaches the fallback identity.
 """
+from urllib.parse import quote
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -91,6 +88,21 @@ def test_auth_signin_route_skips_jwt_guard(auth_client):
     assert response.status_code != 404
 
 
+def test_dev_mode_api_routes_use_fallback_identity(auth_client, auth_optional_env):
+    """NBB-903: API middleware honors dev/single-user mode instead of
+    requiring a bearer token after the domain identity resolver falls back."""
+    with patch("app.api.projects.routes.project_service") as projects:
+        projects.list_all_projects.return_value = []
+
+        response = auth_client.get("/api/v1/projects")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"success": True, "projects": [], "count": 0}
+    projects.list_all_projects.assert_called_once_with(
+        user_id="00000000-0000-0000-0000-000000000001"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Query-parameter token policy (NBB-201)
 #
@@ -145,6 +157,50 @@ def test_query_param_token_accepted_on_allowlisted_media_path(auth_client):
     # Guard passes; the downstream route may 404/500 on mocked project
     # access, but it must not be stopped by the 401 guard.
     assert response.status_code != 401
+
+
+# ---------------------------------------------------------------------------
+# OAuth callback boundary (NBB-904)
+# ---------------------------------------------------------------------------
+
+
+def test_google_callback_bypasses_bearer_guard_and_rejects_missing_state(
+    auth_client, auth_required_env
+):
+    """OAuth provider redirects cannot attach bearer tokens, so the generic
+    guard must not block the callback; missing state still fails closed."""
+    response = auth_client.get(
+        "/api/v1/google/callback?code=auth-code",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "google_auth=error" in response.headers["Location"]
+    assert "Invalid+OAuth+state" in response.headers["Location"]
+
+
+def test_google_callback_accepts_valid_signed_state(auth_client, auth_required_env):
+    """A valid signed OAuth state authorizes the callback before token exchange."""
+    from app.api.google import oauth as google_oauth
+
+    state = google_oauth.google_auth_service.build_state(
+        user_id="user-oauth",
+        secret_key=auth_client.application.config["SECRET_KEY"],
+    )
+
+    with patch.object(
+        google_oauth.google_auth_service,
+        "handle_callback",
+        return_value=(True, "connected"),
+    ) as handle_callback:
+        response = auth_client.get(
+            f"/api/v1/google/callback?code=auth-code&state={quote(state)}",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "http://localhost:5173?google_auth=success"
+    handle_callback.assert_called_once_with("auth-code", user_id="user-oauth")
 
 
 # ---------------------------------------------------------------------------

@@ -1,99 +1,76 @@
-"""
-Analysis Executor - Executes pandas/numpy/matplotlib code for data analysis.
-
-Educational Note: This executor enables dynamic data analysis by:
-1. Loading CSV data into a pandas DataFrame
-2. Executing Python code written by the AI agent
-3. Capturing results (data or plots)
-4. Returning formatted output
-
-The AI agent writes pandas code based on user questions,
-making it flexible for any analysis task.
-
-Security Note (NBB-203, pre-migration mitigation):
-    This executor runs model-written Python via ``exec()``. That is unsafe
-    outside dev/single-user mode. Raw-code analysis is therefore gated off
-    unless BOTH of the following env vars are set:
-
-      - ``NOOBBOOK_AUTH_REQUIRED=false``  (dev/single-user mode)
-      - ``NOOBBOOK_ALLOW_RAW_ANALYSIS=true``  (explicit opt-in; defaults false)
-
-    When the gate is closed, ``run_analysis`` returns an error result and
-    ``exec()`` is never reached. A permanent replacement (declarative
-    analysis or a real sandbox) is tracked in ``docs/tickets/DEFERRED.md``
-    entry ``D-002``. Do not remove this gate until ``D-002`` lands.
-"""
+"""Declarative CSV analysis executor."""
 
 import io
 import logging
-import os
 import uuid
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Literal, Optional, Self, Tuple
 
 import pandas as pd
-import numpy as np
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from app.providers.supabase import storage_service
+
 
 logger = logging.getLogger(__name__)
 
 
-# NBB-203: Env var names for the raw-code analysis gate.
-# Duplicated truthy parsing keeps the gate independent of the auth stack during
-# the structure migration (see ticket NBB-203 parallel-safety note).
-_AUTH_REQUIRED_ENV = "NOOBBOOK_AUTH_REQUIRED"
-_ALLOW_RAW_ANALYSIS_ENV = "NOOBBOOK_ALLOW_RAW_ANALYSIS"
-_TRUTHY = {"1", "true", "yes", "on"}
-
-RAW_ANALYSIS_DISABLED_MESSAGE = (
-    "Raw-code analysis is disabled (NBB-203 / DEFERRED.md D-002). "
-    f"To enable for local dev, set BOTH {_AUTH_REQUIRED_ENV}=false "
-    f"AND {_ALLOW_RAW_ANALYSIS_ENV}=true. "
-    f"{_ALLOW_RAW_ANALYSIS_ENV} defaults to false."
-)
+class FilterSpec(BaseModel):
+    column: str
+    operator: Literal["eq", "ne", "gt", "gte", "lt", "lte", "contains", "in"]
+    value: Any
 
 
-def raw_analysis_enabled() -> bool:
-    """
-    Return True only when raw model-written Python execution is allowed.
-
-    Requires BOTH:
-      - ``NOOBBOOK_AUTH_REQUIRED`` is explicitly falsey (defaults to "true",
-        i.e. auth is required, i.e. the gate is closed).
-      - ``NOOBBOOK_ALLOW_RAW_ANALYSIS`` is truthy (defaults unset/false).
-
-    Temporary pre-migration mitigation. Tracked in ``DEFERRED.md`` D-002.
-    """
-    auth_required_raw = os.getenv(_AUTH_REQUIRED_ENV, "true").strip().lower()
-    auth_required = auth_required_raw in _TRUTHY
-    if auth_required:
-        return False
-    allow_raw_raw = os.getenv(_ALLOW_RAW_ANALYSIS_ENV, "false").strip().lower()
-    return allow_raw_raw in _TRUTHY
+class SortSpec(BaseModel):
+    column: str
+    direction: Literal["asc", "desc"] = "asc"
 
 
-def _raw_analysis_blocked_result() -> Dict[str, Any]:
-    """Build the user/log-facing disabled result for run_analysis."""
-    logger.warning(
-        "Raw-code analysis blocked: %s=%r, %s=%r. See NBB-203 / DEFERRED.md D-002.",
-        _AUTH_REQUIRED_ENV,
-        os.getenv(_AUTH_REQUIRED_ENV, ""),
-        _ALLOW_RAW_ANALYSIS_ENV,
-        os.getenv(_ALLOW_RAW_ANALYSIS_ENV, ""),
-    )
-    return {"success": False, "error": RAW_ANALYSIS_DISABLED_MESSAGE}
+class MetricSpec(BaseModel):
+    column: Optional[str] = None
+    function: Literal["count", "sum", "mean", "median", "min", "max", "nunique"]
+    name: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _require_column_for_non_count(self) -> Self:
+        if self.function != "count" and not self.column:
+            raise ValueError(f"{self.function} metric requires column")
+        return self
+
+
+class OperationSpec(BaseModel):
+    kind: Literal["inspect", "filter", "aggregate", "sort", "chart"]
+    columns: list[str] = Field(default_factory=list)
+    filters: list[FilterSpec] = Field(default_factory=list)
+    group_by: list[str] = Field(default_factory=list)
+    metrics: list[MetricSpec] = Field(default_factory=list)
+    sort: list[SortSpec] = Field(default_factory=list)
+    limit: int = Field(default=20, ge=1, le=200)
+    chart_type: Literal["bar", "line", "histogram"] = "bar"
+    x: Optional[str] = None
+    y: Optional[str] = None
+    title: Optional[str] = None
+
+
+class AnalysisRequest(BaseModel):
+    operation: Optional[OperationSpec] = None
+    operations: list[OperationSpec] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_operation(self) -> Self:
+        if self.operation and self.operations:
+            raise ValueError("Provide either operation or operations, not both")
+        if not self.operation and not self.operations:
+            raise ValueError("Provide operation or operations")
+        return self
+
+    def ordered_operations(self) -> list[OperationSpec]:
+        return [self.operation] if self.operation else self.operations
 
 
 class AnalysisExecutor:
-    """
-    Executor for running pandas analysis code on CSV data.
+    """Executor for validated table-analysis operations on CSV data."""
 
-    Educational Note: Instead of pre-defined operations, this executor
-    lets the AI write custom pandas code for flexible analysis.
-    """
-
-    def __init__(self):
-        """Initialize the executor."""
+    def __init__(self) -> None:
         self._df_cache: Dict[str, pd.DataFrame] = {}
 
     def dispatch(
@@ -103,38 +80,13 @@ class AnalysisExecutor:
         project_id: str,
         source_id: str
     ) -> Tuple[Dict[str, Any], bool]:
-        """
-        Execute analysis tool.
-
-        Args:
-            tool_name: Name of the tool (run_analysis or return_analysis)
-            tool_input: Tool parameters
-            project_id: Project ID for file paths
-            source_id: Source ID of the CSV file
-
-        Returns:
-            Tuple of (result_dict, is_termination)
-        """
         if tool_name == "run_analysis":
-            # NBB-203: block raw-code execution unless dev/single-user mode
-            # has explicitly opted in. See DEFERRED.md D-002 for permanent
-            # replacement tracking.
-            if not raw_analysis_enabled():
-                return _raw_analysis_blocked_result(), False
             return self._run_analysis(tool_input, project_id, source_id), False
-        elif tool_name == "return_analysis":
+        if tool_name == "return_analysis":
             return tool_input, True
-        else:
-            return {"success": False, "error": f"Unknown tool: {tool_name}"}, False
+        return {"success": False, "error": f"Unknown tool: {tool_name}"}, False
 
     def _load_dataframe(self, project_id: str, source_id: str) -> pd.DataFrame:
-        """
-        Load CSV into DataFrame with caching.
-
-        Educational Note: We cache the DataFrame to avoid re-downloading
-        the file on every query during an analysis session. CSV files are
-        downloaded from Supabase Storage where they live after upload.
-        """
         cache_key = f"{project_id}_{source_id}"
 
         if cache_key not in self._df_cache:
@@ -155,181 +107,215 @@ class AnalysisExecutor:
         project_id: str,
         source_id: str
     ) -> Dict[str, Any]:
-        """
-        Execute pandas code and return result.
-
-        Educational Note: We create a safe execution environment with:
-        - df: The loaded DataFrame
-        - pd: pandas
-        - np: numpy
-        - plt: matplotlib.pyplot
-        - sns: seaborn
-
-        The AI assigns its output to 'result' variable.
-        """
-        code = tool_input.get("code", "")
-
-        if not code:
-            return {"success": False, "error": "No code provided"}
-
-        # Import visualization libraries at top of method
-        import matplotlib
-        matplotlib.use('Agg')  # Non-interactive backend
-        import matplotlib.pyplot as plt
-        from matplotlib.figure import Figure
-        import seaborn as sns
-
-        # Store original savefig methods BEFORE try block
-        original_plt_savefig = plt.savefig
-        original_fig_savefig = Figure.savefig
-
-        # Track saved plots
-        saved_plots = []
+        try:
+            request = AnalysisRequest.model_validate(tool_input)
+        except ValidationError as error:
+            return {"success": False, "error": f"Invalid analysis request: {error}"}
 
         try:
-            # Load the DataFrame
-            df = self._load_dataframe(project_id, source_id)
+            current = self._load_dataframe(project_id, source_id)
+            outputs: list[str] = []
+            plot_filenames: list[str] = []
+            data: Any = None
 
-            def custom_savefig(*args, **kwargs):
-                """
-                Intercept savefig to upload plots to Supabase Storage.
+            for operation in request.ordered_operations():
+                self._validate_columns(current, operation)
+                current, output, data, plots = self._apply_operation(
+                    current, operation, project_id, source_id
+                )
+                outputs.append(output)
+                plot_filenames.extend(plots)
 
-                Educational Note: We ALWAYS use auto-generated unique names to avoid
-                conflicts and caching issues. Whatever filename Claude passes is ignored.
-                Plots are rendered to an in-memory buffer and uploaded to Supabase
-                Storage (studio-outputs bucket) instead of local disk.
-
-                Bug fix: Both plt.savefig and Figure.savefig are patched to the same
-                custom_savefig, which always calls original_fig_savefig directly.
-                Previously, plt.savefig called original_plt_savefig which internally
-                called Figure.savefig (patched), creating a recursive double-call
-                where the outer buffer stayed empty.
-                """
-                # Always use auto-generated unique name (full UUID for uniqueness)
-                plot_id = str(uuid.uuid4())
-                plot_filename = f"{source_id}_plot_{plot_id}.png"
-
-                kwargs.setdefault('dpi', 150)
-                kwargs.setdefault('bbox_inches', 'tight')
-                kwargs.setdefault('format', 'png')
-
-                try:
-                    buf = io.BytesIO()
-                    if args and isinstance(args[0], Figure):
-                        # Called as fig.savefig() - first arg is figure instance
-                        original_fig_savefig(args[0], buf, **kwargs)
-                    else:
-                        # Called as plt.savefig() - save current figure
-                        # Use gcf() + original Figure.savefig to avoid recursion
-                        fig = plt.gcf()
-                        original_fig_savefig(fig, buf, **kwargs)
-
-                    buf.seek(0)
-                    image_data = buf.read()
-
-                    if image_data:
-                        # Upload to Supabase Storage
-                        result = storage_service.upload_ai_image(
-                            project_id, plot_filename, image_data
-                        )
-                        if result:
-                            saved_plots.append(plot_filename)
-                        else:
-                            logger.error("Plot upload failed: %s", plot_filename)
-                    else:
-                        logger.error("Plot rendered empty: %s", plot_filename)
-
-                except Exception as save_error:
-                    logger.exception("Error saving plot")
-
-            # Only patch plt.savefig and Figure.savefig — both redirect to the
-            # same custom function that uses original_fig_savefig directly,
-            # avoiding the recursive double-call bug.
-            plt.savefig = custom_savefig
-            Figure.savefig = custom_savefig
-
-            # Create execution namespace
-            exec_globals = {
-                "df": df,
-                "pd": pd,
-                "np": np,
-                "plt": plt,
-                "sns": sns,
-                "result": None
+            result: Dict[str, Any] = {
+                "success": True,
+                "output": "\n\n".join(outputs) or "Analysis completed",
+                "data": data,
             }
+            if plot_filenames:
+                result["plot_filenames"] = plot_filenames
+            return result
+        except Exception as error:
+            logger.exception("Declarative CSV analysis failed")
+            return {"success": False, "error": f"Analysis error: {error}"}
 
-            # Execute the code
-            exec(code, exec_globals)
+    def _validate_columns(self, df: pd.DataFrame, operation: OperationSpec) -> None:
+        columns = set(df.columns)
+        requested = set(operation.columns)
+        requested.update(f.column for f in operation.filters)
+        if operation.kind != "aggregate":
+            requested.update(s.column for s in operation.sort)
+        requested.update(operation.group_by)
+        requested.update(metric.column for metric in operation.metrics if metric.column)
+        requested.update(value for value in (operation.x, operation.y) if value)
+        missing = sorted(column for column in requested if column not in columns)
+        if missing:
+            raise ValueError(f"Unknown column(s): {', '.join(missing)}")
 
-            # Get the result
-            result = exec_globals.get("result")
+    def _apply_operation(
+        self,
+        df: pd.DataFrame,
+        operation: OperationSpec,
+        project_id: str,
+        source_id: str,
+    ) -> Tuple[pd.DataFrame, str, Any, list[str]]:
+        filtered = self._apply_filters(df, operation.filters)
 
-            output = {"success": True}
+        if operation.kind == "inspect":
+            view = filtered[operation.columns] if operation.columns else filtered
+            data = {
+                "rows": int(len(view)),
+                "columns": list(view.columns),
+                "dtypes": {column: str(dtype) for column, dtype in view.dtypes.items()},
+                "preview": view.head(operation.limit).to_dict(orient="records"),
+            }
+            return filtered, self._format_data(data), data, []
 
-            # Include saved plot filenames
-            if saved_plots:
-                output["plot_filenames"] = saved_plots
-                output["output"] = f"Plot saved as: {saved_plots[-1]}"
+        if operation.kind == "filter":
+            view = self._apply_sort(filtered, operation.sort).head(operation.limit)
+            data = view.to_dict(orient="records")
+            return view, self._format_dataframe(view), data, []
 
-            if result is not None:
-                if "output" in output:
-                    output["output"] += f"\n\nResult:\n{self._format_result(result)}"
+        if operation.kind == "sort":
+            view = self._apply_sort(filtered, operation.sort).head(operation.limit)
+            data = view.to_dict(orient="records")
+            return view, self._format_dataframe(view), data, []
+
+        if operation.kind == "aggregate":
+            view = self._aggregate(filtered, operation)
+            data = view.to_dict(orient="records")
+            return view, self._format_dataframe(view), data, []
+
+        filename = self._chart(filtered, operation, project_id, source_id)
+        data = {"plot_filenames": [filename]}
+        return filtered, f"Chart saved as: {filename}", data, [filename]
+
+    def _apply_filters(self, df: pd.DataFrame, filters: list[FilterSpec]) -> pd.DataFrame:
+        current = df
+        for spec in filters:
+            series = current[spec.column]
+            if spec.operator == "eq":
+                mask = series == spec.value
+            elif spec.operator == "ne":
+                mask = series != spec.value
+            elif spec.operator == "gt":
+                mask = series > spec.value
+            elif spec.operator == "gte":
+                mask = series >= spec.value
+            elif spec.operator == "lt":
+                mask = series < spec.value
+            elif spec.operator == "lte":
+                mask = series <= spec.value
+            elif spec.operator == "contains":
+                mask = series.astype(str).str.contains(str(spec.value), case=False, na=False)
+            elif spec.operator == "in":
+                if not isinstance(spec.value, list):
+                    raise ValueError("operator 'in' requires a list value")
+                mask = series.isin(spec.value)
+            current = current[mask]
+        return current
+
+    def _apply_sort(self, df: pd.DataFrame, sort: list[SortSpec]) -> pd.DataFrame:
+        if not sort:
+            return df
+        return df.sort_values(
+            by=[spec.column for spec in sort],
+            ascending=[spec.direction == "asc" for spec in sort],
+        )
+
+    def _aggregate(self, df: pd.DataFrame, operation: OperationSpec) -> pd.DataFrame:
+        if not operation.metrics:
+            raise ValueError("aggregate operation requires metrics")
+
+        if operation.group_by:
+            grouped = df.groupby(operation.group_by, dropna=False)
+            frames = []
+            for metric in operation.metrics:
+                name = metric.name or (
+                    f"{metric.function}_{metric.column}" if metric.column else "count"
+                )
+                if metric.function == "count":
+                    series = grouped.size().rename(name)
                 else:
-                    output["output"] = self._format_result(result)
-
-            if "output" not in output:
-                output["output"] = "Code executed successfully (no output)"
-
-            return output
-
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Execution error: {str(e)}"
-            }
-
-        finally:
-            # ALWAYS restore original savefig methods and clean up
-            plt.savefig = original_plt_savefig
-            Figure.savefig = original_fig_savefig
-            plt.close('all')
-
-    def _format_result(self, result: Any) -> str:
-        """
-        Format pandas/numpy result as readable string.
-
-        Educational Note: Different result types need different formatting:
-        - DataFrame/Series: Use to_string() with limits
-        - Scalar: Convert directly
-        - Other: Use str()
-        """
-        if isinstance(result, pd.DataFrame):
-            if len(result) > 50:
-                return f"DataFrame with {len(result)} rows, {len(result.columns)} columns:\n\n{result.head(20).to_string()}\n\n... ({len(result) - 20} more rows)"
-            return result.to_string()
-
-        elif isinstance(result, pd.Series):
-            if len(result) > 50:
-                return f"Series with {len(result)} items:\n\n{result.head(20).to_string()}\n\n... ({len(result) - 20} more items)"
-            return result.to_string()
-
-        elif isinstance(result, (int, float, str, bool)):
-            return str(result)
-
-        elif isinstance(result, (list, dict)):
-            import json
-            return json.dumps(result, indent=2, default=str)
-
-        elif isinstance(result, np.ndarray):
-            if result.size > 100:
-                return f"Array with shape {result.shape}:\n{result[:20]}...\n"
-            return str(result)
-
+                    series = getattr(grouped[metric.column], metric.function)().rename(name)
+                frames.append(series)
+            result = pd.concat(frames, axis=1).reset_index()
         else:
-            return str(result)
+            row = {}
+            for metric in operation.metrics:
+                name = metric.name or (
+                    f"{metric.function}_{metric.column}" if metric.column else "count"
+                )
+                row[name] = int(len(df)) if metric.function == "count" else getattr(df[metric.column], metric.function)()
+            result = pd.DataFrame([row])
 
-    def clear_cache(self, project_id: str = None, source_id: str = None):
-        """Clear DataFrame cache."""
+        missing_sort = sorted(spec.column for spec in operation.sort if spec.column not in result.columns)
+        if missing_sort:
+            raise ValueError(f"Unknown column(s): {', '.join(missing_sort)}")
+
+        return self._apply_sort(result, operation.sort).head(operation.limit)
+
+    def _chart(
+        self,
+        df: pd.DataFrame,
+        operation: OperationSpec,
+        project_id: str,
+        source_id: str,
+    ) -> str:
+        if not operation.x:
+            raise ValueError("chart operation requires x")
+        if operation.chart_type in {"bar", "line"} and not operation.y:
+            raise ValueError(f"{operation.chart_type} chart requires y")
+
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        view = self._apply_sort(df, operation.sort).head(operation.limit)
+
+        if operation.chart_type == "histogram":
+            view[operation.x].plot(kind="hist", ax=ax)
+        elif operation.chart_type == "line":
+            view.plot(kind="line", x=operation.x, y=operation.y, ax=ax)
+        else:
+            view.plot(kind="bar", x=operation.x, y=operation.y, ax=ax)
+
+        ax.set_title(operation.title or f"{operation.chart_type.title()} chart")
+        fig.tight_layout()
+
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        buffer.seek(0)
+
+        filename = f"{source_id}_plot_{uuid.uuid4()}.png"
+        uploaded = storage_service.upload_ai_image(project_id, filename, buffer.read())
+        if not uploaded:
+            raise RuntimeError(f"Plot upload failed: {filename}")
+        return filename
+
+    def _format_dataframe(self, df: pd.DataFrame) -> str:
+        if df.empty:
+            return "No rows matched the requested operation."
+        return df.to_string(index=False)
+
+    def _format_data(self, data: Dict[str, Any]) -> str:
+        lines = [
+            f"Rows: {data['rows']}",
+            f"Columns: {', '.join(data['columns'])}",
+            "Dtypes:",
+        ]
+        lines.extend(f"- {column}: {dtype}" for column, dtype in data["dtypes"].items())
+        if data["preview"]:
+            lines.append("Preview:")
+            lines.append(pd.DataFrame(data["preview"]).to_string(index=False))
+        return "\n".join(lines)
+
+    def clear_cache(
+        self,
+        project_id: Optional[str] = None,
+        source_id: Optional[str] = None,
+    ) -> None:
         if project_id and source_id:
             cache_key = f"{project_id}_{source_id}"
             self._df_cache.pop(cache_key, None)
@@ -337,5 +323,4 @@ class AnalysisExecutor:
             self._df_cache.clear()
 
 
-# Singleton instance
 analysis_executor = AnalysisExecutor()

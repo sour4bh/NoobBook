@@ -19,8 +19,8 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from app.providers.anthropic import claude_service
-from app.config.prompt_loader import prompt_loader
-from app.config.tool_loader import tool_loader
+from app.config.prompt import prompt_loader
+from app.config.tool import tool_loader
 from app.sources.analysis.csv.tool import csv_tool_executor
 import app.providers.anthropic.response_parser
 import app.providers.anthropic.content

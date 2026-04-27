@@ -11,7 +11,7 @@ This keeps main_chat_service.py clean by centralizing all KB integration logic.
 """
 from typing import Dict, Any, List, Callable, Tuple
 
-from app.config.tool_loader import tool_loader
+from app.config.tool import tool_loader
 from app.connectors.jira.client import jira_service
 from app.connectors.mixpanel.client import mixpanel_service
 from app.connectors.notion.client import notion_service

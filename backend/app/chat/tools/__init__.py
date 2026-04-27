@@ -10,7 +10,7 @@ contract in `docs/contracts/README.md` (NBB-205 Contract 11).
 """
 from typing import Any, Dict, Tuple
 
-from app.config.tool_loader import tool_loader
+from app.config.tool import tool_loader
 
 
 # Static names of every chat-owned tool JSON loaded through the `chat_tools`

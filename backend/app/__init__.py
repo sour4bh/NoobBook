@@ -10,13 +10,8 @@ Every line below is a migration touch point; downstream tickets that move
 auth, RBAC, project access, Supabase, or integrations must update this file.
 
 1. Config loading
-   - `from config import config` pulls the `Config` dict from
-     `backend/config.py` (top-level module).
-   - Note: `backend/config.py` (plain module exposing a config dict) collides
-     with the `backend/app/config/` subpackage. This is a preexisting
-     structural issue, flagged (not fixed) per the Decision Log entry dated
-     2026-04-24. Renaming `backend/config.py` belongs to a backend-charter
-     follow-up ticket; `NBB-208A` must not introduce a rename or shim.
+   - `from app.config.runtime import config` pulls the `Config` dict from
+     `backend/app/config/runtime.py`.
 2. Logging setup via `app.base.logging.setup_logging`.
 3. `config[config_name].init_app(app)` runs env-dependent init (directory
    creation, etc.) through the Config class.
@@ -28,7 +23,8 @@ auth, RBAC, project access, Supabase, or integrations must update this file.
      production and threading in development (gated by `FLASK_ENV`).
 6. Blueprint registration
    - `from app.api import api_bp` at `app.config['API_PREFIX']`.
-   - `backend/app/api/` remains the transport boundary (per `NBB-104`).
+   - `backend/app/api/` is the transport boundary (per `NBB-906`): parse
+     HTTP, run guards, call public domain surfaces, and format responses.
 7. Supabase admin bootstrap
    - `auth_service.bootstrap_admin_from_env()` runs only when
      `is_supabase_enabled()` returns True.
@@ -66,10 +62,7 @@ from flask import Flask, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
-# Educational Note (NBB-208A): `config` here is `backend/config.py`, not the
-# `backend/app/config/` subpackage. Renaming the top-level module is a
-# separate backend-charter follow-up; do not shim here.
-from config import config as config_classes
+from app.config.runtime import config as config_classes
 from app.base.logging import setup_logging
 
 # Initialize extensions globally but without app context.
@@ -134,8 +127,13 @@ def create_app(config_name='development'):
         if not path.startswith(api_prefix):
             return None
 
-        # Allow auth and health endpoints without authentication
-        if path.startswith(f"{api_prefix}/auth") or path == f"{api_prefix}/health":
+        # Allow auth, health, and provider OAuth callbacks without the generic
+        # API bearer-token guard. OAuth callbacks validate their signed state.
+        if (
+            path.startswith(f"{api_prefix}/auth")
+            or path == f"{api_prefix}/health"
+            or path == f"{api_prefix}/google/callback"
+        ):
             return None
 
         identity = get_request_identity()

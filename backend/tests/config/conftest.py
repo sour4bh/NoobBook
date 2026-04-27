@@ -2,7 +2,7 @@
 Local conftest for tests/config/.
 
 Sets placeholder Supabase env vars before collection so that importing
-`app.config` — which transitively loads `context_loader` → Supabase client
+`app.config` — which transitively loads `app.config.context` → Supabase client
 initialization — does not raise on a developer machine or CI job without a
 populated `.env`. These tests do not touch Supabase; the vars only unblock
 module import.

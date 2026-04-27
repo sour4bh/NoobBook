@@ -22,6 +22,7 @@ The backend root list is finalized. Every backend file belongs under exactly one
 | `backend/app/studio/` | Studio generation items and studio job/tool/run behavior. |
 | `backend/app/brand/` | Brand config and brand asset ownership. |
 | `backend/app/settings/` | App/user settings and API-key UI backend. |
+| `backend/app/config/` | Runtime config, provider/model/prompt/tool loaders, and registered asset paths. |
 | `backend/app/connectors/` | Product-level configured external capabilities, user/project connection stores, permission-gated tool surfaces. |
 | `backend/app/providers/` | Low-level external API clients, SDK wrappers, auth primitives, storage adapters, and runtime IO adapters. |
 | `backend/app/background/` | Task lifecycle, cancellation, active-task status, and execution-log ownership. |

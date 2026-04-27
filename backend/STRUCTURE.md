@@ -34,9 +34,9 @@ Two CI guardrails run on every push/PR:
 
 1. **Root registry and retired-root no-return.** Every tracked top-level child of
    `backend/app/` must be a canonical backend root from `STRUCTURE.md`'s
-   NBB-104 table. The `config/` package is known migration state for the
-   `backend/config.py` vs `backend/app/config/` follow-up. `services/` is
-   retired by NBB-811; `utils/` and `data/prompts/` are retired by NBB-812.
+   NBB-104/NBB-902 table. `config/` is canonical runtime configuration.
+   `services/` is retired by NBB-811; `utils/` and `data/prompts/` are
+   retired by NBB-812.
    Any tracked file under those retired roots, any forbidden `app.services.*`
    or forbidden `app.utils.*` reference in backend app code or tests, or
    current docs that present retired roots as live architecture fail the check.
@@ -61,6 +61,9 @@ Two CI guardrails run on every push/PR:
    state at base commit `f118268` is the regression guard. One inherited
    exception is allowlisted: `auth/tool_policy.py` lazily registers
    sources-owned tool capabilities (NBB-202B cross-cutting registry).
+6. **API is transport-only.** App code outside `backend/app/api/` must not
+   import `app.api.*` route modules. The app factory is the only non-route
+   exception because it registers the root blueprint.
 
 Relative imports inside any package are not checked; they stay within the
 package by construction.

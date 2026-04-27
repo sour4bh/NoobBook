@@ -25,7 +25,7 @@ Supabase Storage.
 """
 import logging
 from pathlib import Path
-from config import Config
+from app.config.runtime import Config
 
 logger = logging.getLogger(__name__)
 

@@ -163,7 +163,7 @@ def get_default_models_for_category(category: str) -> Dict[str, list]:
     memory; studio is mostly Sonnet with three Opus prompts.
     """
     # Lazy import to avoid circular dependency at module load time
-    from app.config.prompt_loader import prompt_loader
+    from app.config.prompt import prompt_loader
 
     breakdown: Dict[str, list] = {}
     for prompt_name, cat in PROMPT_TO_CATEGORY.items():

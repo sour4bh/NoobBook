@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
-from app.config.prompt_loader import prompt_loader
+from app.config.prompt import prompt_loader
 from app.providers.supabase import storage_service
 from app.sources.analysis.csv.summarize import csv_service
 

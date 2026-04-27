@@ -29,7 +29,7 @@ Path builder module: `backend/app/providers/supabase/storage.py` (`_build_path`)
 | Column | Table | Defined in | Purpose |
 |---|---|---|---|
 | `sources.embedding_info` | `sources` | 00001 | Pinecone vector IDs + counts. |
-| `sources.summary_info` | `sources` | 00001 | AI-generated summary metadata loaded by `context_loader.py`. |
+| `sources.summary_info` | `sources` | 00001 | AI-generated summary metadata loaded by `app.config.context.context_loader`. |
 | `freshdesk_tickets.custom_fields` | `freshdesk_tickets` | 00016, 00017 | Flexible Freshdesk custom field passthrough. |
 
 ## Access guard of record

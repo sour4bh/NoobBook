@@ -6,12 +6,12 @@ Educational Note: Rate limiting prevents hitting API limits by:
 - Blocking/waiting when the limit is reached
 - Resetting the counter when the window expires
 
-This utility is designed to work with tier_loader.py which provides
+This utility is designed to work with app.config.provider, which provides
 rate limit configurations based on API tier (free, paid, enterprise).
 
 Usage:
     from app.providers.anthropic.rate import RateLimiter
-    from app.config import get_anthropic_config
+    from app.config.provider import get_anthropic_config
 
     # Create limiter with tier config
     tier_config = get_anthropic_config()

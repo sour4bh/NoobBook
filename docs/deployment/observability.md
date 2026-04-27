@@ -83,7 +83,7 @@ These are the invariants encoded in `backend/gunicorn.conf.py`, `frontend/nginx.
 7. **`max_requests = 5000` drops active SSE/WebSocket streams when it trips.** With `workers=1` and gevent, a worker recycle kills every in-flight long-lived connection. Keep the threshold high enough that idle-reload is the dominant cause of recycling.
 8. **`client_max_body_size 100M`.** Upload ceiling for PDFs, PPTX, and audio sources. Any stricter nginx frontend will return 413 before the backend sees the request.
 9. **Opik attachment must stay lazy.** `claude_service._get_client` wraps the client on first use. Eager attachment would fail imports when `OPIK_API_KEY` is unset and no test covers the eager path. The `try/except ImportError` guard must stay.
-10. **Prompt JSON is registry-owned app code.** `backend/entrypoint.sh` must not recreate `data/prompts/`; prompt assets live under domain-owned `prompts/` directories and resolve through `backend/app/config/asset_registry.py`.
+10. **Prompt JSON is registry-owned app code.** `backend/entrypoint.sh` must not recreate `data/prompts/`; prompt assets live under domain-owned `prompts/` directories and resolve through `backend/app/config/asset.py`.
 
 ## Behavior local tests cannot prove
 

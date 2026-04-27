@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
-from config import Config
+from app.config.runtime import Config
 from app.base.paths import get_web_agent_dir, get_agents_dir
 import logging
 

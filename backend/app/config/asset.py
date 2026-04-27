@@ -236,7 +236,7 @@ _PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
 # Tool categories that have moved to domain-owned homes (NBB-207C). Paired
 # with `_PRODUCTION_PROMPT_PATHS` so both asset types replay through one
 # function; the autouse reset fixture in
-# `backend/tests/config/test_asset_registry.py` has a single replay hook.
+# `backend/tests/config/test_asset.py` has a single replay hook.
 #
 # Key: category (the first argument to `tool_loader.load_tool` /
 # `load_tools_from_category` / `load_tools_for_agent`, and the `AGENT_NAME`

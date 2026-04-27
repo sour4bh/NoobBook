@@ -139,31 +139,30 @@ def test_identity_jwt_exception_falls_through_to_fallback(auth_required_env):
 
 
 # ---------------------------------------------------------------------------
-# verify_project_access: owner vs non-owner
+# verify_project_access: pure access check
 # ---------------------------------------------------------------------------
 
 def test_verify_project_access_owner_returns_none(auth_app):
     """Owner access: `verify_project_access` returns None so the route
     proceeds to its handler.
 
-    `middleware.verify_project_access` does a local
-    `from app.projects.store import project_service` and calls
-    `project_service.get_project(...)` on the singleton defined at the
-    bottom of `app/projects/store.py`. We patch that singleton's method
-    directly."""
+    `middleware.verify_project_access` delegates to the pure
+    `project_service.has_project_access(...)` check. It must not call
+    `get_project(...)`, which would load project data and mutate
+    `last_accessed` before NBB-905."""
     from app.api.auth import middleware
     from app.projects.store import project_service
 
     with auth_app.test_request_context("/x"), patch.object(
-        project_service,
-        "get_project",
-        return_value={"id": "proj-1", "user_id": "user-owner"},
-    ):
+        project_service, "has_project_access", return_value=True
+    ) as has_access, patch.object(project_service, "get_project") as get_project:
         from flask import g
         g.user_id = "user-owner"
         result = middleware.verify_project_access("proj-1")
 
     assert result is None
+    has_access.assert_called_once_with("proj-1", user_id="user-owner")
+    get_project.assert_not_called()
 
 
 def test_verify_project_access_non_owner_returns_404(auth_app):
@@ -174,10 +173,8 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
     from app.projects.store import project_service
 
     with auth_app.test_request_context("/x"), patch.object(
-        project_service,
-        "get_project",
-        return_value=None,
-    ):
+        project_service, "has_project_access", return_value=False
+    ) as has_access, patch.object(project_service, "get_project") as get_project:
         from flask import g
         g.user_id = "user-intruder"
         result = middleware.verify_project_access("proj-1")
@@ -187,6 +184,8 @@ def test_verify_project_access_non_owner_returns_404(auth_app):
     assert status == 404
     body = response.get_json()
     assert body == {"success": False, "error": "Project not found"}
+    has_access.assert_called_once_with("proj-1", user_id="user-intruder")
+    get_project.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

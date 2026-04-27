@@ -22,8 +22,8 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.providers.anthropic import claude_service
-from app.config.prompt_loader import prompt_loader
-from app.config.tool_loader import tool_loader
+from app.config.prompt import prompt_loader
+from app.config.tool import tool_loader
 from app.sources.link.run import web_agent_executor
 from app.chat.store import message_service
 import app.providers.anthropic.content

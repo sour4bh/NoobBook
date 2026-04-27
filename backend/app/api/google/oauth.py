@@ -25,14 +25,14 @@ Routes:
 - GET  /google/callback   - Handle OAuth callback (redirects)
 - POST /google/disconnect - Remove stored tokens
 """
-from typing import Optional
+from urllib.parse import quote_plus
 from flask import jsonify, request, redirect, current_app
 from app.api.google import google_bp
 from app.providers.google.auth import google_auth_service
 from app.auth.identity import get_request_identity
 
 
-def _get_current_user_id() -> Optional[str]:
+def _get_current_user_id() -> str:
     """
     Get the current user ID from the authenticated session.
 
@@ -41,12 +41,10 @@ def _get_current_user_id() -> Optional[str]:
     For multi-user mode, implement JWT/session extraction here.
 
     Returns:
-        User ID string or None for default user
+        User ID string from auth-required credentials, dev headers, or fallback
     """
     identity = get_request_identity()
-    if identity.is_authenticated:
-        return identity.user_id
-    return None
+    return identity.user_id
 
 
 @google_bp.route('/google/status', methods=['GET'])
@@ -112,7 +110,11 @@ def google_auth():
             }), 400
 
         user_id = _get_current_user_id()
-        auth_url = google_auth_service.get_auth_url(user_id=user_id)
+        state = google_auth_service.build_state(
+            user_id=user_id,
+            secret_key=current_app.config["SECRET_KEY"],
+        )
+        auth_url = google_auth_service.get_auth_url(user_id=user_id, state=state)
         if not auth_url:
             return jsonify({
                 'success': False,
@@ -161,30 +163,34 @@ def google_callback():
         error = request.args.get('error')
         if error:
             current_app.logger.warning(f"Google OAuth denied: {error}")
-            return redirect(f'http://localhost:5173?google_auth=error&message={error}')
+            return redirect(f'http://localhost:5173?google_auth=error&message={quote_plus(error)}')
 
         # Get authorization code
         code = request.args.get('code')
         if not code:
             return redirect('http://localhost:5173?google_auth=error&message=No+authorization+code')
 
-        # Get user_id from state parameter (for multi-user support)
-        # State was set in get_auth_url() to identify which user initiated OAuth
-        user_id = request.args.get('state')
+        state = request.args.get('state', '')
+        user_id = google_auth_service.parse_state(
+            state=state,
+            secret_key=current_app.config["SECRET_KEY"],
+        )
+        if not user_id:
+            return redirect('http://localhost:5173?google_auth=error&message=Invalid+OAuth+state')
 
         # Exchange code for tokens, passing user_id for storage
-        success, message = google_auth_service.handle_callback(code, user_id=user_id if user_id else None)
+        success, message = google_auth_service.handle_callback(code, user_id=user_id)
 
         if success:
             current_app.logger.info(f"Google OAuth successful: {message}")
             return redirect('http://localhost:5173?google_auth=success')
         else:
             current_app.logger.error(f"Google OAuth failed: {message}")
-            return redirect(f'http://localhost:5173?google_auth=error&message={message}')
+            return redirect(f'http://localhost:5173?google_auth=error&message={quote_plus(message)}')
 
     except Exception as e:
         current_app.logger.error(f"Error in Google callback: {e}")
-        return redirect(f'http://localhost:5173?google_auth=error&message={str(e)}')
+        return redirect(f'http://localhost:5173?google_auth=error&message={quote_plus(str(e))}')
 
 
 @google_bp.route('/google/disconnect', methods=['POST'])

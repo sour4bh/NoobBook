@@ -17,21 +17,21 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of 2026-04-27, **MIGRATION SPRINT COMPLETE** for the original 59-ticket sprint, with a stricter post-sprint continuation registered as `NBB-008`. Phase 4/5 batch 19 closed when NBB-706 merged via two-worker split (Sonnet doc/mechanical + Opus semantic refactor + single Opus reviewer covering both). NBB-706 remains complete under its approved-exception standard; NBB-008 supersedes those placement exceptions for final retired-root eradication:
+As of 2026-04-27, **MIGRATION SPRINT COMPLETE** for the original 59-ticket sprint, with stricter post-sprint continuations registered as `NBB-008` and `NBB-009`. Phase 4/5 batch 19 closed when NBB-706 merged via two-worker split (Sonnet doc/mechanical + Opus semantic refactor + single Opus reviewer covering both). NBB-706 remains complete under its approved-exception standard; NBB-008 supersedes those placement exceptions for final retired-root eradication; NBB-009 closes the selected deferred hardening work in the current working tree:
 
-- Current planning base: `main` @ `ac91747` (`e03bad0` is the NBB-812 frozen-root baseline; `0f1f9e5` is the NBB-811 services no-return baseline; `f8639ad` is the original sprint-completion baseline before post-sprint audit/plan commits).
+- Current planning base: `main` @ `369fa06` (`ac91747` is the NBB-813 retired-root reconciliation baseline; `e03bad0` is the NBB-812 frozen-root baseline; `0f1f9e5` is the NBB-811 services no-return baseline; `f8639ad` is the original sprint-completion baseline before post-sprint audit/plan commits).
 - Merged progress: **58 of 59 tasks merged** + 1 deferred (NBB-108B per D-004) = 59 accounted. (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5: NBB-501A, NBB-209A; batch 6: NBB-501B, NBB-402; batch 7: NBB-502, NBB-201; batch 8: NBB-202A, NBB-503; batch 9: NBB-209C, NBB-506, NBB-504, NBB-505; batch 10: NBB-705A, NBB-602, NBB-705C; batch 11: NBB-603, NBB-705D, NBB-507; batch 12: NBB-604, NBB-301, NBB-202B; batch 13: NBB-302; batch 14: NBB-403; batch 15: NBB-705B, NBB-303; batch 16: NBB-705E, NBB-304, NBB-701; batch 17: NBB-702, NBB-704B, NBB-703; batch 18: NBB-704C; batch 19: NBB-706 (split worker dispatch))
-- Continuation progress: `NBB-801` through `NBB-813` merged. Source AI/link services, chat memory, settings env/dispatcher, raw provider clients, provider validators, connector clients, connector validators, source upload/processing pipelines, the studio job store, tool JSON schemas, and the final services root have left `backend/app/services/`. `NBB-812` moved the last `backend/app/utils` residents and remaining legacy prompt JSON assets to owned roots. `NBB-813` reconciled deployment scripts/current docs with that end state and hardened retired-root doc checks.
-- Current verifier status on this working tree: `verify_no_stateless_singletons.py` 8 allowlisted + 0 new offenses; `verify_architecture.py` 0 violations; `verify_project_id_coverage.py` 0 omissions across 334 files; focused prompt/text pytest 102 passed; backend pytest 740 passed; pyright 0 errors / 4319 warnings; frontend build passes from `frontend/`; backend Docker build not run because the local Docker daemon is unavailable.
+- Continuation progress: `NBB-801` through `NBB-813` merged. `NBB-901` through `NBB-909` are implemented and verified in the current working tree, ready for commit. Source AI/link services, chat memory, settings env/dispatcher, raw provider clients, provider validators, connector clients, connector validators, source upload/processing pipelines, the studio job store, tool JSON schemas, and the final services root have left `backend/app/services/`. `NBB-812` moved the last `backend/app/utils` residents and remaining legacy prompt JSON assets to owned roots. `NBB-813` reconciled deployment scripts/current docs with that end state and hardened retired-root doc checks. `NBB-009` adds Hydra-like config modules, auth/OAuth/project-access fixes, API transport boundary enforcement, declarative CSV analysis, and frontend smoke tests.
+- Current verifier status on this working tree: `verify_no_stateless_singletons.py` 8 allowlisted + 0 new offenses; `verify_architecture.py` 0 violations; `verify_project_id_coverage.py` 0 omissions across 335 files; focused NBB-009 backend pytest 372 passed; backend pytest 736 passed; pyright 0 errors / 4280 warnings; frontend Vitest 4 files / 5 tests passed; frontend build passes from `frontend/`.
 - **Sprint outcome**: domain-first layout fully landed under `app/<domain>/…`. Mechanism-first buckets (`ai_services/`, `ai_agents/`, `tool_executors/`, `utils/`) are either drained by NBB-008 or historical sprint-complete exceptions superseded by NBB-812. 6 barrels removed + 7 stateless classes converted to module functions + chat submodule-vs-function shadow eliminated. Type-safety (pyright) + AST-safety (`verify_no_stateless_singletons.py` + `verify_project_id_coverage.py`) checks gating CI. Architecture invariant (rules 1-5 in `verify_architecture.py`) gating CI. `docs/tickets/NBB-706-disposition.md` now distinguishes original sprint-complete exceptions from NBB-008 moves into domains, providers, connectors, and settings.
 - **Continuation outcome**: no tracked files remain under `backend/app/services/`, `backend/app/utils/`, or `backend/data/prompts/`; `verify_architecture.py` now fails on any tracked retired-root file, `app.services.*` import, `app.utils.*` import, or current-doc guidance treating retired roots as live.
 - Refactory worktree-isolation contract in force: absolute `project_root` is mandatory on every move/rename; preview is default; `apply: true` mutates. `expected_git_root` is no longer part of the caller-facing contract. Cat A/B hazard pre-flight refuses with actionable errors. Pre-fix contamination forensic retained at `stash@{0}`.
 - Phase 5 studio lane closed in the original sprint (NBB-503 pilot plus NBB-504 through NBB-507 all merged).
-- Graph shape: 80 CSV rows, 8 epics, 72 tasks
+- Graph shape: 90 CSV rows, 9 epics, 81 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify the session exposes refactory `move_module` before dispatching movement work.
-- Permanent raw-code analysis replacement: out of scope, tracked by `D-002`
-- Route movement out of `backend/app/api`: out of scope, tracked by `D-001`
+- Permanent raw-code analysis replacement: implemented by `NBB-907`; `D-002` resolved.
+- Route movement out of `backend/app/api`: intentionally not pursued; `NBB-906` closes `D-001` by locking API routes as HTTP transport-only.
 
 ## Execution Rules
 
@@ -150,6 +150,7 @@ Do not escalate to Codex for:
 | Frontend | shell rules, hooks/providers, lib/context tightening | `NBB-601` through `NBB-604` |
 | Verification and cleanup | architecture checks, utility drains, final cleanup | `NBB-704A` through `NBB-706` |
 | Services eradication | final retired-root drain, provider/connector split, no-return enforcement | `NBB-801` through `NBB-813` |
+| Deferred hardening | config runtime, auth/OAuth, route boundary, safe analysis, frontend smoke tests | `NBB-901` through `NBB-909` |
 
 ## Phase Plan
 
@@ -351,6 +352,19 @@ Purpose:
 - Move live behavior out of `backend/app/services/` into domain, provider, connector, settings, source, studio, and chat homes.
 - End with verifier enforcement that prevents tracked services files or `app.services.*` imports from returning.
 
+### Phase 8 - Deferred Hardening
+
+Run after NBB-008 is complete:
+
+```text
+NBB-901 -> NBB-902 -> NBB-903 -> NBB-904 -> NBB-905 -> NBB-906 -> NBB-907 -> NBB-908 -> NBB-909
+```
+
+Purpose:
+
+- Close the selected deferred items now: config/runtime cleanup, dev-mode API auth parity, OAuth callback state validation, project-open side-effect split, API transport boundary enforcement, raw-code analysis replacement, and frontend smoke tests.
+- Keep `D-003` broad security review and `D-005` cross-stack contract redesign explicitly deferred.
+
 ## Critical Path
 
 The longest weighted path currently runs through studio/background/utility cleanup:
@@ -363,7 +377,7 @@ NBB-101 -> NBB-102 -> NBB-104 -> NBB-204 -> NBB-210
 
 Do not let `NBB-204`, `NBB-210`, `NBB-501B`, `NBB-502`, or `NBB-503` sit idle once unblocked.
 
-The continuation critical path is now the services drain chain:
+The services drain continuation path was:
 
 ```text
 NBB-801 -> NBB-802 -> NBB-803 -> NBB-804
@@ -372,6 +386,12 @@ NBB-808 + NBB-809 -> NBB-810 -> NBB-811
 ```
 
 Do not start broad product-code movement before `NBB-801` lands and the drain map is the durable source of truth.
+
+The current deferred-hardening path is:
+
+```text
+NBB-901 -> NBB-902 -> NBB-903 -> NBB-904 -> NBB-905 -> NBB-906 -> NBB-907 -> NBB-908 -> NBB-909
+```
 
 ## Refactory Workflow
 
@@ -502,6 +522,15 @@ Update this table when work starts, merges, or blocks.
 | `NBB-811` | Services eradication | Merged | nbb-worker | `019dcb23-d659-76f3-bcdf-4ed364f6d054` / integrated by main thread | `MERGE` | `0f1f9e5` | PASS worker checks; PASS main-thread review; PASS `git ls-files backend/app/services` (no tracked files); PASS `rg "app\\.services\\." backend/app backend/tests` (no active imports); PASS `python backend/scripts/verify_architecture.py`; PASS `python backend/scripts/verify_no_stateless_singletons.py`; PASS `python backend/scripts/verify_project_id_coverage.py`; PASS `python docs/tickets/dag.py --check`; PASS `cd backend && pytest` (738 passed); PASS `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` (0 errors); PASS `npm run build` from `frontend/` | Deleted the final services root package (`backend/app/services/__init__.py`) and added no-return enforcement for tracked services files, `app.services.*` references, and current-doc guidance treating `services/` as a live destination. Main-thread review tightened `verify_architecture.py` so tracked-but-deleted services paths still fail until staged as deletions. Reconciled current docs/charters to name providers, connectors, sources, and settings directly; `services/` now appears only as historical migration context. |
 | `NBB-812` | Services eradication | Merged | main thread | main working tree | main-thread review done | `e03bad0` | PASS focused prompt/text pytest (102 passed); PASS `git ls-files backend/app/services backend/app/utils backend/data/prompts` (no tracked files); PASS `rg "app\\.utils\\." backend/app backend/tests` (no hits); PASS `python backend/scripts/verify_architecture.py`; PASS `python backend/scripts/verify_no_stateless_singletons.py`; PASS `python backend/scripts/verify_project_id_coverage.py`; PASS `python docs/tickets/dag.py --check`; PASS `python scripts/ci/check_no_new_legacy_files.py --base origin/main`; PASS `cd backend && pytest` (740 passed); PASS `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` (0 errors, 4319 warnings); PASS `cd frontend && npm run build` | Moved final `backend/app/utils` residents to `app.base` / `app.sources.text`, moved remaining legacy prompt JSON assets to domain-owned prompt directories, removed `backend/data/prompts` fallback from `PromptLoader`, and extended no-return guardrails to tracked `backend/app/utils`, tracked `backend/data/prompts`, and `app.utils.*` imports. Main-thread review also moved audio processed-output formatting out of the ElevenLabs provider and into `app.sources.audio.process` so provider leaf checks remain green after text helpers moved to `app.sources.text`. |
 | `NBB-813` | Services eradication | Merged | main thread | main working tree | main-thread review done | `ac91747` | PASS `python backend/scripts/verify_architecture.py`; PASS `python backend/scripts/verify_no_stateless_singletons.py`; PASS `python backend/scripts/verify_project_id_coverage.py`; PASS `python docs/tickets/dag.py --check`; PASS `python scripts/ci/check_no_new_legacy_files.py --base origin/main`; PASS `git diff --check`; PASS `git ls-files backend/app/services backend/app/utils backend/data/prompts` (no tracked files); PASS `rg "app\\.(services|utils)\\." backend/app backend/tests` (no active imports); PASS focused prompt/text pytest (102 passed); PASS `cd backend && pytest` (740 passed); PASS `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` (0 errors, 4319 warnings); PASS `cd frontend && npm run build`; SKIP backend Docker build - Docker daemon unavailable at `unix:///Users/sour4bh/.orbstack/run/docker.sock` | Post-812 reconciliation ticket: removed Docker/entrypoint prompt staging for deleted `backend/data/prompts`, deleted unused legacy path helpers from `app.base.paths`, reconciled current docs and charters to the new homes, extended `verify_architecture.py` to catch current-doc guidance for every retired root, and removed disposable local cache/build residue. |
+| `NBB-901` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS `python docs/tickets/dag.py --check`; PASS full verification listed on `NBB-909` | Registered `NBB-009`, tickets `NBB-901`-`NBB-909`, graph counts, deferred-state reconciliation, and the NBB-009 epic body. |
+| `NBB-902` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS focused config pytest; PASS full backend pytest; PASS pyright | Moved `backend/config.py` into `app.config.runtime`, added `pydantic-settings`, renamed config loaders to short Hydra-like module names, and removed old import paths without shims. |
+| `NBB-903` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS auth focused pytest; PASS full backend pytest | API middleware now honors `NOOBBOOK_AUTH_REQUIRED=false` through `app.auth.identity`, attaching the fallback identity in dev mode while preserving bearer/query-token guard behavior in auth-required mode. |
+| `NBB-904` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS OAuth auth focused pytest; PASS full backend pytest | Google OAuth callback bypasses the generic bearer guard but rejects missing/invalid signed state before token exchange; `/google/auth` generates signed state from the authenticated request. |
+| `NBB-905` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS `backend/tests/test_project_access_semantics.py`; PASS full backend pytest | Split project access from project opening: `verify_project_access()` uses pure access check, `GET /projects/{id}` is read-only, and `POST /projects/{id}/open` is the last-access mutation path. |
+| `NBB-906` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS `python backend/scripts/verify_architecture.py`; PASS full backend pytest | Locked `backend/app/api` as HTTP transport-only with verifier coverage against external `app.api` imports; route files stay in place and may only parse, guard, call public domain surfaces, and format responses. |
+| `NBB-907` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS `backend/tests/test_declarative_csv_analysis.py`; PASS `backend/tests/sources/test_analysis_boundaries.py`; PASS full backend pytest | Removed the raw `exec()` CSV analysis path and replaced `run_analysis` with Pydantic-validated declarative inspect/filter/aggregate/sort/chart operations; `return_analysis` remains the termination tool. |
+| `NBB-908` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS `cd frontend && npm run test:run` (4 files / 5 tests); PASS `cd frontend && npm run build` | Added Vitest, jsdom, RTL, jest-dom, user-event, test setup, and smoke coverage for app boot, permissions provider behavior, workspace shell render, and citation fetch/render. |
+| `NBB-909` | Deferred hardening | Ready to merge | main thread | main working tree | main-thread review done | pending | PASS `python backend/scripts/verify_architecture.py`; PASS `python backend/scripts/verify_no_stateless_singletons.py`; PASS `python backend/scripts/verify_project_id_coverage.py`; PASS `python docs/tickets/dag.py --check`; PASS `cd backend && pytest` (736 passed); PASS `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` (0 errors, 4280 warnings); PASS `cd frontend && npm run test:run`; PASS `cd frontend && npm run build` | Reconciled `DEFERRED.md`: `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolved by NBB-009; `D-003` and `D-005` remain explicitly deferred. |
 
 Status values:
 
@@ -531,12 +560,15 @@ PASS <short command>; SKIP <short command> - <reason>; FAIL <short command> - <r
 
 | Date | Ticket | Blocker | Resolution owner | Status |
 |---|---|---|---|---|
-| 2026-04-24 | (structural) | `backend/config.py` (plain module exposing a config dict) vs `backend/app/config/` (subpackage) name collision. Surfaced by `NBB-106` worker, re-confirmed still present by `NBB-109` worker. Suggested fix path: rename `backend/config.py` to `backend/flask_config.py` and update known import sites including `backend/app/base/paths.py:27`, `backend/app/config/prompt_loader.py:30`, `backend/app/chat/message/store.py:23`, and the auth test conftest shim. Remove the `NBB-106`/`NBB-107` test-only conftest shim as part of the fix. | backend charter follow-up | Open, not blocking any current Ready ticket. Downstream workers must flag-not-fix per Decision Log 2026-04-24 entry. |
+| 2026-04-24 | (structural) | `backend/config.py` (plain module exposing a config dict) vs `backend/app/config/` (subpackage) name collision. Surfaced by `NBB-106` worker, re-confirmed still present by `NBB-109` worker. | `NBB-902` | Resolved in current working tree: top-level `backend/config.py` moved to `backend/app/config/runtime.py`; config loaders renamed to short explicit modules; old config imports removed without compatibility shims. |
 
 ## Decision Log
 
 | Date | Decision | Owner |
 |---|---|---|
+| 2026-04-27 | `NBB-009` closes the selected deferred items now, in one serial hardening pass: `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolve through tickets `NBB-901`-`NBB-909`; `D-003` broad security review and `D-005` cross-stack contract redesign remain explicitly deferred by user decision. | Main thread |
+| 2026-04-27 | Runtime configuration uses a Hydra-like `app.config.*` tree after `NBB-902`: `runtime`, `provider`, `model`, `prompt`, `tool`, `asset`, `context`, and `brand`. The user-facing settings mutation surface remains `app.settings.env` and `app.settings.validation`; no old config module compatibility shims are allowed. | Main thread |
+| 2026-04-27 | CSV analysis no longer supports model-authored Python execution after `NBB-907`. `run_analysis` is a Pydantic-validated declarative table-analysis tool; `return_analysis` remains the termination tool; `NOOBBOOK_ALLOW_RAW_ANALYSIS` is no longer required for CSV analysis. | Main thread |
 | 2026-04-27 | `NBB-813` captures the post-812 reconciliation pass in `NBB-008`: deployment/runtime scripts must not stage or recreate `backend/data/prompts`, obsolete base path compatibility helpers should be deleted once unused, and current-doc no-return checks apply to all retired roots (`services/`, `utils/`, and `data/prompts/`), not only `services/`. | Main thread |
 | 2026-04-27 | `NBB-812` extends `NBB-008` beyond services eradication to final frozen-root erasure: `backend/app/utils` and `backend/data/prompts` are retired no-return roots, prompt loading is registry-only, and `app.utils.*` imports are forbidden alongside `app.services.*`. `base.paths` and `base.logging` are the only approved cross-domain utility rehomes because they have app-wide consumers and no narrower domain owner. | Main thread |
 | 2026-04-24 | Sprint uses `tickets.csv` task dependencies as hard scheduling gates; this file coordinates execution only. | Lead integrator |
@@ -601,3 +633,15 @@ The `NBB-008` continuation is complete when:
 - `rg "app\\.utils\\." backend/app backend/tests` returns no active imports.
 - `python backend/scripts/verify_architecture.py`, `python backend/scripts/verify_no_stateless_singletons.py`, `python backend/scripts/verify_project_id_coverage.py`, `python docs/tickets/dag.py --check`, backend pytest, pyright, and frontend build pass or record a concrete pre-existing blocker.
 - Current docs name `services/`, `utils/`, and `data/prompts/` only as historical migration records or no-return guardrails, not as live destinations.
+
+The `NBB-009` continuation is complete when:
+
+- `NBB-909` is merged.
+- `backend/config.py` is gone and config imports use the explicit `app.config.{runtime,provider,model,prompt,tool,asset,context,brand}` modules.
+- API auth-required and dev-mode middleware behavior are both covered by tests.
+- Google OAuth callback bypasses bearer auth only through signed state validation.
+- Project reads no longer mutate `last_accessed`; only `POST /projects/{id}/open` does.
+- `backend/app/api` transport-only enforcement is active in `verify_architecture.py`.
+- CSV `run_analysis` has no raw Python execution path.
+- Frontend Vitest smoke tests and frontend build pass.
+- `DEFERRED.md` marks `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolved while keeping `D-003` and `D-005` deferred by explicit decision.

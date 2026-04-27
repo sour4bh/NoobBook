@@ -482,3 +482,12 @@ NBB-812,json,backend/data/prompts/csv_analyzer_agent_prompt.json,backend/app/sou
 NBB-812,json,backend/data/prompts/csv_processor_prompt.json,backend/app/sources/analysis/csv/prompts/csv_processor_prompt.json,,,json_asset_move,manual
 NBB-812,json,backend/data/prompts/database_analyzer_agent_prompt.json,backend/app/sources/analysis/database/prompts/database_analyzer_agent_prompt.json,,,json_asset_move,manual
 NBB-812,json,backend/data/prompts/freshdesk_analyzer_agent_prompt.json,backend/app/sources/analysis/freshdesk/prompts/freshdesk_analyzer_agent_prompt.json,,,json_asset_move,manual
+NBB-902,python,backend/config.py,backend/app/config/runtime.py,,,python_module_move,manual
+NBB-902,python,backend/app/config/asset_registry.py,backend/app/config/asset.py,,,python_module_move,manual
+NBB-902,python,backend/app/config/brand_context_loader.py,backend/app/config/brand.py,,,python_module_move,manual
+NBB-902,python,backend/app/config/context_loader.py,backend/app/config/context.py,,,python_module_move,manual
+NBB-902,python,backend/app/config/model_loader.py,backend/app/config/model.py,,,python_module_move,manual
+NBB-902,python,backend/app/config/prompt_loader.py,backend/app/config/prompt.py,,,python_module_move,manual
+NBB-902,python,backend/app/config/tier_loader.py,backend/app/config/provider.py,,,python_module_move,manual
+NBB-902,python,backend/app/config/tool_loader.py,backend/app/config/tool.py,,,python_module_move,manual
+NBB-902,python,backend/tests/config/test_asset_registry.py,backend/tests/config/test_asset.py,,,python_module_move,manual

@@ -3,21 +3,17 @@ CSV Analyzer Agent - AI agent for answering questions about CSV data.
 
 Educational Note: This agent uses pandas for flexible data analysis:
 1. Receives a user query about a CSV file
-2. Writes and executes pandas code via run_analysis tool
+2. Requests validated table operations through the run_analysis tool
 3. Can generate visualizations with matplotlib/seaborn
 4. Returns final answer via return_analysis (termination tool)
 
 The agent is triggered by main_chat when user asks about CSV sources.
 Results (including any generated plots) are returned to main_chat.
 
-Security Note (NBB-203, pre-migration mitigation):
-    This agent drives the raw-code ``exec()`` path in ``analysis_executor``.
-    It refuses to start and returns an error result unless
-    ``analysis_executor.raw_analysis_enabled()`` returns True — i.e. both
-    ``NOOBBOOK_AUTH_REQUIRED=false`` and ``NOOBBOOK_ALLOW_RAW_ANALYSIS=true``
-    are set. The early exit happens before any Claude API call so no cost is
-    burned and callers (main chat, business report executor) get a clean
-    disabled signal. Permanent replacement tracked by ``DEFERRED.md`` D-002.
+Security Note:
+    `run_analysis` is declarative after NBB-907. The model can request only
+    validated inspect/filter/aggregate/sort/chart operations, not arbitrary
+    Python source.
 """
 
 import logging
@@ -26,12 +22,10 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from app.providers.anthropic import claude_service
-from app.config.prompt_loader import prompt_loader
-from app.config.tool_loader import tool_loader
+from app.config.prompt import prompt_loader
+from app.config.tool import tool_loader
 from app.sources.analysis.csv.run import (
     analysis_executor,
-    raw_analysis_enabled,
-    RAW_ANALYSIS_DISABLED_MESSAGE,
 )
 from app.chat.store import message_service
 import app.providers.anthropic.response_parser
@@ -44,8 +38,8 @@ class CSVAnalyzerAgent:
     """
     Agent for answering user questions about CSV data using pandas.
 
-    Educational Note: This agent writes pandas code dynamically,
-    enabling flexible analysis for any question about the data.
+    Educational Note: This agent asks for typed table operations instead of
+    arbitrary Python, keeping CSV analysis available in auth-required mode.
     """
 
     AGENT_NAME = "csv_analyzer_agent"
@@ -68,7 +62,7 @@ class CSVAnalyzerAgent:
         Load tools for data analysis.
 
         Educational Note: We load tools from analysis_agent category:
-        - run_analysis: Execute pandas code
+        - run_analysis: Execute a validated table operation
         - return_analysis: Return final answer with optional plots
         """
         if self._tools is None:
@@ -87,8 +81,9 @@ class CSVAnalyzerAgent:
         """
         Run the agent to answer a question about CSV data.
 
-        Educational Note: The agent writes pandas code to answer questions.
-        It can run multiple queries and generate plots before returning.
+        Educational Note: The agent requests validated operations to answer
+        questions. It can run multiple operations and generate plots before
+        returning.
 
         Args:
             project_id: Project ID (for file paths and cost tracking)
@@ -98,20 +93,6 @@ class CSVAnalyzerAgent:
         Returns:
             Dict with success status, summary, and optional image_paths
         """
-        # NBB-203: Refuse to start the agent loop at all when raw-code
-        # analysis is disabled. We check BEFORE the first claude_service
-        # call so production/auth-required mode never incurs API cost just
-        # to reach a blocked exec().
-        if not raw_analysis_enabled():
-            logger.warning(
-                "csv_analyzer_agent refused to run: raw-code analysis disabled (NBB-203)."
-            )
-            return {
-                "success": False,
-                "error": RAW_ANALYSIS_DISABLED_MESSAGE,
-                "usage": {"input_tokens": 0, "output_tokens": 0},
-            }
-
         config = self._load_config()
         tools = self._load_tools()
 

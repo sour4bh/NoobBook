@@ -23,8 +23,8 @@ from app.chat.schemas import ChatEvent, ChatResponse
 from app.chat.store import chat_service
 from app.chat.streaming import ClaudeStreamError, call_claude, iter_chat_events
 from app.chat.tool.policy import chat_tool_policy
-from app.config.prompt_loader import prompt_loader
-from app.config import context_loader
+from app.config.prompt import prompt_loader
+from app.config.context import context_loader
 from app.projects.store import DEFAULT_USER_ID
 from app.providers.anthropic.content import serialize_content_blocks
 from app.providers.anthropic.response_parser import (

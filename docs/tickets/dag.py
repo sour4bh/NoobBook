@@ -15,9 +15,9 @@ REPO_ROOT = ROOT.parent.parent
 
 # These targets intentionally pin the current migration graph. Update them
 # only when adding or removing tickets deliberately.
-TARGET_ROW_COUNT = 80
-TARGET_EPIC_COUNT = 8
-TARGET_TASK_COUNT = 72
+TARGET_ROW_COUNT = 90
+TARGET_EPIC_COUNT = 9
+TARGET_TASK_COUNT = 81
 REMOVED_AGGREGATE_KEYS = (
     "NBB-108",
     "NBB-202",

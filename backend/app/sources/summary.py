@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import app.providers.anthropic.response_parser
-from app.config.prompt_loader import prompt_loader
+from app.config.prompt import prompt_loader
 from app.providers.anthropic import claude_service
 from app.providers.supabase import storage_service
 

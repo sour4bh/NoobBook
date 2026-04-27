@@ -38,9 +38,7 @@ def verify_project_access(project_id: str) -> Optional[Tuple[Response, int]]:
     from app.projects.store import project_service
 
     user_id = get_current_user_id()
-    project = project_service.get_project(project_id, user_id=user_id)
-
-    if not project:
+    if not project_service.has_project_access(project_id, user_id=user_id):
         return jsonify({"success": False, "error": "Project not found"}), 404
 
     return None

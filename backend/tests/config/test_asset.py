@@ -13,10 +13,10 @@ from typing import Dict
 
 import pytest
 
-from app.config import asset_registry
-from app.config.asset_registry import AssetNotFoundError
-from app.config.prompt_loader import PromptLoader
-from app.config.tool_loader import ToolLoader
+import app.config.asset as asset
+from app.config.asset import AssetNotFoundError
+from app.config.prompt import PromptLoader
+from app.config.tool import ToolLoader
 
 
 @pytest.fixture(autouse=True)
@@ -26,9 +26,9 @@ def _reset_registry():
     The production `prompt_loader` and `tool_loader` singletons share this
     module-level registry, so any leak would pollute other tests.
     """
-    asset_registry._reset_for_tests()
+    asset._reset_for_tests()
     yield
-    asset_registry._reset_for_tests()
+    asset._reset_for_tests()
 
 
 def _write_prompt(dir_path: Path, filename: str, payload: Dict) -> Path:
@@ -81,7 +81,7 @@ def test_prompt_registered_path_resolves(tmp_path):
             "system_prompt": "registered memory prompt",
         },
     )
-    asset_registry.register_prompt_path("memory", owned)
+    asset.register_prompt_path("memory", owned)
     loader = _loader_with_projects_dir(tmp_path)
 
     config = loader.get_prompt_config("memory")
@@ -93,7 +93,7 @@ def test_prompt_registered_path_resolves(tmp_path):
 def test_prompt_registered_path_missing_file_returns_none(tmp_path):
     owned = tmp_path / "chat" / "memory" / "prompts"
     owned.mkdir(parents=True, exist_ok=True)  # directory exists, file does not
-    asset_registry.register_prompt_path("memory", owned)
+    asset.register_prompt_path("memory", owned)
 
     loader = _loader_with_projects_dir(tmp_path)
 
@@ -110,7 +110,7 @@ def test_prompt_missing_everywhere_returns_none_via_public_api(tmp_path):
 
 def test_prompt_missing_everywhere_raises_through_internal_resolver(tmp_path):
     with pytest.raises(AssetNotFoundError) as err:
-        asset_registry.resolve_prompt_path("does_not_exist", "does_not_exist_prompt.json")
+        asset.resolve_prompt_path("does_not_exist", "does_not_exist_prompt.json")
 
     assert "does_not_exist" in str(err.value)
     assert "registry-only" in str(err.value)
@@ -123,7 +123,7 @@ def test_tool_registered_per_file_path_resolves(tmp_path):
     registry_root = tmp_path
     owned = tmp_path / "chat" / "memory" / "tools"
     _write_tool(owned, "memory_tool.json", "owned_memory")
-    asset_registry.register_tool_path("chat_tools", "memory_tool", owned)
+    asset.register_tool_path("chat_tools", "memory_tool", owned)
 
     loader = _loader_with_tools_dir(registry_root)
 
@@ -136,7 +136,7 @@ def test_tool_registered_per_file_missing_raises(tmp_path):
     registry_root = tmp_path
     owned = tmp_path / "chat" / "memory" / "tools"
     owned.mkdir(parents=True, exist_ok=True)  # dir exists, file does not
-    asset_registry.register_tool_path("chat_tools", "memory_tool", owned)
+    asset.register_tool_path("chat_tools", "memory_tool", owned)
 
     loader = _loader_with_tools_dir(registry_root)
 
@@ -148,7 +148,7 @@ def test_tool_registered_category_path_resolves(tmp_path):
     registry_root = tmp_path
     owned = tmp_path / "sources" / "pdf" / "tools"
     _write_tool(owned, "pdf_extraction.json", "owned_pdf")
-    asset_registry.register_tool_category("pdf_tools", owned)
+    asset.register_tool_category("pdf_tools", owned)
 
     loader = _loader_with_tools_dir(registry_root)
 
@@ -163,7 +163,7 @@ def test_tool_category_enumeration_uses_exact_file_registrations(tmp_path):
     owned = tmp_path / "chat" / "memory" / "tools"
     _write_tool(owned, "memory_tool.json", "owned_memory")
     _write_tool(owned, "manage_memory_tool.json", "save_memory")
-    asset_registry.register_tool_path("chat_tools", "memory_tool", owned)
+    asset.register_tool_path("chat_tools", "memory_tool", owned)
 
     loader = _loader_with_tools_dir(registry_root)
 
@@ -184,7 +184,7 @@ def test_tool_missing_everywhere_raises_clear_error_through_resolver(tmp_path):
     registry_root = tmp_path
 
     with pytest.raises(AssetNotFoundError) as err:
-        asset_registry.resolve_tool_path("pdf_tools", "does_not_exist", registry_root)
+        asset.resolve_tool_path("pdf_tools", "does_not_exist", registry_root)
 
     msg = str(err.value)
     assert "pdf_tools" in msg

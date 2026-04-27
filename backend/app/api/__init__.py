@@ -33,6 +33,7 @@ without needing @require_auth on each route.
 from flask import Blueprint, request, jsonify, g
 
 from app.api.auth.middleware import validate_token  # noqa: E402
+from app.auth.identity import get_request_identity, is_auth_required  # noqa: E402
 
 from app.api.auth import auth_bp
 from app.api.chats import chats_bp
@@ -69,8 +70,17 @@ def authenticate_request():
     if request.method == 'OPTIONS':
         return None
 
-    # Skip authentication for auth and health routes
-    if request.path.startswith('/api/v1/auth/') or request.path == '/api/v1/health':
+    # Skip authentication for auth, health, and provider OAuth callback routes.
+    if (
+        request.path.startswith('/api/v1/auth/')
+        or request.path == '/api/v1/health'
+        or request.path == '/api/v1/google/callback'
+    ):
+        return None
+
+    if not is_auth_required():
+        identity = get_request_identity()
+        g.user_id = identity.user_id
         return None
 
     user_id = validate_token()

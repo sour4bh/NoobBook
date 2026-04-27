@@ -7,11 +7,6 @@ the top-level conftest. Names stay narrow (`auth_app`, `auth_client`,
 `clear_token_cache`) so sibling test suites can add their own fixtures
 without overlap.
 
-The shim below mirrors the NBB-106 conftest verbatim for the
-`backend/config.py` vs `backend/app/config/` name collision. The ticket
-says to flag-not-fix that collision — the structural fix is tracked as a
-backend-charter follow-up (see SPRINT.md Blocker Log, 2026-04-24).
-
 The app factory initializes the Supabase client at import time. These
 fixtures set dummy JWT-shaped env vars so supabase-py's constructor
 accepts them and replace the Supabase singleton with a MagicMock so
@@ -33,8 +28,7 @@ os.environ.setdefault(
     "dummy-signature-for-tests",
 )
 # Default to auth-required; individual tests flip this to cover the
-# dev/single-user case. The `api_bp.before_request` JWT guard still runs
-# regardless, so protected routes return 401 for unauthenticated callers.
+# dev/single-user case. NBB-903 makes the API blueprint honor that flag.
 os.environ.setdefault("NOOBBOOK_AUTH_REQUIRED", "true")
 
 # Replace the Supabase singleton before any app import. The startup hook
@@ -62,6 +56,12 @@ def auth_client(auth_app):
 
 
 @pytest.fixture(autouse=True)
+def default_auth_required(monkeypatch):
+    """Auth tests default to fail-closed mode unless a test opts into dev mode."""
+    monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "true")
+
+
+@pytest.fixture(autouse=True)
 def clear_token_cache():
     """Reset the module-level JWT validation cache between tests.
 
@@ -75,12 +75,11 @@ def clear_token_cache():
 
 
 @pytest.fixture()
-def auth_required_env(monkeypatch):
+def auth_required_env(default_auth_required):
     """Force NOOBBOOK_AUTH_REQUIRED=true for the test."""
-    monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "true")
 
 
 @pytest.fixture()
-def auth_optional_env(monkeypatch):
+def auth_optional_env(default_auth_required, monkeypatch):
     """Flip NOOBBOOK_AUTH_REQUIRED=false for dev/single-user cases."""
     monkeypatch.setenv("NOOBBOOK_AUTH_REQUIRED", "false")

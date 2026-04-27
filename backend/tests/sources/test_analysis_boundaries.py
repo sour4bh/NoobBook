@@ -1,26 +1,14 @@
 """
-Source-analysis boundary tests (NBB-702).
+Source-analysis boundary tests (NBB-702 + NBB-907).
 
-NBB-203 already pins the env-gate behavior (``test_raw_analysis_gate.py``,
-20 cases, all green). This file pins the *structural* boundaries that
-NBB-403 reorganized: every analysis slice's public import path resolves,
-and every chat-exposed analysis tool is classified in the
-``tool_capability_policy`` registry.
+NBB-907 replaces the old raw-code CSV analysis path with declarative table
+operations. This file pins the structural boundaries that NBB-403 reorganized:
+every analysis slice's public import path resolves, and every chat-exposed
+analysis tool is classified in the ``tool_capability_policy`` registry.
 
-The "tool_capabilities.py" docstring states the design intent verbatim:
-
-    "the policy must still refuse to expose them without the matching
-    permission so a regression in NBB-203 is caught at the policy layer
-    too."
-
-That is what these tests pin. They are deliberately not duplicating the
-env-gate matrix already covered by NBB-203 — adding more env cases here
-would only delay regression detection because the gate file runs first
-in CI.
-
-D-002 permanent raw-code replacement is explicitly out of scope per the
-NBB-702 ticket spec; the tests below assert today's quarantine surface
-only.
+The runtime behavior of the declarative executor is covered by
+``test_declarative_csv_analysis.py``. The tests below assert the import and
+capability-policy surface.
 """
 import pytest
 
@@ -34,27 +22,15 @@ class TestAnalysisModulePublicSurface:
     """Every analysis slice must be importable through its post-NBB-403 path.
 
     These imports are the seams downstream code (chat tools, processors,
-    NBB-203 gate tests) reaches through. If a future cleanup ticket
+    NBB-907 declarative-analysis tests) reaches through. If a future cleanup ticket
     accidentally moves them, the chat tool registrations and the gate
     tests both break — but those break with confusing errors. Pinning
     them here surfaces the regression at its root.
     """
 
-    def test_csv_run_module_exposes_gate_helpers(self):
-        from app.sources.analysis.csv.run import (
-            analysis_executor,
-            raw_analysis_enabled,
-            RAW_ANALYSIS_DISABLED_MESSAGE,
-        )
+    def test_csv_run_module_exposes_declarative_executor(self):
+        from app.sources.analysis.csv.run import analysis_executor
 
-        assert callable(raw_analysis_enabled)
-        # The disabled message has to be a non-empty string and name both
-        # NBB-203 and DEFERRED.md D-002 so an operator searching the logs
-        # for either reference finds it.
-        assert isinstance(RAW_ANALYSIS_DISABLED_MESSAGE, str)
-        assert "NBB-203" in RAW_ANALYSIS_DISABLED_MESSAGE
-        assert "D-002" in RAW_ANALYSIS_DISABLED_MESSAGE
-        # The dispatcher entry point used by the chat loop.
         assert hasattr(analysis_executor, "dispatch")
 
     def test_csv_agent_singleton_is_importable(self):
@@ -103,19 +79,7 @@ class TestAnalysisModulePublicSurface:
 
 
 class TestAnalysisCapabilityClassification:
-    """The capability registry is the policy-layer backstop for NBB-203.
-
-    The CSV analyzer's ``run_analysis`` tool runs model-written Python via
-    ``exec()``. Two layers refuse to expose it without explicit opt-in:
-
-    1. The env gate (NBB-203, covered by ``test_raw_analysis_gate.py``).
-    2. The capability classification (this file): ``run_analysis`` is
-       ``DESTRUCTIVE`` and ``requires_user_confirmation=True``.
-
-    Either layer alone is fragile — pinning both makes a NBB-203
-    regression visible at the policy boundary even if the env-gate code
-    accidentally returns True.
-    """
+    """The capability registry is the policy surface for analysis tools."""
 
     def _ensure_loaded(self):
         # The chat loop normally calls this once at startup; tests call it
@@ -125,19 +89,15 @@ class TestAnalysisCapabilityClassification:
         tool_capability_policy.ensure_capabilities_loaded()
         return tool_capability_policy
 
-    def test_run_analysis_is_destructive_and_requires_confirmation(self):
+    def test_run_analysis_is_read_only_after_declarative_replacement(self):
         from app.auth.tool_policy import CapabilityLevel
 
         policy = self._ensure_loaded()
         cap = policy.get("run_analysis")
 
         assert cap is not None
-        # Pin the classification fields the NBB-203 mitigation depends on.
-        # If a future cleanup ticket downgrades the level or relaxes the
-        # confirmation flag without updating NBB-702, this test breaks
-        # before the change can ship.
-        assert cap.level is CapabilityLevel.DESTRUCTIVE
-        assert cap.requires_user_confirmation is True
+        assert cap.level is CapabilityLevel.READ_ONLY
+        assert cap.requires_user_confirmation is False
         assert cap.audit_log is True
         assert cap.required_permission.category == "data_sources"
         assert cap.required_permission.item == "csv"
@@ -188,27 +148,3 @@ class TestAnalysisCapabilityClassification:
 
 
 # ---------------------------------------------------------------------------
-# Boundary regression: NBB-203 quarantine survives NBB-403 reorganization
-# ---------------------------------------------------------------------------
-
-
-class TestQuarantineStructuralIntegrity:
-    """Cross-check the env-gate's import contract.
-
-    ``test_raw_analysis_gate.py`` already exercises the env-gate matrix
-    (20 cases). This pinning covers a different failure mode: the env
-    gate stays in place, but a future move splits the module so the
-    agent and the executor disagree on the disabled message.
-    """
-
-    def test_agent_and_executor_share_the_disabled_message(self):
-        # ``test_raw_analysis_gate.py`` already pins this for the existing
-        # import paths. After NBB-403 the import path is
-        # ``app.sources.analysis.csv.run`` (not the legacy executor path);
-        # this test pins that the post-403 path still wires the message
-        # constant identity — not just the value — between the agent and
-        # the executor module.
-        from app.sources.analysis.csv import run as run_module
-        from app.sources.analysis.csv.agent import RAW_ANALYSIS_DISABLED_MESSAGE
-
-        assert run_module.RAW_ANALYSIS_DISABLED_MESSAGE is RAW_ANALYSIS_DISABLED_MESSAGE

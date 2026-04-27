@@ -1,35 +1,34 @@
 # Deferred Work Register
 
-This register prevents known risks from disappearing while keeping the structure migration bounded.
+This register prevents known risks from disappearing while keeping the
+structure migration bounded.
 
 ## D-001 - Move route modules into domains
 
-**Status:** Deferred
+**Status:** Resolved by `NBB-906`
 
-**Reason:** This migration declares `backend/app/api` as transport-only and keeps route files in place to reduce churn. Moving route modules into domain packages is a separate API-boundary redesign.
-
-**Current policy:** Route modules may parse HTTP, run guards, call domain public surfaces, and format responses. They must not own product behavior.
-
-**Suggested owner:** Future API/domain-boundary epic.
+**Resolution:** Route files stay under `backend/app/api` by explicit design.
+`NBB-906` closes this item by making `api/` the HTTP transport boundary:
+routes may parse HTTP, run guards, call public domain surfaces, and format
+responses only. `verify_architecture.py` now rejects non-transport app code
+that imports `app.api.*` route modules.
 
 ## D-002 - Permanent raw-code analysis replacement
 
-**Status:** Deferred
-**Unblocks when:** `NBB-203` mitigation is live.
+**Status:** Resolved by `NBB-907`
 
-**Reason:** `NBB-203` disables or flags off raw-code analysis unless both `NOOBBOOK_AUTH_REQUIRED=false` and `NOOBBOOK_ALLOW_RAW_ANALYSIS=true` before migration. The permanent solution is declarative analysis or a real sandbox, but that replacement is intentionally out of the active migration graph.
-
-**Guardrail:** Do not move source-analysis code before `NBB-203` lands.
-
-Production analysis remains disabled. No ticket may re-enable CSV/database-style model-generated code execution in auth-required mode until `D-002` is completed.
-
-**Suggested owner:** Sources/security owner.
+**Resolution:** CSV analysis no longer executes model-written Python. The
+`run_analysis` tool is now a Pydantic-validated declarative operation engine
+covering inspect, filter, aggregate, sort/limit, and chart operations.
+`NOOBBOOK_ALLOW_RAW_ANALYSIS` is no longer required for CSV analysis, and
+invalid operations fail closed.
 
 ## D-003 - Broad security review beyond permissions and raw-code analysis
 
-**Status:** Deferred
+**Status:** Deferred by explicit decision
 
-**Reason:** This backlog fixes the obvious permission and raw-code execution risks, but does not attempt a full security audit.
+**Reason:** `NBB-009` fixes selected known security-adjacent defects, but it is
+not a full security audit.
 
 **Scope to revisit:**
 - service-role Supabase access patterns
@@ -37,33 +36,26 @@ Production analysis remains disabled. No ticket may re-enable CSV/database-style
 - generated asset access
 - connector secret exposure
 - MCP and external connector trust boundaries
+- OAuth state replay hardening beyond signed short-lived state
 
 **Suggested owner:** Security/providers/connectors owner.
 
-## D-004 - Full frontend test expansion (deferred by `NBB-108A`)
+## D-004 - Full frontend test expansion
 
-**Status:** Deferred
-**Decision:** `NBB-108A` chose deferral on 2026-04-24. Baseline frontend ownership/render smoke tests will not ship as part of this migration sprint. `NBB-108B` remains in the backlog at P1 as the follow-up implementation ticket and is the re-entry point when the frontend owner picks this up.
+**Status:** Resolved by `NBB-908`
 
-**Reason:** The sprint is backend-structure-heavy. Adding a frontend test toolchain (test runner selection, config wiring, CI extension, mock/jsdom setup) during migration adds surface area and tooling risk for no movement-safety win — frontend moves in Epic 006 (`NBB-602`, `NBB-603`, `NBB-604`) are guarded by the existing `npm run build` in CI plus backend route/contract tests from `NBB-106`, `NBB-107`, and `NBB-205`. Frontend shells (`NBB-105`, `NBB-601`) are docs-only and do not change runtime behavior that a smoke test would catch. No shim or forwarding module in `NBB-706` depends on a frontend test pass.
-
-**Risk accepted:** Shell render regressions and permission-provider wiring bugs may reach `develop` during frontend moves without automated catch. Mitigation: reviewers manually smoke the running app (`bin/dev`) for app boot, chat/sources/studio shell mount, and permission-provider state during review of `NBB-602`/`NBB-603`/`NBB-604`.
-
-**Minimum follow-up when `NBB-108B` is picked up:**
-- app render smoke
-- chat/sources/studio shell render smoke
-- permission-provider behavior smoke
-- citation UI contract smoke
-
-Concrete command and CI placement are deferred to `NBB-108B`; Vitest plus React Testing Library is the expected baseline but is not locked here.
-
-**Suggested owner:** Frontend owner (accepts the risk above until `NBB-108B` lands).
+**Resolution:** `NBB-908` adds the frontend Vitest/jsdom/React Testing Library
+smoke harness that `NBB-108A` deferred, including app shell, permission
+provider, workspace shell, and citation UI coverage.
 
 ## D-005 - Cross-stack contract redesign beyond preservation
 
-**Status:** Deferred
+**Status:** Deferred by explicit decision
 
-**Reason:** `NBB-205` names and preserves current contracts so migration can proceed. Redesigning those contracts is larger than this structure rewrite.
+**Reason:** `NBB-205` named and preserved current contracts so migration could
+proceed. `NBB-009` keeps those contracts stable while closing runtime/auth and
+analysis defects. Redesigning contracts remains a separate API/frontend product
+decision.
 
 **Contracts covered for preservation:**
 - chat streaming event format
@@ -85,24 +77,30 @@ Concrete command and CI placement are deferred to `NBB-108B`; Vitest plus React 
 
 ## D-006 - OAuth callback auth bypass
 
-**Status:** Deferred
+**Status:** Resolved by `NBB-904`
 
-**Reason:** The API-wide `before_request` guard currently skips `/api/v1/auth/*` and `/api/v1/health`, but OAuth providers redirect into routes such as `/api/v1/google/callback`. Those callbacks cannot attach the app's bearer token header and should be validated by their own OAuth `state`/provider-token flow instead of the generic API JWT guard.
-
-**Suggested owner:** Auth/connectors owner.
+**Resolution:** `/api/v1/google/callback` bypasses the generic bearer-token
+guard and validates an opaque signed OAuth `state` before token exchange.
+Missing, invalid, or expired state is rejected before any provider callback
+handling runs.
 
 ## D-007 - Dev-mode API middleware fallback
 
-**Status:** Deferred
+**Status:** Resolved by `NBB-903`
 
-**Reason:** `NOOBBOOK_AUTH_REQUIRED=false` promotes a fallback identity in the domain auth layer, but the API blueprint middleware still calls `validate_token()` directly and returns 401 when no bearer token is present. Local single-user/dev mode therefore remains stricter at the transport boundary than the domain policy advertises.
-
-**Suggested owner:** Auth/API owner.
+**Resolution:** The API blueprint middleware now uses `app.auth.identity` as the
+source of truth. When `NOOBBOOK_AUTH_REQUIRED=false`, it sets `g.user_id` to the
+resolved fallback identity and lets protected routes proceed without a bearer
+token.
 
 ## D-008 - Project membership access check
 
-**Status:** Deferred
+**Status:** Resolved for owner-only semantics by `NBB-905`; team membership
+redesign remains part of `D-005`
 
-**Reason:** `NBB-201` consolidated project-access checks, but the canonical `verify_project_access()` path still calls `project_service.get_project(project_id, user_id=...)`, which both performs an owner-only lookup and mutates `last_accessed`. The follow-up should separate "can this user access the project?" from "load and mark this project opened", and should use the collaborative membership path when team access is re-enabled.
+**Resolution:** `verify_project_access()` now uses a pure project-access check,
+`GET /projects/{id}` is side-effect-free, and `POST /projects/{id}/open` is the
+only route that updates `last_accessed`.
 
-**Suggested owner:** Auth/projects owner.
+**Follow-up boundary:** Broader collaborative membership semantics are a
+cross-stack contract/product redesign and remain under `D-005`.

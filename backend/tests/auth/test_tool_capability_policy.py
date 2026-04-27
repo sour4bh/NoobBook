@@ -422,14 +422,12 @@ def test_csv_analysis_tool_classified_correctly():
     )
 
 
-def test_run_analysis_classified_as_destructive():
-    """The raw-code analysis tool is destructive; NBB-203 also gates
-    execution at the runtime layer, but the policy must already refuse
-    exposure unless the data_sources.csv permission is held."""
+def test_run_analysis_classified_as_read_only():
+    """NBB-907 replaced raw-code analysis with declarative table operations."""
     cap = tool_capability_policy.get("run_analysis")
     assert cap is not None
-    assert cap.level == CapabilityLevel.DESTRUCTIVE
-    assert cap.requires_user_confirmation is True
+    assert cap.level == CapabilityLevel.READ_ONLY
+    assert cap.requires_user_confirmation is False
 
 
 # ---------------------------------------------------------------------------

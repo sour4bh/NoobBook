@@ -24,7 +24,7 @@ Routes:
 from flask import jsonify, request, current_app
 
 from app.api.settings import settings_bp
-from app.config import (
+from app.config.model import (
     AVAILABLE_MODELS,
     MODEL_CATEGORIES,
     get_current_settings,

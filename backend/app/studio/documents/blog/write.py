@@ -13,9 +13,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.providers.anthropic import claude_service
-from app.config.prompt_loader import prompt_loader
-from app.config.tool_loader import tool_loader
-from app.config import brand_context_loader
+from app.config.prompt import prompt_loader
+from app.config.tool import tool_loader
+from app.config.brand import brand_context_loader
 from app.sources.content import get_source_content
 import app.studio.jobs.store as studio_index_service
 from app.studio.documents.blog.tool import blog_tool_executor

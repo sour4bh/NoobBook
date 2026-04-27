@@ -146,8 +146,9 @@ class ProjectStore:
         Returns:
             Full project data or None if not found
 
-        Educational Note: We update last_accessed on every get to track
-        when the project was last opened.
+        Educational Note: Reads are side-effect free. The dedicated
+        open_project() method records last_accessed when the user opens a
+        project from the dashboard.
         """
         uid = _resolve_user_id(user_id)
         response = (
@@ -161,14 +162,7 @@ class ProjectStore:
         if not response.data:
             return None
 
-        project = response.data[0]
-
-        # Update last accessed time
-        self.supabase.table(self.table).update({
-            "last_accessed": datetime.now().isoformat()
-        }).eq("id", project_id).eq("user_id", uid).execute()
-
-        return project
+        return response.data[0]
 
     def update_project(
         self,
@@ -280,10 +274,24 @@ class ProjectStore:
         Returns:
             Project metadata or None if not found
         """
-        project = self.get_project(project_id, user_id=user_id)
+        uid = _resolve_user_id(user_id)
+        project = self.get_project(project_id, user_id=uid)
         if not project:
             return None
 
+        last_accessed = datetime.now().isoformat()
+        response = (
+            self.supabase.table(self.table)
+            .update({"last_accessed": last_accessed})
+            .eq("id", project_id)
+            .eq("user_id", uid)
+            .execute()
+        )
+
+        if response.data:
+            return self._format_project_metadata(response.data[0])
+
+        project["last_accessed"] = last_accessed
         return self._format_project_metadata(project)
 
     def update_custom_prompt(

@@ -8,7 +8,7 @@ stored in JSON files. By storing tools in separate files:
 - Tool definitions are easy to test and validate
 
 Usage:
-    from app.config.tool_loader import tool_loader
+    from app.config.tool import tool_loader
 
     # Load a specific tool by name
     tool = tool_loader.load_tool("pdf_tools", "pdf_extraction")
@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from app.config import asset_registry
+import app.config.asset as asset
 
 
 class ToolLoader:
@@ -49,7 +49,7 @@ class ToolLoader:
         exists, preserving the long-standing `load_tool` contract that
         missing tools raise `FileNotFoundError`.
         """
-        return asset_registry.resolve_tool_path(
+        return asset.resolve_tool_path(
             category, tool_name, self.tools_dir
         )
 
@@ -61,7 +61,7 @@ class ToolLoader:
         """
         dirs = [
             d
-            for d in asset_registry.iter_tool_category_dirs(category, self.tools_dir)
+            for d in asset.iter_tool_category_dirs(category, self.tools_dir)
             if d.exists()
         ]
         return dirs
@@ -70,7 +70,7 @@ class ToolLoader:
         """Return exact per-file registrations for a category."""
         return [
             path
-            for path in asset_registry.iter_tool_file_candidate_paths(category)
+            for path in asset.iter_tool_file_candidate_paths(category)
             if path.exists()
         ]
 
@@ -94,7 +94,7 @@ class ToolLoader:
         """
         try:
             tool_path = self._resolve_tool_file(category, tool_name)
-        except asset_registry.AssetNotFoundError:
+        except asset.AssetNotFoundError:
             available = self.get_available_categories()
             raise FileNotFoundError(
                 f"Tool definition not found for category={category!r} "
@@ -200,7 +200,7 @@ class ToolLoader:
         """
         categories: List[str] = []
         seen: set = set()
-        for category in asset_registry.registered_tool_categories():
+        for category in asset.registered_tool_categories():
             if category not in seen:
                 categories.append(category)
                 seen.add(category)

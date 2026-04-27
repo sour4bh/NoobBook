@@ -4,10 +4,9 @@ Architecture checks for the NoobBook structure migration (NBB-704A + NBB-704B).
 NBB-704A established two narrow rules that hold long before migration finishes:
 
 1. Backend root registry. Every tracked top-level child of ``backend/app/``
-   must be a canonical root from ``STRUCTURE.md`` (NBB-104). The existing
-   ``config`` package is tolerated as known migration state; ``services`` is
-   retired by NBB-811, and ``utils`` plus ``data/prompts`` are retired by
-   NBB-812. New roots outside the approved list fail. This catches a
+   must be a canonical root from ``STRUCTURE.md`` (NBB-104/NBB-902).
+   ``services`` is retired by NBB-811, and ``utils`` plus ``data/prompts`` are
+   retired by NBB-812. New roots outside the approved list fail. This catches a
    contributor inventing a new mechanism bucket such as ``backend/app/agents/``.
 
 2. Import direction at the external edge (NBB-104, NBB-206).
@@ -45,6 +44,10 @@ NBB-704B adds richer post-migration boundary checks now that domains exist:
    registration owned by NBB-202B). Lock the property — these roots may not
    depend on the migrated domains in either direction, today or in future
    commits.
+
+6. API transport boundary (NBB-906). Non-transport app code must not import
+   ``app.api`` route modules. The app factory may register the blueprint, and
+   route modules may import sibling route blueprints inside ``app.api``.
 
 The stateless-singleton and type safety checks are owned by NBB-704C. The
 sources/studio public-surface enforcement and the frontend ownership check are
@@ -90,6 +93,7 @@ CANONICAL_ROOTS: frozenset[str] = frozenset({
     "providers",
     "background",
     "base",
+    "config",
 })
 
 # Domain roots. Used for import-direction checks at the external edge.
@@ -104,13 +108,7 @@ DOMAIN_ROOTS: frozenset[str] = frozenset({
     "settings",
 })
 
-# Non-canonical roots tolerated for reasons tracked elsewhere. ``config`` is
-# the ``backend/config.py`` vs ``backend/app/config/`` name-collision noted in
-# the sprint Blocker Log; its structural fix is flagged for a follow-up
-# ticket, not NBB-704A.
-TOLERATED_ROOTS: frozenset[str] = frozenset({
-    "config",
-})
+TOLERATED_ROOTS: frozenset[str] = frozenset()
 
 RETIRED_PATHS: Tuple[Tuple[str, str], ...] = (
     (
@@ -720,6 +718,38 @@ def check_independent_roots() -> List[Violation]:
     return violations
 
 
+def check_no_external_api_imports() -> List[Violation]:
+    """NBB-906: app code outside the transport layer may not import routes."""
+    violations: List[Violation] = []
+    for path in sorted(APP_DIR.rglob("*.py")):
+        if _is_under(path, "api"):
+            continue
+        if path == APP_DIR / "__init__.py":
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+        try:
+            tree = ast.parse(source, filename=str(path))
+        except SyntaxError as exc:
+            violations.append(Violation(path, exc.lineno or 0, f"syntax error: {exc.msg}"))
+            continue
+        for lineno, module in _iter_import_modules(tree):
+            if module == "app.api" or module.startswith("app.api."):
+                violations.append(Violation(
+                    path,
+                    lineno,
+                    (
+                        "non-transport app code must not import app.api route "
+                        "modules. Route modules are HTTP adapters only; call "
+                        "the owning domain surface instead (NBB-906)."
+                    ),
+                ))
+    return violations
+
+
 def main() -> int:
     if not APP_DIR.is_dir():
         sys.stderr.write(f"error: {APP_DIR} not found\n")
@@ -734,6 +764,7 @@ def main() -> int:
     violations.extend(check_connectors_imports())
     violations.extend(check_chat_publics_only())
     violations.extend(check_independent_roots())
+    violations.extend(check_no_external_api_imports())
 
     if violations:
         for v in violations:

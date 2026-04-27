@@ -5,7 +5,7 @@ These assert that registered domain-owned tool paths resolve end-to-end and
 both `load_tool` and `load_tools_for_agent` see the registered paths via the
 production singleton. Tool schemas are registry-only after NBB-810.
 
-The sibling `test_asset_registry.py` autouse fixture resets the registry
+The sibling `test_asset.py` autouse fixture resets the registry
 before and after each test; these tests explicitly re-invoke
 `register_production_asset_paths()` after reset so they see the state a
 running backend sees at startup. This mirrors the pattern established by
@@ -15,8 +15,8 @@ from typing import List, Tuple
 
 import pytest
 
-from app.config import asset_registry
-from app.config.tool_loader import ToolLoader, tool_loader
+import app.config.asset as asset
+from app.config.tool import ToolLoader, tool_loader
 
 
 # Tool families moved to domain-owned homes in NBB-207C. Each entry carries the
@@ -102,9 +102,9 @@ MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
         ["tavily_search_advance", "write_research_to_file"],
         ["tavily_search_advance", "web_search", "write_research_to_file"],
     ),
-    # NBB-403: csv/database/freshdesk analysis JSONs land under
-    # sources/analysis/<feature>/tools. analysis_agent (raw-code analyzer
-    # tools) and csv_tool (summary tools) keep distinct directories
+    # NBB-403/NBB-907: csv/database/freshdesk analysis JSONs land under
+    # sources/analysis/<feature>/tools. analysis_agent (declarative CSV
+    # operation tools) and csv_tool (summary tools) keep distinct directories
     # because each has its own loader category and tool-name set.
     (
         "analysis_agent",
@@ -138,16 +138,16 @@ MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
 def _restore_production_registry():
     """Replay production registrations after the sibling reset fixture runs.
 
-    The autouse fixture in `test_asset_registry.py` calls
+    The autouse fixture in `test_asset.py` calls
     `_reset_for_tests()` between every test in this directory. Production
     registration happens exactly once at `app.config` import, so once the
     reset fires the real paths are gone for the rest of the session. Replay
     them here to restore the state under test.
     """
-    asset_registry._reset_for_tests()
-    asset_registry.register_production_asset_paths()
+    asset._reset_for_tests()
+    asset.register_production_asset_paths()
     yield
-    asset_registry._reset_for_tests()
+    asset._reset_for_tests()
 
 
 def _fresh_loader() -> ToolLoader:

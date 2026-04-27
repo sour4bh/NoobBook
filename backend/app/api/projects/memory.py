@@ -20,7 +20,7 @@ How Memory Works:
 1. During chat, Claude can call the `store_memory` tool
 2. New memory is merged with existing using Haiku (AI-powered)
 3. Merging keeps total under 150 tokens (fits in context)
-4. Memory is injected into system prompt via context_loader
+4. Memory is injected into system prompt via app.config.context.context_loader
 
 Why Two Levels?
 - User memory = "who the user is" (preferences, background)

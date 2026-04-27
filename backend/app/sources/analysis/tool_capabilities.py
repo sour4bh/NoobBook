@@ -2,17 +2,13 @@
 ToolCapability declarations for source-analysis tools.
 
 Analysis tools fan into the chat tool list (CSV/database/Freshdesk
-analyzers) plus internal agent loops (research deep-dive, raw-code
-analysis). They live next to their owning domain so a future analysis
-move (NBB-403) keeps tool classification with the code that actually
-implements them.
+analyzers) plus internal agent loops (research deep-dive, CSV table
+analysis). They live next to their owning domain so movement tickets keep
+tool classification with the code that actually implements them.
 
-The raw-code ``run_analysis``/``return_analysis`` pair from the
-``analysis_agent/`` family stays classified here as ``DESTRUCTIVE``;
-NBB-203 already gates execution behind ``NOOBBOOK_ALLOW_RAW_ANALYSIS``,
-but the policy must still refuse to expose them without the matching
-permission so a regression in NBB-203 is caught at the policy layer
-too.
+The ``run_analysis``/``return_analysis`` pair from the ``analysis_agent/``
+family is read-only after NBB-907: the executor accepts only validated
+declarative table operations, not arbitrary Python source.
 """
 from app.auth.tool_policy import (
     CapabilityLevel,
@@ -68,14 +64,9 @@ ANALYZE_FRESHDESK_AGENT = ToolCapability(
 
 
 # ---------------------------------------------------------------------------
-# CSV agent internal tools (raw-code analysis)
+# CSV agent internal tools
 # ---------------------------------------------------------------------------
 
-# ``run_analysis`` executes model-written Python; NBB-203 disables it
-# outside dev/single-user mode with NOOBBOOK_ALLOW_RAW_ANALYSIS=true.
-# The capability policy denies regardless until the data_sources.csv
-# permission is held, so a NBB-203 regression cannot quietly open
-# this tool.
 RUN_ANALYSIS = ToolCapability(
     name="run_analysis",
     owner="sources/analysis/csv/raw_tools/",
@@ -83,9 +74,9 @@ RUN_ANALYSIS = ToolCapability(
         category="data_sources", item="csv"
     ),
     scope=ToolScope.PROJECT,
-    level=CapabilityLevel.DESTRUCTIVE,
+    level=CapabilityLevel.READ_ONLY,
     external_side_effects=False,
-    requires_user_confirmation=True,
+    requires_user_confirmation=False,
     audit_log=True,
 )
 

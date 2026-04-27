@@ -1,6 +1,6 @@
 # NoobBook Structure Migration Backlog
 
-This backlog is organized as nine epics with embedded child tickets. Epic files are the human-readable source of truth. `tickets.csv` is the machine-readable index for planning views and validation scripts.
+This backlog is organized as ten epics with embedded child tickets. Epic files are the human-readable source of truth. `tickets.csv` is the machine-readable index for planning views and validation scripts.
 
 The previous flat ticket set has been archived under `docs/tickets/archive/legacy-flat/` before the new overlapping epic IDs were introduced.
 
@@ -10,7 +10,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 
 | Range | Meaning |
 |---|---|
-| `NBB-001` through `NBB-009` | Epics |
+| `NBB-001` through `NBB-010` | Epics |
 | `NBB-101` through `NBB-109`, including `NBB-108A/B` | Foundation tasks |
 | `NBB-201` through `NBB-210`, including split tasks `NBB-202A/B`, `NBB-207A/B/C`, `NBB-208A/B`, and `NBB-209A-E` | Central policy, safety, and boundary tasks |
 | `NBB-301` through `NBB-304` | Chat migration tasks |
@@ -20,6 +20,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 | `NBB-701` through `NBB-706`, including split tasks `NBB-704A/B/C` and `NBB-705A-E` | Verification and cleanup tasks |
 | `NBB-801` through `NBB-813` | Post-sprint services eradication and final frozen-root enforcement tasks |
 | `NBB-901` through `NBB-918` | Deferred closure and runtime/security/contract hardening tasks |
+| `NBB-1001` through `NBB-1008` | Workspace membership and private-project sharing tasks |
 
 ## Core Policies
 
@@ -68,6 +69,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | Epic 007 Cleanup | Some split tasks, especially `NBB-704A` and `NBB-705C`, intentionally run early as owner-specific guardrails/drains; `NBB-706` is the final cleanup gate and waits for `NBB-704C` type/AST safety checks |
 | Epic 008 Services eradication | Starts after `NBB-706`; drains every remaining tracked `backend/app/services/` resident and ends with verifier rules that reject retired services/utils/prompt roots and `app.services.*` / `app.utils.*` imports |
 | Epic 009 Deferred closure | Starts after `NBB-813`; closes selected runtime/auth/project/frontend/source-analysis risks, then resolves or narrows the remaining security and cross-stack contract risks through the `NBB-910`-`NBB-918` wave |
+| Epic 010 Workspace membership | Starts after `NBB-918`; resolves the narrowed `D-005` residual by adding workspaces, signed invites, private project membership, workspace-scoped settings, and frontend membership flows |
 
 ## Epics
 
@@ -82,6 +84,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | `NBB-007` | Verification, Enforcement, and Cleanup | `docs/tickets/epics/NBB-007.md` |
 | `NBB-008` | Services Eradication and Final Boundary Enforcement | `docs/tickets/epics/NBB-008.md` |
 | `NBB-009` | Deferred Closure and Runtime Hardening | `docs/tickets/epics/NBB-009.md` |
+| `NBB-010` | Workspace Membership and Project Sharing | `docs/tickets/epics/NBB-010.md` |
 
 ## Graph Generation and Validation
 
@@ -106,7 +109,7 @@ python docs/tickets/dag.py --check --write
 `dag.py --check` automates the machine-checkable CSV rules. Reviewers still verify manually:
 
 - old flat tickets are archived under `docs/tickets/archive/legacy-flat/`
-- exactly nine epic files exist
+- exactly ten epic files exist
 - `D-002` states raw-code CSV analysis was replaced by `NBB-907`
 - `GRAPH.md` matches `dag.py --write` output
 - no stale branch-only or old-fork clone guidance remains in new ticket docs

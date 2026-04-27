@@ -68,13 +68,12 @@ contracts into backend-owned DTOs and frontend runtime parsers:
 - `NBB-917` adds frontend Zod parsers for the frontend-facing DTOs and makes
   chat SSE share the same auth refresh/retry lifecycle as normal API calls.
 
-**Residual scope:** Broader collaborative team/workspace membership semantics
-remain a product/API contract redesign. The current tree has users, global
-admin bootstrap, and owner-only project access; it does not yet have a
-workspace/org membership model that can safely make "first signup becomes
-workspace owner" true. That future work needs an owner-named ticket covering
-database membership shape, route guards, frontend permission/session shape, and
-migration behavior before public signup can create scoped workspace owners.
+**Residual scope:** `NBB-010` now owns the broader collaborative
+team/workspace membership redesign. The chosen product model is personal
+workspace on signup, signed workspace invites, private projects by explicit
+project membership, workspace roles (`owner`, `admin`, `member`), project roles
+(`owner`, `editor`, `viewer`), and global admin reserved for instance/bootstrap
+operations.
 
 **Suggested owner:** Product/API/auth owner.
 

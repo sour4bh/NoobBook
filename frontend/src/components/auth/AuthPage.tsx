@@ -16,7 +16,6 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onAuthenticated }) => {
-  const [portal, setPortal] = useState<'admin' | 'user'>('user');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,42 +55,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthenticated }) => {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle>{portal === 'admin' ? 'Admin Access' : 'User Access'}</CardTitle>
+          <CardTitle>Sign in to NoobBook</CardTitle>
           <CardDescription>
-            {portal === 'admin'
-              ? 'Admin portal — use an email listed in NOOBBOOK_ADMIN_EMAILS.'
-              : 'User portal — standard access to chat and studio.'}
+            Use your account credentials. Global admins are created through bootstrap or invite flows.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 flex gap-2">
-            <Button
-              variant={portal === 'admin' ? 'default' : 'outline'}
-              size="sm"
-              className="flex-1"
-              onClick={() => setPortal('admin')}
-              disabled={submitting}
-            >
-              Admin
-            </Button>
-            <Button
-              variant={portal === 'user' ? 'default' : 'outline'}
-              size="sm"
-              className="flex-1"
-              onClick={() => setPortal('user')}
-              disabled={submitting}
-            >
-              User
-            </Button>
-          </div>
           <Tabs value={mode} onValueChange={(v) => setMode(v as 'signin' | 'signup')}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">
-                {portal === 'admin' ? 'Admin sign in' : 'Sign in'}
-              </TabsTrigger>
-              <TabsTrigger value="signup">
-                {portal === 'admin' ? 'Admin sign up' : 'Sign up'}
-              </TabsTrigger>
+              <TabsTrigger value="signin">Sign in</TabsTrigger>
+              <TabsTrigger value="signup">Sign up</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin" className="mt-6 space-y-4">
@@ -129,7 +102,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthenticated }) => {
                 </div>
               </div>
               <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
-                {submitting ? 'Signing in…' : portal === 'admin' ? 'Sign in as admin' : 'Sign in'}
+                {submitting ? 'Signing in…' : 'Sign in'}
               </Button>
             </TabsContent>
 
@@ -168,17 +141,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthenticated }) => {
                 </div>
               </div>
               <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
-                {submitting
-                  ? 'Creating account…'
-                  : portal === 'admin'
-                    ? 'Create admin account'
-                    : 'Create account'}
+                {submitting ? 'Creating account…' : 'Create account'}
               </Button>
-              {portal === 'admin' ? (
-                <p className="text-xs text-muted-foreground">
-                  Admin role is granted only if the email is in NOOBBOOK_ADMIN_EMAILS.
-                </p>
-              ) : null}
             </TabsContent>
           </Tabs>
         </CardContent>

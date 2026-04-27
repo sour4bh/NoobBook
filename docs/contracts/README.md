@@ -284,7 +284,8 @@ from Supabase and must be stored client-side; the server does not hold session s
 **Minimal valid example:** as above.
 
 **Realistic current-production example:** as above with real Supabase-issued tokens;
-`role` is one of `"admin" | "user"` (see `AuthService._resolve_signup_role`).
+`role` is one of `"admin" | "user"`. Public signup creates `user`; global
+admins are created through explicit bootstrap or admin-managed paths.
 
 **Invalid example (runtime validation exists):**
 - `/auth/signin` with missing/empty email or password -> `400 {"success": false, "error": "email and password are required"}`.

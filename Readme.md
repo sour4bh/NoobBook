@@ -266,9 +266,6 @@ Auth is **enabled by default**. You need to configure an admin account before ru
 
 In `docker/.env`, set your admin credentials:
 ```bash
-# Admin email(s) — these users get admin role on signup
-NOOBBOOK_ADMIN_EMAILS=you@company.com
-
 # Bootstrap admin — auto-creates this admin account on startup
 NOOBBOOK_BOOTSTRAP_ADMIN_EMAIL=admin@example.com
 NOOBBOOK_BOOTSTRAP_ADMIN_PASSWORD=YourSecurePassword123!
@@ -324,12 +321,11 @@ NoobBook has two roles:
 | Variable | Description |
 |----------|-------------|
 | `NOOBBOOK_AUTH_REQUIRED=true` | Requires login for all API routes (default: `true`) |
-| `NOOBBOOK_ADMIN_EMAILS=a@b.com,c@d.com` | These emails get admin role on signup |
 | `NOOBBOOK_BOOTSTRAP_ADMIN_EMAIL` | Auto-creates this admin on startup |
 | `NOOBBOOK_BOOTSTRAP_ADMIN_PASSWORD` | Password for the bootstrap admin |
 | `NOOBBOOK_BOOTSTRAP_ADMIN_FORCE_RESET=true` | Reset the bootstrap admin password if account already exists |
 
-> **First signup rule:** If no admins exist yet, the first user to sign up automatically becomes admin (even without being in `NOOBBOOK_ADMIN_EMAILS`).
+> **Signup rule:** Public signup creates standard user accounts only. Global admins are created through the explicit bootstrap path above or through admin-managed user creation.
 
 ---
 

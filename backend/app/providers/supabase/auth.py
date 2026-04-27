@@ -299,34 +299,13 @@ class AuthService:
     def _normalize_email(email: str) -> str:
         return (email or "").strip().lower()
 
-    def _resolve_signup_role(self, email: str) -> str:
+    def _resolve_signup_role(self, _email: str) -> str:
         """
         Determine role for a newly signed-up user.
 
-        Rules:
-        1) If email is in NOOBBOOK_ADMIN_EMAILS -> admin
-        2) If no admins exist yet -> admin (bootstrap)
-        3) Else -> user
+        Public signup never grants global admin. Global admins are created by
+        explicit bootstrap/admin management paths, not by unauthenticated signup.
         """
-        admin_emails = os.getenv("NOOBBOOK_ADMIN_EMAILS", "")
-        admin_list = [e.strip().lower() for e in admin_emails.split(",") if e.strip()]
-        if email.strip().lower() in admin_list:
-            return "admin"
-
-        try:
-            resp = (
-                self.supabase.table("users")
-                .select("id")
-                .eq("role", "admin")
-                .limit(1)
-                .execute()
-            )
-            if not resp.data:
-                return "admin"
-        except Exception:
-            # If check fails, default to user
-            pass
-
         return "user"
 
     @staticmethod

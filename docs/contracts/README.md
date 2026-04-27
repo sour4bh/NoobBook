@@ -3,15 +3,17 @@
 This document names the wire contracts that the backend publishes and the frontend
 consumes, so parallel migration in Epics 003-006 cannot silently break them.
 
-**Scope of this doc:** preserve current production behavior. Redesigning any contract
-is deferred to `D-005` in `docs/tickets/DEFERRED.md` and is out of this ticket.
+**Scope of this doc:** preserve current production behavior and name the
+backend/frontend boundary shapes. Intentional redesign beyond these preserved
+shapes is narrowed to the residual `D-005` scope in `docs/tickets/DEFERRED.md`.
 
 **Authority:** `NBB-204`'s charters (`backend/app/*/CHARTER.md`) name this file as the
 shape owner for JSONB fields they catalog (`chats.costs`, `chats.selected_source_ids`,
 `messages.content`, `background_tasks.progress`, studio rows, etc.). This file is the
 source of truth for wire shape; the charters remain the access-control source of truth.
 `NBB-916` adds backend Pydantic DTOs near the owning domains so public response,
-event, and JSONB payloads are validated before frontend runtime parsers tighten.
+event, and JSONB payloads are validated; `NBB-917` adds frontend runtime parsers
+for the frontend-facing DTOs.
 
 Each contract below carries seven fields:
 
@@ -990,7 +992,8 @@ non-list + non-null as a bug and will raise. In practice the upstream writers
 
 - Access-control (who can call these endpoints) is owned by `NBB-107` tests and the
   NBB-204 charters; this doc only covers shapes.
-- Redesign of any contract above is deferred in `docs/tickets/DEFERRED.md` D-005.
+- Redesign beyond the preserved contracts above is narrowed in
+  `docs/tickets/DEFERRED.md` D-005.
 - `backend/app/chat/CHARTER.md` (NBB-204) explicitly defers wire-shape ownership for
   `chats.costs`, `chats.selected_source_ids`, and `messages.content` to this doc.
 - Loader registry for tool schemas (Contract 11) is owned by `NBB-207A`; prompt/tool

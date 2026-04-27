@@ -67,7 +67,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | Epic 006 Frontend | `NBB-105` and `NBB-108A`; `NBB-108B` may run in parallel if frontend tests are chosen |
 | Epic 007 Cleanup | Some split tasks, especially `NBB-704A` and `NBB-705C`, intentionally run early as owner-specific guardrails/drains; `NBB-706` is the final cleanup gate and waits for `NBB-704C` type/AST safety checks |
 | Epic 008 Services eradication | Starts after `NBB-706`; drains every remaining tracked `backend/app/services/` resident and ends with verifier rules that reject retired services/utils/prompt roots and `app.services.*` / `app.utils.*` imports |
-| Epic 009 Deferred closure | Starts after `NBB-813`; first closes selected runtime/auth/project/frontend/source-analysis risks, then tickets the remaining security and cross-stack contract risks as `NBB-910` through `NBB-918` |
+| Epic 009 Deferred closure | Starts after `NBB-813`; closes selected runtime/auth/project/frontend/source-analysis risks, then resolves or narrows the remaining security and cross-stack contract risks through the `NBB-910`-`NBB-918` wave |
 
 ## Epics
 

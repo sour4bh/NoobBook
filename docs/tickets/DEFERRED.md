@@ -25,16 +25,15 @@ invalid operations fail closed.
 
 ## D-003 - Broad security review beyond permissions and raw-code analysis
 
-**Status:** Planned by `NBB-910` through `NBB-915`; reconcile in `NBB-918`
+**Status:** Resolved by `NBB-910` through `NBB-915`; reconciled by `NBB-918`
 
-**Reason:** The first `NBB-009` hardening wave fixed selected known
-security-adjacent defects. The remaining security work is now ticketed instead
-of parked as a broad audit.
+**Resolution:** The broad parked security item has been split into concrete
+hardening tickets and closed for the risks known at migration time:
 
-**Ticket map:**
 - `NBB-910` splits public signup ownership from global admin bootstrap. Public
-  signup may create a workspace owner only in a workspace-scoped model; it must
-  never implicitly create a global admin.
+  signup creates a normal user in the current tree. Workspace-owner signup is
+  only valid after a workspace-scoped membership model exists; it must never
+  imply global admin.
 - `NBB-911` replaces primary JWT browser asset URLs with scoped asset access.
 - `NBB-912` adds ownership to background tasks and hardens service-role reads.
 - `NBB-913` completes provider and connector permission gates for Google Drive,
@@ -42,9 +41,9 @@ of parked as a broad audit.
 - `NBB-914` reconciles Supabase storage paths, policies, and generated asset
   isolation.
 - `NBB-915` hardens Google OAuth production redirects and replay resistance.
-- `NBB-918` records what is resolved and leaves only concrete residual risks.
 
-**Suggested owner:** Security/providers/connectors owner.
+**Residual scope:** None kept in this deferred register. Future broad security
+reviews are normal security backlog work, not hidden migration debt.
 
 ## D-004 - Full frontend test expansion
 
@@ -56,23 +55,28 @@ provider, workspace shell, and citation UI coverage.
 
 ## D-005 - Cross-stack contract redesign beyond preservation
 
-**Status:** Planned by `NBB-916` and `NBB-917`; reconcile in `NBB-918`
+**Status:** Narrowed by `NBB-916` and `NBB-917`; reconciled by `NBB-918`
 
-**Reason:** `NBB-205` named and preserved current contracts so migration could
-proceed. The next hardening wave now converts the highest-risk preserved
-contracts into backend-owned DTOs and frontend runtime parsers.
+**Resolution:** `NBB-205` named and preserved the migration-time wire
+contracts. `NBB-916` and `NBB-917` converted the highest-risk preserved
+contracts into backend-owned DTOs and frontend runtime parsers:
 
-**Ticket map:**
-- `NBB-916` defines backend-owned DTOs for error envelopes, auth/session,
-  permissions, chat streaming events, citations, tool invocation/result,
-  background-task polling, source kind/MIME/status, studio jobs, generated asset
-  access, query-token asset access, and the relevant JSONB payloads.
-- `NBB-917` adds frontend runtime parsers and authenticated SSE transport for
-  those contracts.
-- `NBB-918` records what is resolved and leaves only concrete residual contract
-  redesigns.
+- `NBB-916` defines backend-owned DTOs for API envelopes, auth/session,
+  chat streaming events, citations, background-task polling, project costs,
+  source file metadata, studio jobs/events, generated asset access, scoped
+  asset-token payloads, and relevant JSONB payloads.
+- `NBB-917` adds frontend Zod parsers for the frontend-facing DTOs and makes
+  chat SSE share the same auth refresh/retry lifecycle as normal API calls.
 
-**Suggested owner:** Contract/API owner.
+**Residual scope:** Broader collaborative team/workspace membership semantics
+remain a product/API contract redesign. The current tree has users, global
+admin bootstrap, and owner-only project access; it does not yet have a
+workspace/org membership model that can safely make "first signup becomes
+workspace owner" true. That future work needs an owner-named ticket covering
+database membership shape, route guards, frontend permission/session shape, and
+migration behavior before public signup can create scoped workspace owners.
+
+**Suggested owner:** Product/API/auth owner.
 
 ## D-006 - OAuth callback auth bypass
 
@@ -95,11 +99,11 @@ token.
 ## D-008 - Project membership access check
 
 **Status:** Resolved for owner-only semantics by `NBB-905`; team membership
-redesign remains part of `D-005`
+redesign remains the narrowed residual scope in `D-005`
 
 **Resolution:** `verify_project_access()` now uses a pure project-access check,
 `GET /projects/{id}` is side-effect-free, and `POST /projects/{id}/open` is the
 only route that updates `last_accessed`.
 
-**Follow-up boundary:** Broader collaborative membership semantics are a
-cross-stack contract/product redesign and remain under `D-005`.
+**Follow-up boundary:** Broader collaborative membership semantics are the
+remaining cross-stack contract/product redesign under `D-005`.

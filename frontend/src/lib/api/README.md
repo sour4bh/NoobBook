@@ -38,5 +38,5 @@ commit. Additive-only changes (new optional fields) are allowed inside migration
 tickets NBB-301..304 (chat), NBB-401..403 (sources), NBB-501..507 (studio), and
 NBB-602..604 (frontend) as long as the contract doc is updated.
 
-Redesigning any listed contract beyond the preservation/parser work is tracked in
-[`docs/tickets/DEFERRED.md`](../../../../docs/tickets/DEFERRED.md) D-005.
+Redesign beyond the preserved contracts and runtime parser coverage is narrowed
+in [`docs/tickets/DEFERRED.md`](../../../../docs/tickets/DEFERRED.md) D-005.

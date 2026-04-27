@@ -280,6 +280,8 @@ CREATE TABLE background_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- Task target
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   target_id UUID NOT NULL,
   target_type TEXT NOT NULL,
   task_type TEXT NOT NULL,
@@ -302,10 +304,14 @@ CREATE TABLE background_tasks (
 );
 
 CREATE INDEX idx_tasks_target ON background_tasks(target_id, target_type);
+CREATE INDEX idx_tasks_project_status ON background_tasks(project_id, status, created_at);
+CREATE INDEX idx_tasks_user_status ON background_tasks(user_id, status, created_at);
 CREATE INDEX idx_tasks_status ON background_tasks(status);
 CREATE INDEX idx_tasks_created_at ON background_tasks(created_at DESC);
 
 COMMENT ON TABLE background_tasks IS 'Background task tracking for async operations';
+COMMENT ON COLUMN background_tasks.project_id IS 'Owning project for user-visible task polling';
+COMMENT ON COLUMN background_tasks.user_id IS 'Owning user when known at task submission time';
 COMMENT ON COLUMN background_tasks.target_id IS 'ID of the entity being processed (source_id, chat_id, etc.)';
 COMMENT ON COLUMN background_tasks.target_type IS 'Type of target: source, studio_signal, chat';
 COMMENT ON COLUMN background_tasks.progress IS 'Progress percentage (0-100)';

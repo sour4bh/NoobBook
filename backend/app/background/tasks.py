@@ -24,7 +24,7 @@ import uuid
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future
 from datetime import datetime, timedelta
-from typing import Dict, Any, Callable, Optional, List
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +99,11 @@ class TaskService:
         task_type: str,
         target_id: str,
         callable_func: Callable,
-        *args,
+        *args: Any,
         target_type: str = "source",
-        **kwargs
+        owner_project_id: Optional[str] = None,
+        owner_user_id: Optional[str] = None,
+        **kwargs: Any
     ) -> str:
         """
         Submit a task for background execution.
@@ -114,12 +116,16 @@ class TaskService:
             target_id: ID of the target resource (e.g., source_id)
             callable_func: The function to execute
             target_type: Type of target (source, studio_signal, chat)
+            owner_project_id: Owning project for user-visible task reads
+            owner_user_id: Owning user when known at submission time
             *args, **kwargs: Arguments to pass to the function
 
         Returns:
             task_id: Unique identifier for tracking the task
         """
         task_id = str(uuid.uuid4())
+        project_id = self._owned_id(owner_project_id) or self._owned_id(kwargs.get("project_id"))
+        user_id = self._owned_id(owner_user_id) or self._owned_id(kwargs.get("user_id"))
 
         # Create task record in Supabase
         task_record = {
@@ -131,6 +137,10 @@ class TaskService:
             "error_message": None,
             "progress": 0,
         }
+        if project_id:
+            task_record["project_id"] = project_id
+        if user_id:
+            task_record["user_id"] = user_id
 
         try:
             supabase = _get_supabase()
@@ -183,6 +193,13 @@ class TaskService:
 
         return task_id
 
+    @staticmethod
+    def _owned_id(value: Any) -> Optional[str]:
+        """Return a non-empty string id suitable for task ownership columns."""
+        if isinstance(value, str) and value:
+            return value
+        return None
+
     def _update_task(self, task_id: str, **updates) -> None:
         """Update a task's fields in Supabase."""
         try:
@@ -191,16 +208,25 @@ class TaskService:
         except Exception as e:
             logger.error("Failed to update task %s: %s", task_id, e)
 
-    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def get_task(
+        self,
+        task_id: str,
+        owner_project_id: Optional[str] = None,
+        owner_user_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Get a task's current status from Supabase."""
         try:
             supabase = _get_supabase()
-            response = (
+            query = (
                 supabase.table(self.TABLE)
                 .select("*")
                 .eq("id", task_id)
-                .execute()
             )
+            if owner_project_id:
+                query = query.eq("project_id", owner_project_id)
+            if owner_user_id:
+                query = query.eq("user_id", owner_user_id)
+            response = query.execute()
             if response.data:
                 task = response.data[0]
                 # Map Supabase column names to expected format
@@ -211,16 +237,25 @@ class TaskService:
             logger.error("Failed to get task %s: %s", task_id, e)
             return None
 
-    def get_tasks_for_target(self, target_id: str) -> List[Dict[str, Any]]:
+    def get_tasks_for_target(
+        self,
+        target_id: str,
+        owner_project_id: Optional[str] = None,
+        owner_user_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get all tasks for a specific target from Supabase."""
         try:
             supabase = _get_supabase()
-            response = (
+            query = (
                 supabase.table(self.TABLE)
                 .select("*")
                 .eq("target_id", target_id)
-                .execute()
             )
+            if owner_project_id:
+                query = query.eq("project_id", owner_project_id)
+            if owner_user_id:
+                query = query.eq("user_id", owner_user_id)
+            response = query.execute()
             tasks = response.data or []
             # Map column names for compatibility
             for task in tasks:
@@ -230,7 +265,12 @@ class TaskService:
             logger.error("Failed to get tasks for target %s: %s", target_id, e)
             return []
 
-    def cancel_task(self, task_id: str) -> bool:
+    def cancel_task(
+        self,
+        task_id: str,
+        owner_project_id: Optional[str] = None,
+        owner_user_id: Optional[str] = None
+    ) -> bool:
         """
         Cancel a running or pending task.
 
@@ -244,7 +284,14 @@ class TaskService:
         Returns:
             True if cancellation was initiated, False if task not found
         """
-        task = self.get_task(task_id)
+        if owner_project_id or owner_user_id:
+            task = self.get_task(
+                task_id,
+                owner_project_id=owner_project_id,
+                owner_user_id=owner_user_id
+            )
+        else:
+            task = self.get_task(task_id)
         if not task:
             return False
 
@@ -285,7 +332,12 @@ class TaskService:
         """
         return task_id in self._cancelled_tasks
 
-    def cancel_tasks_for_target(self, target_id: str) -> int:
+    def cancel_tasks_for_target(
+        self,
+        target_id: str,
+        owner_project_id: Optional[str] = None,
+        owner_user_id: Optional[str] = None
+    ) -> int:
         """
         Cancel all running/pending tasks for a target (e.g., a source).
 
@@ -295,17 +347,37 @@ class TaskService:
         Returns:
             Number of tasks cancelled
         """
-        tasks = self.get_tasks_for_target(target_id)
+        if owner_project_id or owner_user_id:
+            tasks = self.get_tasks_for_target(
+                target_id,
+                owner_project_id=owner_project_id,
+                owner_user_id=owner_user_id
+            )
+        else:
+            tasks = self.get_tasks_for_target(target_id)
         cancelled_count = 0
 
         for task in tasks:
             if task["status"] in ["pending", "running"]:
-                if self.cancel_task(task["id"]):
+                if owner_project_id or owner_user_id:
+                    cancelled = self.cancel_task(
+                        task["id"],
+                        owner_project_id=owner_project_id,
+                        owner_user_id=owner_user_id
+                    )
+                else:
+                    cancelled = self.cancel_task(task["id"])
+                if cancelled:
                     cancelled_count += 1
 
         return cancelled_count
 
-    def is_target_cancelled(self, target_id: str) -> bool:
+    def is_target_cancelled(
+        self,
+        target_id: str,
+        owner_project_id: Optional[str] = None,
+        owner_user_id: Optional[str] = None
+    ) -> bool:
         """
         Check if any task for a target has been cancelled.
 
@@ -318,7 +390,14 @@ class TaskService:
         Returns:
             True if any task for this target was cancelled
         """
-        tasks = self.get_tasks_for_target(target_id)
+        if owner_project_id or owner_user_id:
+            tasks = self.get_tasks_for_target(
+                target_id,
+                owner_project_id=owner_project_id,
+                owner_user_id=owner_user_id
+            )
+        else:
+            tasks = self.get_tasks_for_target(target_id)
         for task in tasks:
             if task["id"] in self._cancelled_tasks:
                 return True

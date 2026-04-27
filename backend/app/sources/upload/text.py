@@ -116,7 +116,8 @@ def _submit_processing_task(project_id: str, source_id: str) -> None:
             source_id,
             source_pipeline.process_source,
             project_id,
-            source_id
+            source_id,
+            owner_project_id=project_id
         )
 
         # Update status to "processing" immediately

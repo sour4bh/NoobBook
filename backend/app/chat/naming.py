@@ -87,6 +87,7 @@ def submit_naming_task(
         project_id,
         chat_id,
         user_message_text,
+        owner_project_id=project_id,
     )
 
 

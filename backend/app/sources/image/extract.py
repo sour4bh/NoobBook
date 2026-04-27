@@ -279,7 +279,10 @@ class ImageService:
             total_output_tokens = 0
 
             for idx, image_path in enumerate(image_paths, 1):
-                if task_service.is_target_cancelled(source_id):
+                if task_service.is_target_cancelled(
+                    source_id,
+                    owner_project_id=project_id,
+                ):
                     raise Exception("Processing cancelled by user")
 
                 image_base64 = encode_file_to_base64(image_path)

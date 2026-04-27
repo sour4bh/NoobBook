@@ -14,7 +14,7 @@ import logging
 import threading
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from app.connectors.freshdesk.client import (
     freshdesk_service,
@@ -42,15 +42,14 @@ class FreshdeskSyncService:
         source_id: str,
         mode: str = "backfill",
         days_back: int = 30,
+        cancel_check: Optional[Callable[[], bool]] = None,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, int]:
         """
         Sync tickets from Freshdesk into the local freshdesk_tickets table.
 
-        Supports cancellation via task_service.is_target_cancelled() and
-        reports progress by updating the source's processing_info.
+        Supports caller-provided cancellation and progress callbacks.
         """
-        from app.background.tasks import task_service
-
         if not freshdesk_service.is_configured():
             return {
                 "tickets_fetched": 0, "tickets_created": 0,
@@ -64,14 +63,13 @@ class FreshdeskSyncService:
         }
 
         def _is_cancelled() -> bool:
-            return task_service.is_target_cancelled(source_id)
+            return bool(cancel_check and cancel_check())
 
         _sync_start = time.time()
 
         def _on_progress(total_fetched: int, rate_info: dict = None) -> None:
-            """Update source processing_info with live ticket count + ETA."""
+            """Report live ticket count + ETA to the source-owned caller."""
             try:
-                from app.sources.catalog import source_service
                 elapsed = time.time() - _sync_start
                 info: Dict[str, Any] = {
                     "syncing": True,
@@ -91,7 +89,8 @@ class FreshdeskSyncService:
                     if elapsed > 2 and total_fetched > 0:
                         tickets_per_sec = total_fetched / elapsed
                         info["tickets_per_sec"] = round(tickets_per_sec, 1)
-                source_service.update_source(project_id, source_id, processing_info=info)
+                if progress_callback:
+                    progress_callback(info)
             except Exception:
                 pass  # Non-critical
 

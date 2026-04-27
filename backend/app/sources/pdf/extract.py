@@ -374,7 +374,10 @@ class PDFService:
 
                     for future in as_completed(future_to_batch):
                         # Check for cancellation
-                        if task_service.is_target_cancelled(source_id):
+                        if task_service.is_target_cancelled(
+                            source_id,
+                            owner_project_id=project_id,
+                        ):
                             for f in future_to_batch:
                                 f.cancel()
                             raise CancelledException("Processing cancelled by user")

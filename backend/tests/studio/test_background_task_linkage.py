@@ -97,6 +97,8 @@ class TestSubmitTask:
             target_id="job-1",
             callable_func=callable_func,
             target_type="studio_signal",
+            owner_project_id="project-1",
+            owner_user_id="user-1",
         )
 
         # First .insert(...) is the pending-row write.
@@ -107,10 +109,33 @@ class TestSubmitTask:
         assert pending_row["task_type"] == "website_generation"
         assert pending_row["target_id"] == "job-1"
         assert pending_row["target_type"] == "studio_signal"
+        assert pending_row["project_id"] == "project-1"
+        assert pending_row["user_id"] == "user-1"
         assert pending_row["status"] == "pending"
         assert pending_row["status"] in BG_STATUS_VALUES
         assert pending_row["progress"] == 0
         assert pending_row["error_message"] is None
+
+    def test_submit_derives_owner_metadata_without_swallowing_callable_kwargs(
+        self, supabase_client, synchronous_executor
+    ):
+        callable_func = MagicMock(return_value=None)
+
+        task_service.submit_task(
+            task_type="chat_naming",
+            target_id="chat-1",
+            callable_func=callable_func,
+            project_id="project-1",
+            user_id="user-1",
+        )
+
+        pending_row = supabase_client.table.return_value.insert.call_args.args[0]
+        assert pending_row["project_id"] == "project-1"
+        assert pending_row["user_id"] == "user-1"
+        callable_func.assert_called_once_with(
+            project_id="project-1",
+            user_id="user-1",
+        )
 
     def test_success_path_transitions_running_then_completed(
         self, supabase_client, synchronous_executor
@@ -239,6 +264,24 @@ class TestGetTask:
 
         assert task_service.get_task("missing") is None
 
+    def test_get_task_can_scope_by_project_owner(self, supabase_client):
+        root_query = supabase_client.table.return_value.select.return_value
+        id_query = root_query.eq.return_value
+        project_query = id_query.eq.return_value
+        project_query.execute.return_value = MagicMock(data=[{
+            "id": "t-1",
+            "task_type": "source_processing",
+            "target_id": "source-1",
+            "status": "running",
+            "project_id": "project-1",
+        }])
+
+        task = task_service.get_task("t-1", owner_project_id="project-1")
+
+        root_query.eq.assert_called_once_with("id", "t-1")
+        id_query.eq.assert_called_once_with("project_id", "project-1")
+        assert task["project_id"] == "project-1"
+
     def test_get_tasks_for_target_returns_list_with_type_alias(self, supabase_client):
         select_chain = supabase_client.table.return_value.select.return_value.eq.return_value
         select_chain.execute.return_value = MagicMock(data=[
@@ -252,6 +295,25 @@ class TestGetTask:
 
         assert len(tasks) == 2
         assert all(t["type"] == "website_generation" for t in tasks)
+
+    def test_get_tasks_for_target_can_scope_by_project_owner(self, supabase_client):
+        root_query = supabase_client.table.return_value.select.return_value
+        target_query = root_query.eq.return_value
+        project_query = target_query.eq.return_value
+        project_query.execute.return_value = MagicMock(data=[
+            {"id": "t-1", "task_type": "source_processing", "target_id": "source-1",
+             "status": "running", "project_id": "project-1"},
+        ])
+
+        tasks = task_service.get_tasks_for_target(
+            "source-1",
+            owner_project_id="project-1",
+        )
+
+        root_query.eq.assert_called_once_with("target_id", "source-1")
+        target_query.eq.assert_called_once_with("project_id", "project-1")
+        assert len(tasks) == 1
+        assert tasks[0]["project_id"] == "project-1"
 
 
 # ===========================================================================

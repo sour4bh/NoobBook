@@ -317,7 +317,10 @@ class TestCancelProcessing:
 
             assert pipeline.cancel_processing(PROJECT_ID, SOURCE_ID) is True
 
-            mock_tasks.cancel_tasks_for_target.assert_called_once_with(SOURCE_ID)
+            mock_tasks.cancel_tasks_for_target.assert_called_once_with(
+                SOURCE_ID,
+                owner_project_id=PROJECT_ID,
+            )
             mock_storage.delete_processed_file.assert_called_once_with(
                 PROJECT_ID, SOURCE_ID
             )

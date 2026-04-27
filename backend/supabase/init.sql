@@ -221,6 +221,8 @@ CREATE INDEX IF NOT EXISTS idx_chunks_source_id ON chunks(source_id);
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS background_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   target_id UUID NOT NULL,
   target_type TEXT NOT NULL,
   task_type TEXT NOT NULL,
@@ -235,6 +237,8 @@ CREATE TABLE IF NOT EXISTS background_tasks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_target ON background_tasks(target_id, target_type);
+CREATE INDEX IF NOT EXISTS idx_tasks_project_status ON background_tasks(project_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_user_status ON background_tasks(user_id, status, created_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON background_tasks(status);
 
 -- ============================================================================

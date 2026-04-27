@@ -101,7 +101,8 @@ class ComponentRunner:
         task_service.submit_task(
             task_type="component_generation",
             target_id=job_id,
-            callable_func=run_agent
+            callable_func=run_agent,
+            owner_project_id=project_id
         )
 
         return {

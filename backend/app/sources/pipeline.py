@@ -255,7 +255,10 @@ class SourcePipeline:
             return False
 
         # Cancel any running tasks for this source
-        cancelled_count = task_service.cancel_tasks_for_target(source_id)
+        cancelled_count = task_service.cancel_tasks_for_target(
+            source_id,
+            owner_project_id=project_id,
+        )
         logger.info("Cancelled %s tasks for source %s", cancelled_count, source_id)
 
         # Delete processed file from Supabase Storage (keep raw file!)
@@ -302,7 +305,10 @@ class SourcePipeline:
         # If source is stuck in processing/embedding (e.g. server restart, crashed task),
         # cancel any stale tasks before retrying
         if source["status"] in ["processing", "embedding"]:
-            task_service.cancel_tasks_for_target(source_id)
+            task_service.cancel_tasks_for_target(
+                source_id,
+                owner_project_id=project_id,
+            )
 
         # Verify raw file exists in Supabase Storage
         embedding_info = source.get("embedding_info", {})
@@ -336,7 +342,8 @@ class SourcePipeline:
             source_id,
             self.process_source,
             project_id,
-            source_id
+            source_id,
+            owner_project_id=project_id
         )
 
         return {"success": True, "message": "Processing restarted"}

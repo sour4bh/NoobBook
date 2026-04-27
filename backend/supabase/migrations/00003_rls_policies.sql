@@ -304,6 +304,15 @@ USING (
 CREATE POLICY "Users can view own background tasks"
 ON background_tasks FOR SELECT
 USING (
+  -- Direct task ownership (preferred for service-role-backed tasks)
+  (project_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM projects
+    WHERE projects.id = background_tasks.project_id
+    AND projects.user_id = auth.uid()
+  ))
+  OR
+  (user_id IS NOT NULL AND user_id = auth.uid())
+  OR
   -- For source tasks
   (target_type = 'source' AND EXISTS (
     SELECT 1 FROM sources
@@ -334,6 +343,15 @@ USING (
 CREATE POLICY "Users can create own background tasks"
 ON background_tasks FOR INSERT
 WITH CHECK (
+  -- Direct task ownership (preferred for service-role-backed tasks)
+  (project_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM projects
+    WHERE projects.id = background_tasks.project_id
+    AND projects.user_id = auth.uid()
+  ))
+  OR
+  (user_id IS NOT NULL AND user_id = auth.uid())
+  OR
   -- For source tasks
   (target_type = 'source' AND EXISTS (
     SELECT 1 FROM sources
@@ -364,6 +382,15 @@ WITH CHECK (
 CREATE POLICY "Users can update own background tasks"
 ON background_tasks FOR UPDATE
 USING (
+  -- Direct task ownership (preferred for service-role-backed tasks)
+  (project_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM projects
+    WHERE projects.id = background_tasks.project_id
+    AND projects.user_id = auth.uid()
+  ))
+  OR
+  (user_id IS NOT NULL AND user_id = auth.uid())
+  OR
   -- For source tasks
   (target_type = 'source' AND EXISTS (
     SELECT 1 FROM sources
@@ -394,6 +421,15 @@ USING (
 CREATE POLICY "Users can delete own background tasks"
 ON background_tasks FOR DELETE
 USING (
+  -- Direct task ownership (preferred for service-role-backed tasks)
+  (project_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM projects
+    WHERE projects.id = background_tasks.project_id
+    AND projects.user_id = auth.uid()
+  ))
+  OR
+  (user_id IS NOT NULL AND user_id = auth.uid())
+  OR
   -- For source tasks
   (target_type = 'source' AND EXISTS (
     SELECT 1 FROM sources

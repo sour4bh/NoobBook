@@ -99,6 +99,7 @@ def get_active_tasks(project_id: str):
             bg_response = (
                 supabase.table("background_tasks")
                 .select("id, task_type, target_type, status, message, created_at, started_at")
+                .eq("project_id", project_id)
                 .in_("status", ["pending", "running"])
                 .order("created_at", desc=False)
                 .execute()

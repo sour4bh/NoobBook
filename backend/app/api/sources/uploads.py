@@ -34,6 +34,8 @@ Routes:
 - POST /projects/<id>/sources/database - Add database source (Postgres/MySQL)
 - POST /projects/<id>/sources/mcp      - Add MCP source (external data via MCP servers)
 """
+from typing import Any
+
 from flask import jsonify, request, current_app
 from app.api.sources import sources_bp
 from app.sources.catalog import source_service
@@ -373,6 +375,7 @@ def _run_freshdesk_sync(project_id: str, source_id: str, mode: str, days_back: i
     """
     from app.connectors.freshdesk.sync import freshdesk_sync_service
     from app.sources.catalog import source_service
+    from app.background.tasks import task_service
 
     try:
         if clear_first:
@@ -383,8 +386,19 @@ def _run_freshdesk_sync(project_id: str, source_id: str, mode: str, days_back: i
         source_service.update_source(project_id, source_id, status="processing",
                                      processing_info={"syncing": True, "mode": mode, "tickets_fetched": 0})
 
+        def update_progress(info: dict[str, Any]) -> None:
+            source_service.update_source(project_id, source_id, processing_info=info)
+
         stats = freshdesk_sync_service.sync_tickets(
-            project_id=project_id, source_id=source_id, mode=mode, days_back=days_back,
+            project_id=project_id,
+            source_id=source_id,
+            mode=mode,
+            days_back=days_back,
+            cancel_check=lambda: task_service.is_target_cancelled(
+                source_id,
+                owner_project_id=project_id,
+            ),
+            progress_callback=update_progress,
         )
 
         # Get global ticket count
@@ -423,6 +437,7 @@ def sync_freshdesk_source(project_id: str, source_id: str):
             "freshdesk_sync", source_id,
             _run_freshdesk_sync,
             project_id, source_id, mode, days_back,
+            owner_project_id=project_id,
         )
 
         return jsonify({
@@ -449,6 +464,7 @@ def backfill_freshdesk_source(project_id: str, source_id: str):
             "freshdesk_backfill", source_id,
             _run_freshdesk_sync,
             project_id, source_id, "backfill", 30, True,
+            owner_project_id=project_id,
         )
 
         return jsonify({

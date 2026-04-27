@@ -113,7 +113,8 @@ class VideoDispatcher:
         task_service.submit_task(
             task_type="video_generation",
             target_id=job_id,
-            callable_func=run_video_generation
+            callable_func=run_video_generation,
+            owner_project_id=project_id
         )
 
         return {

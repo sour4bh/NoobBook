@@ -62,7 +62,6 @@ class TestEnvelope:
             "app.api.projects.active_tasks.get_supabase",
         ) as mock_supabase:
             mock_supabase.return_value.table.return_value.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
-            mock_supabase.return_value.table.return_value.select.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
 
             response = client.get(ROUTE)
 
@@ -91,7 +90,6 @@ class TestSourcesBranch:
         ) as mock:
             # Default: no studio jobs and no background tasks.
             mock.return_value.table.return_value.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
-            mock.return_value.table.return_value.select.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
             yield mock
 
     def test_processing_source_appears(self, client, stub_supabase):
@@ -169,11 +167,11 @@ class TestStudioJobsBranch:
         """Wire the studio_jobs select chain to return `studio_data` and the
         background_tasks select chain to return []."""
         # First .table() call: studio_jobs path is .select().eq().in_().order().execute()
-        # Second .table() call: background_tasks path is .select().in_().order().execute()
+        # Second .table() call: background_tasks path is .select().eq().in_().order().execute()
         studio_mock = MagicMock()
         studio_mock.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=studio_data)
         bg_mock = MagicMock()
-        bg_mock.select.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
+        bg_mock.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
 
         def table_router(name):
             if name == "studio_jobs":
@@ -263,7 +261,7 @@ class TestBackgroundTasksBranch:
         studio_mock = MagicMock()
         studio_mock.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=studio_data)
         bg_mock = MagicMock()
-        bg_mock.select.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=bg_data)
+        bg_mock.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=bg_data)
 
         def table_router(name):
             if name == "studio_jobs":
@@ -283,7 +281,10 @@ class TestBackgroundTasksBranch:
             _, bg_mock = self._stub_queries(mock_supabase, [], [])
             client.get(ROUTE)
 
-        in_call = bg_mock.select.return_value.in_.call_args
+        project_call = bg_mock.select.return_value.eq.call_args
+        assert project_call.args == ("project_id", PROJECT_ID)
+
+        in_call = bg_mock.select.return_value.eq.return_value.in_.call_args
         assert in_call.args[0] == "status"
         # Active subset of the background_tasks status enum.
         assert set(in_call.args[1]) == {"pending", "running"}
@@ -367,7 +368,7 @@ class TestCombined:
                  "progress": "y", "created_at": "2026-04-24T10:00:05Z"},
             ])
             bg_mock = MagicMock()
-            bg_mock.select.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
+            bg_mock.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = MagicMock(data=[])
 
             def table_router(name):
                 return studio_mock if name == "studio_jobs" else bg_mock

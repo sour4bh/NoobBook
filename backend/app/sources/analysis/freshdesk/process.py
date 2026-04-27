@@ -139,11 +139,21 @@ def process_freshdesk(
             source_id, days_back,
         )
         try:
+            from app.background.tasks import task_service
+
+            def update_progress(info: dict[str, Any]) -> None:
+                source_service.update_source(project_id, source_id, processing_info=info)
+
             sync_stats = freshdesk_sync_service.sync_tickets(
                 project_id=project_id,
                 source_id=source_id,
                 mode="backfill",
                 days_back=days_back,
+                cancel_check=lambda: task_service.is_target_cancelled(
+                    source_id,
+                    owner_project_id=project_id,
+                ),
+                progress_callback=update_progress,
             )
         except Exception as e:
             source_service.update_source(

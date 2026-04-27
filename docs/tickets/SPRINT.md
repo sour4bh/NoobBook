@@ -17,17 +17,17 @@ Hard gates live in `tickets.csv`. Ticket bodies carry implementation detail. Thi
 
 ## Current Baseline
 
-As of 2026-04-27, **MIGRATION SPRINT COMPLETE** for the original 59-ticket sprint, with stricter post-sprint continuations registered as `NBB-008` and `NBB-009`. Phase 4/5 batch 19 closed when NBB-706 merged via two-worker split (Sonnet doc/mechanical + Opus semantic refactor + single Opus reviewer covering both). NBB-706 remains complete under its approved-exception standard; NBB-008 supersedes those placement exceptions for final retired-root eradication; NBB-009 closes the selected deferred hardening work in the current working tree:
+As of 2026-04-27, **MIGRATION SPRINT COMPLETE** for the original 59-ticket sprint, with stricter post-sprint continuations registered as `NBB-008` and `NBB-009`. Phase 4/5 batch 19 closed when NBB-706 merged via two-worker split (Sonnet doc/mechanical + Opus semantic refactor + single Opus reviewer covering both). NBB-706 remains complete under its approved-exception standard; NBB-008 supersedes those placement exceptions for final retired-root eradication; NBB-009 first closed selected deferred hardening work and now registers the remaining security/contract hardening wave:
 
-- Current planning base: `main` @ `ee641ec` (`f1d1eb7` merged NBB-009; `ac91747` is the NBB-813 retired-root reconciliation baseline; `e03bad0` is the NBB-812 frozen-root baseline; `0f1f9e5` is the NBB-811 services no-return baseline; `f8639ad` is the original sprint-completion baseline before post-sprint audit/plan commits).
+- Current planning base: `main` @ `f85d4d7` (`f85d4d7` records NBB-009 merge state; `f1d1eb7` merged NBB-009 first wave; `ac91747` is the NBB-813 retired-root reconciliation baseline; `e03bad0` is the NBB-812 frozen-root baseline; `0f1f9e5` is the NBB-811 services no-return baseline; `f8639ad` is the original sprint-completion baseline before post-sprint audit/plan commits).
 - Merged progress: **58 of 59 tasks merged** + 1 deferred (NBB-108B per D-004) = 59 accounted. (Phase 1-3 complete; Phase 4 batch 1: NBB-208B, NBB-401, NBB-704A; batch 2: NBB-209D, NBB-209B; batch 3: NBB-209E, NBB-207B; batch 4: NBB-207C, NBB-210; batch 5: NBB-501A, NBB-209A; batch 6: NBB-501B, NBB-402; batch 7: NBB-502, NBB-201; batch 8: NBB-202A, NBB-503; batch 9: NBB-209C, NBB-506, NBB-504, NBB-505; batch 10: NBB-705A, NBB-602, NBB-705C; batch 11: NBB-603, NBB-705D, NBB-507; batch 12: NBB-604, NBB-301, NBB-202B; batch 13: NBB-302; batch 14: NBB-403; batch 15: NBB-705B, NBB-303; batch 16: NBB-705E, NBB-304, NBB-701; batch 17: NBB-702, NBB-704B, NBB-703; batch 18: NBB-704C; batch 19: NBB-706 (split worker dispatch))
-- Continuation progress: `NBB-801` through `NBB-813` merged; `NBB-901` through `NBB-909` merged together at `f1d1eb7`. Source AI/link services, chat memory, settings env/dispatcher, raw provider clients, provider validators, connector clients, connector validators, source upload/processing pipelines, the studio job store, tool JSON schemas, and the final services root have left `backend/app/services/`. `NBB-812` moved the last `backend/app/utils` residents and remaining legacy prompt JSON assets to owned roots. `NBB-813` reconciled deployment scripts/current docs with that end state and hardened retired-root doc checks. `NBB-009` adds Hydra-like config modules, auth/OAuth/project-access fixes, API transport boundary enforcement, declarative CSV analysis, and frontend smoke tests. `ee641ec` is a docs-only branch-policy follow-up that replaces the last active `git pull origin develop` guidance with `main`.
+- Continuation progress: `NBB-801` through `NBB-813` merged; `NBB-901` through `NBB-909` merged together at `f1d1eb7`; `NBB-910` through `NBB-918` are now registered to close or sharply narrow `D-003` and `D-005`. Source AI/link services, chat memory, settings env/dispatcher, raw provider clients, provider validators, connector clients, connector validators, source upload/processing pipelines, the studio job store, tool JSON schemas, and the final services root have left `backend/app/services/`. `NBB-812` moved the last `backend/app/utils` residents and remaining legacy prompt JSON assets to owned roots. `NBB-813` reconciled deployment scripts/current docs with that end state and hardened retired-root doc checks. `NBB-009` first added Hydra-like config modules, auth/OAuth/project-access fixes, API transport boundary enforcement, declarative CSV analysis, and frontend smoke tests; the second wave covers signup/admin separation, scoped asset access, service-role ownership, provider/connector permission gates, storage isolation, OAuth replay hardening, backend DTOs, frontend runtime parsers, and final deferred-state reconciliation. `ee641ec` is a docs-only branch-policy follow-up that replaces the last active `git pull origin develop` guidance with `main`.
 - Current verifier status at NBB-009 merge: `verify_no_stateless_singletons.py` 8 allowlisted + 0 new offenses; `verify_architecture.py` 0 violations; `verify_project_id_coverage.py` 0 omissions across 335 files; focused NBB-009 backend pytest 372 passed; backend pytest 736 passed; pyright 0 errors / 4280 warnings; frontend Vitest 4 files / 5 tests passed; frontend build passes from `frontend/`.
 - **Sprint outcome**: domain-first layout fully landed under `app/<domain>/…`. Mechanism-first buckets (`ai_services/`, `ai_agents/`, `tool_executors/`, `utils/`) are either drained by NBB-008 or historical sprint-complete exceptions superseded by NBB-812. 6 barrels removed + 7 stateless classes converted to module functions + chat submodule-vs-function shadow eliminated. Type-safety (pyright) + AST-safety (`verify_no_stateless_singletons.py` + `verify_project_id_coverage.py`) checks gating CI. Architecture invariant (rules 1-5 in `verify_architecture.py`) gating CI. `docs/tickets/NBB-706-disposition.md` now distinguishes original sprint-complete exceptions from NBB-008 moves into domains, providers, connectors, and settings.
 - **Continuation outcome**: no tracked files remain under `backend/app/services/`, `backend/app/utils/`, or `backend/data/prompts/`; `verify_architecture.py` now fails on any tracked retired-root file, `app.services.*` import, `app.utils.*` import, or current-doc guidance treating retired roots as live.
 - Refactory worktree-isolation contract in force: absolute `project_root` is mandatory on every move/rename; preview is default; `apply: true` mutates. `expected_git_root` is no longer part of the caller-facing contract. Cat A/B hazard pre-flight refuses with actionable errors. Pre-fix contamination forensic retained at `stash@{0}`.
 - Phase 5 studio lane closed in the original sprint (NBB-503 pilot plus NBB-504 through NBB-507 all merged).
-- Graph shape: 90 CSV rows, 9 epics, 81 tasks
+- Graph shape: 99 CSV rows, 9 epics, 90 tasks
 - Graph validation: `python docs/tickets/dag.py --check`
 - Refactory plugin: required for movement tickets; verify the session exposes refactory `move_module` before dispatching movement work.
 - Permanent raw-code analysis replacement: implemented by `NBB-907`; `D-002` resolved.
@@ -150,7 +150,7 @@ Do not escalate to Codex for:
 | Frontend | shell rules, hooks/providers, lib/context tightening | `NBB-601` through `NBB-604` |
 | Verification and cleanup | architecture checks, utility drains, final cleanup | `NBB-704A` through `NBB-706` |
 | Services eradication | final retired-root drain, provider/connector split, no-return enforcement | `NBB-801` through `NBB-813` |
-| Deferred hardening | config runtime, auth/OAuth, route boundary, safe analysis, frontend smoke tests | `NBB-901` through `NBB-909` |
+| Deferred hardening | config runtime, auth/OAuth, route boundary, safe analysis, frontend smoke tests, security closure, contract DTOs | `NBB-901` through `NBB-918` |
 
 ## Phase Plan
 
@@ -358,12 +358,15 @@ Run after NBB-008 is complete:
 
 ```text
 NBB-901 -> NBB-902 -> NBB-903 -> NBB-904 -> NBB-905 -> NBB-906 -> NBB-907 -> NBB-908 -> NBB-909
+
+NBB-909 -> NBB-910 -> NBB-911 -> NBB-912 -> NBB-913 -> NBB-915 -> NBB-916 -> NBB-917 -> NBB-918
+NBB-912 -> NBB-914 -> NBB-918
 ```
 
 Purpose:
 
 - Close the selected deferred items now: config/runtime cleanup, dev-mode API auth parity, OAuth callback state validation, project-open side-effect split, API transport boundary enforcement, raw-code analysis replacement, and frontend smoke tests.
-- Keep `D-003` broad security review and `D-005` cross-stack contract redesign explicitly deferred.
+- Close or sharply narrow the remaining `D-003` broad security and `D-005` cross-stack contract risks through explicit tickets instead of leaving them as parked audit items.
 
 ## Critical Path
 
@@ -391,6 +394,8 @@ The current deferred-hardening path is:
 
 ```text
 NBB-901 -> NBB-902 -> NBB-903 -> NBB-904 -> NBB-905 -> NBB-906 -> NBB-907 -> NBB-908 -> NBB-909
+NBB-909 -> NBB-910 -> NBB-911 -> NBB-912 -> NBB-913 -> NBB-915 -> NBB-916 -> NBB-917 -> NBB-918
+NBB-912 -> NBB-914 -> NBB-918
 ```
 
 ## Refactory Workflow
@@ -530,7 +535,16 @@ Update this table when work starts, merges, or blocks.
 | `NBB-906` | Deferred hardening | Merged | main thread | main working tree | main-thread review done | `f1d1eb7` (combined NBB-009 commit) | PASS `python backend/scripts/verify_architecture.py`; PASS full backend pytest | Locked `backend/app/api` as HTTP transport-only with verifier coverage against external `app.api` imports; route files stay in place and may only parse, guard, call public domain surfaces, and format responses. |
 | `NBB-907` | Deferred hardening | Merged | main thread | main working tree | main-thread review done | `f1d1eb7` (combined NBB-009 commit) | PASS `backend/tests/test_declarative_csv_analysis.py`; PASS `backend/tests/sources/test_analysis_boundaries.py`; PASS full backend pytest | Removed the raw `exec()` CSV analysis path and replaced `run_analysis` with Pydantic-validated declarative inspect/filter/aggregate/sort/chart operations; `return_analysis` remains the termination tool. |
 | `NBB-908` | Deferred hardening | Merged | main thread | main working tree | main-thread review done | `f1d1eb7` (combined NBB-009 commit) | PASS `cd frontend && npm run test:run` (4 files / 5 tests); PASS `cd frontend && npm run build` | Added Vitest, jsdom, RTL, jest-dom, user-event, test setup, and smoke coverage for app boot, permissions provider behavior, workspace shell render, and citation fetch/render. |
-| `NBB-909` | Deferred hardening | Merged | main thread | main working tree | main-thread review done | `f1d1eb7` (combined NBB-009 commit) | PASS `python backend/scripts/verify_architecture.py`; PASS `python backend/scripts/verify_no_stateless_singletons.py`; PASS `python backend/scripts/verify_project_id_coverage.py`; PASS `python docs/tickets/dag.py --check`; PASS `cd backend && pytest` (736 passed); PASS `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` (0 errors, 4280 warnings); PASS `cd frontend && npm run test:run`; PASS `cd frontend && npm run build` | Reconciled `DEFERRED.md`: `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolved by NBB-009; `D-003` and `D-005` remain explicitly deferred. |
+| `NBB-909` | Deferred hardening | Merged | main thread | main working tree | main-thread review done | `f1d1eb7` (combined NBB-009 commit) | PASS `python backend/scripts/verify_architecture.py`; PASS `python backend/scripts/verify_no_stateless_singletons.py`; PASS `python backend/scripts/verify_project_id_coverage.py`; PASS `python docs/tickets/dag.py --check`; PASS `cd backend && pytest` (736 passed); PASS `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` (0 errors, 4280 warnings); PASS `cd frontend && npm run test:run`; PASS `cd frontend && npm run build` | Reconciled first-wave `DEFERRED.md`: `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolved by NBB-009. Its parked `D-003`/`D-005` state is superseded by `NBB-910` through `NBB-918`. |
+| `NBB-910` | Deferred hardening | Ready | unassigned | | | | | Split public signup ownership from global admin bootstrap. Public signup may create a workspace owner only in a workspace-scoped model; it must never implicitly create a global admin. |
+| `NBB-911` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-910`. Replace primary JWT browser asset URLs with scoped asset access. |
+| `NBB-912` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-911`. Add ownership to background tasks and harden service-role reads. |
+| `NBB-913` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-912`. Complete backend-owned provider and connector permission gates. |
+| `NBB-914` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-912`. Reconcile Supabase storage paths, policies, and generated asset isolation. Can run in parallel with `NBB-913`/`NBB-915` only after confirming file overlap. |
+| `NBB-915` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-913`. Harden Google OAuth production redirects and replay resistance. |
+| `NBB-916` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-915`. Define backend-owned API, event, and JSONB DTO contracts. |
+| `NBB-917` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-916`. Add frontend runtime contract parsers and authenticated SSE transport. |
+| `NBB-918` | Deferred hardening | Blocked | unassigned | | | | | Blocked on `NBB-914` and `NBB-917`. Reconcile `D-003` and `D-005` after the hardening wave. |
 
 Status values:
 
@@ -566,8 +580,9 @@ PASS <short command>; SKIP <short command> - <reason>; FAIL <short command> - <r
 
 | Date | Decision | Owner |
 |---|---|---|
-| 2026-04-27 | `NBB-009` merged at `f1d1eb7`; the current planning base is `ee641ec` after the docs-only branch-policy follow-up that replaced the last active `git pull origin develop` guidance with `main`. Next unresolved work is limited to the explicitly deferred `D-003` broad security review and `D-005` cross-stack contract redesign. | Main thread |
-| 2026-04-27 | `NBB-009` closes the selected deferred items now, in one serial hardening pass: `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolve through tickets `NBB-901`-`NBB-909`; `D-003` broad security review and `D-005` cross-stack contract redesign remain explicitly deferred by user decision. | Main thread |
+| 2026-04-27 | `D-003` and `D-005` are no longer parked as broad deferred topics. They are split into `NBB-910` through `NBB-918`: signup/global-admin separation, scoped asset access, service-role ownership, provider/connector permission gates, storage isolation, OAuth replay hardening, backend DTO contracts, frontend runtime parsers, and final deferred-state reconciliation. Public signup may create a workspace owner only inside a workspace-scoped model; it must never implicitly create a global admin. | Main thread |
+| 2026-04-27 | `NBB-009` merged at `f1d1eb7`; the current planning base is `f85d4d7` after the NBB-009 merge-state record and docs-only branch-policy follow-up. Next unresolved work is the planned `NBB-910`-`NBB-918` hardening wave. | Main thread |
+| 2026-04-27 | `NBB-009` first wave closed the selected deferred items in one serial hardening pass: `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolve through tickets `NBB-901`-`NBB-909`. At that point `D-003` and `D-005` remained deferred; the later `NBB-910`-`NBB-918` split above supersedes that parked state. | Main thread |
 | 2026-04-27 | Runtime configuration uses a Hydra-like `app.config.*` tree after `NBB-902`: `runtime`, `provider`, `model`, `prompt`, `tool`, `asset`, `context`, and `brand`. The user-facing settings mutation surface remains `app.settings.env` and `app.settings.validation`; no old config module compatibility shims are allowed. | Main thread |
 | 2026-04-27 | CSV analysis no longer supports model-authored Python execution after `NBB-907`. `run_analysis` is a Pydantic-validated declarative table-analysis tool; `return_analysis` remains the termination tool; `NOOBBOOK_ALLOW_RAW_ANALYSIS` is no longer required for CSV analysis. | Main thread |
 | 2026-04-27 | `NBB-813` captures the post-812 reconciliation pass in `NBB-008`: deployment/runtime scripts must not stage or recreate `backend/data/prompts`, obsolete base path compatibility helpers should be deleted once unused, and current-doc no-return checks apply to all retired roots (`services/`, `utils/`, and `data/prompts/`), not only `services/`. | Main thread |
@@ -637,7 +652,7 @@ The `NBB-008` continuation is complete when:
 
 The `NBB-009` continuation is complete when:
 
-- `NBB-909` is merged.
+- `NBB-918` is merged.
 - `backend/config.py` is gone and config imports use the explicit `app.config.{runtime,provider,model,prompt,tool,asset,context,brand}` modules.
 - API auth-required and dev-mode middleware behavior are both covered by tests.
 - Google OAuth callback bypasses bearer auth only through signed state validation.
@@ -645,4 +660,8 @@ The `NBB-009` continuation is complete when:
 - `backend/app/api` transport-only enforcement is active in `verify_architecture.py`.
 - CSV `run_analysis` has no raw Python execution path.
 - Frontend Vitest smoke tests and frontend build pass.
-- `DEFERRED.md` marks `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolved while keeping `D-003` and `D-005` deferred by explicit decision.
+- Public signup cannot implicitly create a global admin; global admin bootstrap is env, CLI, or invite only.
+- Browser-visible generated asset URLs do not contain primary bearer JWTs.
+- Background tasks, storage assets, provider/connector capabilities, and OAuth state replay behavior have ownership/security tests.
+- Backend public API/event payloads have named DTO contracts and frontend boundary parsers.
+- `DEFERRED.md` marks `D-001`, `D-002`, `D-004`, `D-006`, `D-007`, and `D-008` resolved, then marks `D-003` and `D-005` either resolved or narrowed to concrete residual owner/scopes after `NBB-918`.

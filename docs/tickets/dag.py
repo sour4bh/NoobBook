@@ -4,6 +4,7 @@
 import argparse
 import csv
 from collections import defaultdict
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -15,9 +16,9 @@ REPO_ROOT = ROOT.parent.parent
 
 # These targets intentionally pin the current migration graph. Update them
 # only when adding or removing tickets deliberately.
-TARGET_ROW_COUNT = 90
+TARGET_ROW_COUNT = 99
 TARGET_EPIC_COUNT = 9
-TARGET_TASK_COUNT = 81
+TARGET_TASK_COUNT = 90
 REMOVED_AGGREGATE_KEYS = (
     "NBB-108",
     "NBB-202",
@@ -167,8 +168,7 @@ def milestone_gantt(tasks, waves):
         lines.append(f"  section {epic}")
         for row in sorted(by_epic[epic], key=lambda item: (waves[item["key"]], item["key"])):
             wave = waves[row["key"]]
-            day = wave + 1
-            start = f"2026-01-{day:02d}"
+            start = (date(2026, 1, 1) + timedelta(days=wave)).isoformat()
             label = f'{row["key"]} {row["size"]}'
             lines.append(f"  {label} :{start}, 1d")
 

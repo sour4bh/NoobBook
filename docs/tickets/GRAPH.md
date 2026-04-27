@@ -37,6 +37,14 @@ Generated from `docs/tickets/tickets.csv` by `python docs/tickets/dag.py --write
 | 28 | `NBB-906` |
 | 29 | `NBB-907` |
 | 30 | `NBB-909` |
+| 31 | `NBB-910` |
+| 32 | `NBB-911` |
+| 33 | `NBB-912` |
+| 34 | `NBB-913`, `NBB-914` |
+| 35 | `NBB-915` |
+| 36 | `NBB-916` |
+| 37 | `NBB-917` |
+| 38 | `NBB-918` |
 
 ## Mermaid Task Dependency DAG
 
@@ -279,6 +287,25 @@ flowchart LR
   NBB909["NBB-909"]:::p1
   NBB907 --> NBB909
   NBB908 --> NBB909
+  NBB910["NBB-910"]:::p1
+  NBB909 --> NBB910
+  NBB911["NBB-911"]:::p1
+  NBB910 --> NBB911
+  NBB912["NBB-912"]:::p1
+  NBB911 --> NBB912
+  NBB913["NBB-913"]:::p1
+  NBB912 --> NBB913
+  NBB914["NBB-914"]:::p1
+  NBB912 --> NBB914
+  NBB915["NBB-915"]:::p1
+  NBB913 --> NBB915
+  NBB916["NBB-916"]:::p1
+  NBB915 --> NBB916
+  NBB917["NBB-917"]:::p1
+  NBB916 --> NBB917
+  NBB918["NBB-918"]:::p1
+  NBB914 --> NBB918
+  NBB917 --> NBB918
 ```
 
 ## Mermaid Milestone Bar Chart
@@ -378,4 +405,13 @@ gantt
   NBB-906 M :2026-01-29, 1d
   NBB-907 L :2026-01-30, 1d
   NBB-909 M :2026-01-31, 1d
+  NBB-910 M :2026-02-01, 1d
+  NBB-911 L :2026-02-02, 1d
+  NBB-912 L :2026-02-03, 1d
+  NBB-913 M :2026-02-04, 1d
+  NBB-914 L :2026-02-04, 1d
+  NBB-915 M :2026-02-05, 1d
+  NBB-916 L :2026-02-06, 1d
+  NBB-917 L :2026-02-07, 1d
+  NBB-918 M :2026-02-08, 1d
 ```

@@ -19,7 +19,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 | `NBB-601` through `NBB-604` | Frontend tightening tasks |
 | `NBB-701` through `NBB-706`, including split tasks `NBB-704A/B/C` and `NBB-705A-E` | Verification and cleanup tasks |
 | `NBB-801` through `NBB-813` | Post-sprint services eradication and final frozen-root enforcement tasks |
-| `NBB-901` through `NBB-909` | Deferred closure and runtime hardening tasks |
+| `NBB-901` through `NBB-918` | Deferred closure and runtime/security/contract hardening tasks |
 
 ## Core Policies
 
@@ -67,7 +67,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | Epic 006 Frontend | `NBB-105` and `NBB-108A`; `NBB-108B` may run in parallel if frontend tests are chosen |
 | Epic 007 Cleanup | Some split tasks, especially `NBB-704A` and `NBB-705C`, intentionally run early as owner-specific guardrails/drains; `NBB-706` is the final cleanup gate and waits for `NBB-704C` type/AST safety checks |
 | Epic 008 Services eradication | Starts after `NBB-706`; drains every remaining tracked `backend/app/services/` resident and ends with verifier rules that reject retired services/utils/prompt roots and `app.services.*` / `app.utils.*` imports |
-| Epic 009 Deferred closure | Starts after `NBB-813`; closes selected deferred runtime/auth/project/frontend/source-analysis risks while leaving broad security review and cross-stack contract redesign deferred by explicit decision |
+| Epic 009 Deferred closure | Starts after `NBB-813`; first closes selected runtime/auth/project/frontend/source-analysis risks, then tickets the remaining security and cross-stack contract risks as `NBB-910` through `NBB-918` |
 
 ## Epics
 

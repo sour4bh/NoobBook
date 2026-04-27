@@ -25,18 +25,24 @@ invalid operations fail closed.
 
 ## D-003 - Broad security review beyond permissions and raw-code analysis
 
-**Status:** Deferred by explicit decision
+**Status:** Planned by `NBB-910` through `NBB-915`; reconcile in `NBB-918`
 
-**Reason:** `NBB-009` fixes selected known security-adjacent defects, but it is
-not a full security audit.
+**Reason:** The first `NBB-009` hardening wave fixed selected known
+security-adjacent defects. The remaining security work is now ticketed instead
+of parked as a broad audit.
 
-**Scope to revisit:**
-- service-role Supabase access patterns
-- media/query-token routes
-- generated asset access
-- connector secret exposure
-- MCP and external connector trust boundaries
-- OAuth state replay hardening beyond signed short-lived state
+**Ticket map:**
+- `NBB-910` splits public signup ownership from global admin bootstrap. Public
+  signup may create a workspace owner only in a workspace-scoped model; it must
+  never implicitly create a global admin.
+- `NBB-911` replaces primary JWT browser asset URLs with scoped asset access.
+- `NBB-912` adds ownership to background tasks and hardens service-role reads.
+- `NBB-913` completes provider and connector permission gates for Google Drive,
+  ElevenLabs, and MCP.
+- `NBB-914` reconciles Supabase storage paths, policies, and generated asset
+  isolation.
+- `NBB-915` hardens Google OAuth production redirects and replay resistance.
+- `NBB-918` records what is resolved and leaves only concrete residual risks.
 
 **Suggested owner:** Security/providers/connectors owner.
 
@@ -50,28 +56,21 @@ provider, workspace shell, and citation UI coverage.
 
 ## D-005 - Cross-stack contract redesign beyond preservation
 
-**Status:** Deferred by explicit decision
+**Status:** Planned by `NBB-916` and `NBB-917`; reconcile in `NBB-918`
 
 **Reason:** `NBB-205` named and preserved current contracts so migration could
-proceed. `NBB-009` keeps those contracts stable while closing runtime/auth and
-analysis defects. Redesigning contracts remains a separate API/frontend product
-decision.
+proceed. The next hardening wave now converts the highest-risk preserved
+contracts into backend-owned DTOs and frontend runtime parsers.
 
-**Contracts covered for preservation:**
-- chat streaming event format
-- citation marker and lookup format
-- chat tool invocation/result wire format
-- `studio_signals`/studio event shape
-- `projects.costs` JSONB shape
-- `messages.content` JSONB shape
-- background-task polling response
-- tool-schema JSON contract
-- source kind/MIME/status contract
-- studio job status/progress/result contract
-- permissions JSON contract
-- auth/session response contract
-- authenticated media/generated-asset access contract
-- query-token asset access contract
+**Ticket map:**
+- `NBB-916` defines backend-owned DTOs for error envelopes, auth/session,
+  permissions, chat streaming events, citations, tool invocation/result,
+  background-task polling, source kind/MIME/status, studio jobs, generated asset
+  access, query-token asset access, and the relevant JSONB payloads.
+- `NBB-917` adds frontend runtime parsers and authenticated SSE transport for
+  those contracts.
+- `NBB-918` records what is resolved and leaves only concrete residual contract
+  redesigns.
 
 **Suggested owner:** Contract/API owner.
 

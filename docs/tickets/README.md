@@ -18,7 +18,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 | `NBB-501A/B` through `NBB-507` | Studio migration tasks |
 | `NBB-601` through `NBB-604` | Frontend tightening tasks |
 | `NBB-701` through `NBB-706`, including split tasks `NBB-704A/B/C` and `NBB-705A-E` | Verification and cleanup tasks |
-| `NBB-801` through `NBB-812` | Post-sprint services eradication and final frozen-root enforcement tasks |
+| `NBB-801` through `NBB-813` | Post-sprint services eradication and final frozen-root enforcement tasks |
 
 ## Core Policies
 
@@ -122,7 +122,7 @@ See `TRACEABILITY.md` for old-ticket and finding mappings. See `DEFERRED.md` for
 
 ## Move bookkeeping
 
-Structural movement tickets (NBB-209A–E, 304, 402, 705A–D, 803–812, and partially 403, 504–507, 602–604) execute Python and TypeScript moves through the **refactory** Claude Code plugin when the move shape is safe — `mcp__refactory__move_module`, `mcp__refactory__move_symbol`, and `mcp__refactory__rename_symbol`. Refactory's `validate_imports` catches import-statement breakage after a move, but string references in docs and tests need a separate pass. Manual moves are allowed when the ticket records a bounded reason and preserves behavior with tests. `NBB-706` is verification and manual cleanup only; it does not call refactory execution tools and does not append rows to `move-plan.csv`. `NBB-811` and `NBB-812` are final enforcement cleanup after all `NBB-008` behavior moves land.
+Structural movement tickets (NBB-209A–E, 304, 402, 705A–D, 803–812, and partially 403, 504–507, 602–604) execute Python and TypeScript moves through the **refactory** Claude Code plugin when the move shape is safe — `mcp__refactory__move_module`, `mcp__refactory__move_symbol`, and `mcp__refactory__rename_symbol`. Refactory's `validate_imports` catches import-statement breakage after a move, but string references in docs and tests need a separate pass. Manual moves are allowed when the ticket records a bounded reason and preserves behavior with tests. `NBB-706` is verification and manual cleanup only; it does not call refactory execution tools and does not append rows to `move-plan.csv`. `NBB-811` and `NBB-812` are final enforcement cleanup after all `NBB-008` behavior moves land; `NBB-813` is post-812 reconciliation and guardrail hardening, not a movement ticket.
 
 `docs/tickets/move-plan.csv` is an append-only audit log of every move. Read-only metadata, not a driver script — refactory does the execution during the ticket's turn. Purpose: consolidated audit ("where did `utils/pdf_utils.py` land?") across 11+ mover tickets.
 

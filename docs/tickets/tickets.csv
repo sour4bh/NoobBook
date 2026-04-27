@@ -78,3 +78,4 @@ NBB-809,Task,Drain studio job index service,NBB-008,backend/studio,P1,M,NBB-802,
 NBB-810,Task,Drain services tool JSON schemas,NBB-008,backend/tools,P1,L,NBB-804;NBB-806;NBB-807;NBB-808;NBB-809,docs/tickets/epics/NBB-008.md,#nbb-810,Move all remaining static tool JSON schemas to owning domains and connectors.
 NBB-811,Task,Delete services root and enforce no return,NBB-008,architecture,P1,M,NBB-810,docs/tickets/epics/NBB-008.md,#nbb-811,Delete backend app services and fail future app.services imports or files.
 NBB-812,Task,Erase remaining frozen roots,NBB-008,architecture,P1,M,NBB-811,docs/tickets/epics/NBB-008.md,#nbb-812,Delete backend app utils and data prompts after moving final assets to owned roots.
+NBB-813,Task,Reconcile post-812 deployment docs and retired-root guardrails,NBB-008,architecture,P1,S,NBB-812,docs/tickets/epics/NBB-008.md,#nbb-813,Remove stale deployment prompt seeding docs and harden current-doc checks after frozen roots are gone.

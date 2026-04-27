@@ -491,19 +491,19 @@ class SourceCatalog:
         return source_pipeline.retry_processing(project_id, source_id)
 
     # =========================================================================
-    # Path utilities (for backwards compatibility with processing services)
+    # Path helpers retained for source processing callers.
     # =========================================================================
 
     def _get_raw_dir(self, project_id: str) -> Path:
-        """Get raw directory - uses path_utils."""
+        """Get raw directory."""
         return get_raw_dir(project_id)
 
     def _get_processed_dir(self, project_id: str) -> Path:
-        """Get processed directory - uses path_utils."""
+        """Get processed directory."""
         return get_processed_dir(project_id)
 
     def _get_chunks_dir(self, project_id: str) -> Path:
-        """Get chunks directory - uses path_utils."""
+        """Get chunks directory."""
         return get_chunks_dir(project_id)
 
 

@@ -56,7 +56,8 @@ NBB-811 adds the services no-return rules: no current tracked file under
 or backend tests, and no current docs that present ``services/`` as a live
 destination instead of a historical migration source. NBB-812 extends the
 tracked-file and import gates to ``backend/app/utils``, ``backend/data/prompts``,
-and ``app.utils.*`` references.
+``app.utils.*`` references, and current docs/deployment files that present any
+retired root as live.
 
 Usage:
     python backend/scripts/verify_architecture.py
@@ -225,28 +226,80 @@ CURRENT_DOC_PATHS: Tuple[Path, ...] = (
     REPO_ROOT / "CLAUDE.md",
     REPO_ROOT / "STRUCTURE.md",
     BACKEND_DIR / "STRUCTURE.md",
+    BACKEND_DIR / "Dockerfile",
+    BACKEND_DIR / "entrypoint.sh",
+    REPO_ROOT / "docs/deployment/observability.md",
     REPO_ROOT / "docs/contracts/README.md",
 )
 
-ACTIVE_SERVICES_GUIDANCE_PATTERNS: Tuple[re.Pattern[str], ...] = (
-    re.compile(
-        r"(new|add|create|place|put|land|lives?|belongs?|destination|owner|"
-        r"backend owner|may read|may import|tolerated|current|currently|"
-        r"remains|feed|feeds).*(backend/app/services|app/services|services/|"
-        r"app\.services\.)",
-        re.IGNORECASE,
+RETIRED_DOC_TARGETS: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
+    (
+        "services/",
+        (
+            "backend/app/services",
+            "app/services",
+            "services/",
+            "app.services.",
+        ),
+        "NBB-811",
     ),
-    re.compile(
-        r"(backend/app/services|app/services|services/|app\.services\.).*"
-        r"(new|add|create|place|put|land|lives?|belongs?|destination|owner|"
-        r"backend owner|may read|may import|tolerated|current|currently|"
-        r"remains|feed|feeds)",
-        re.IGNORECASE,
+    (
+        "utils/",
+        (
+            "backend/app/utils",
+            "app/utils",
+            "app.utils.",
+            "utils/text/",
+            "utils/logger",
+            "utils/path_utils",
+            "utils/claude_parsing_utils",
+            "utils/cost_tracking",
+            "utils/embedding_utils",
+            "utils/file_utils",
+            "utils/citation_utils",
+            "utils/source_content_utils",
+            "utils/pdf_utils",
+            "utils/pptx_utils",
+            "utils/docx_utils",
+            "utils/rate_limit_utils",
+            "utils/encoding_utils",
+            "utils/presentation_export_utils",
+            "utils/screenshot_utils",
+            "utils/excalidraw_utils",
+            "utils/password_utils",
+            "utils/auth_middleware",
+        ),
+        "NBB-812",
     ),
-    re.compile(r"backend/app/services/.+::", re.IGNORECASE),
+    (
+        "data/prompts/",
+        (
+            "backend/data/prompts",
+            "data/prompts/",
+            "data/prompts",
+        ),
+        "NBB-812",
+    ),
 )
 
-SERVICES_NO_RETURN_MARKERS: Tuple[str, ...] = (
+ACTIVE_RETIRED_GUIDANCE_PATTERNS: Tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"(new|add|create|place|put|land|lives?|belongs?|destination|owner|"
+        r"backend owner|may read|may import|tolerated|current|currently|"
+        r"remains|feed|feeds|use|uses|using|under|seed|seeds|sync|copy|cp|"
+        r"stage|staging|baked|volume|mkdir|ensure|write|writes)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(new|add|create|place|put|land|lives?|belongs?|destination|owner|"
+        r"backend owner|may read|may import|tolerated|current|currently|"
+        r"remains|feed|feeds|use|uses|using|under|seed|seeds|sync|copy|cp|"
+        r"stage|staging|baked|volume|mkdir|ensure|write|writes)",
+        re.IGNORECASE,
+    ),
+)
+
+RETIRED_NO_RETURN_MARKERS: Tuple[str, ...] = (
     "not approved",
     "frozen",
     "do not add",
@@ -259,6 +312,7 @@ SERVICES_NO_RETURN_MARKERS: Tuple[str, ...] = (
     "no return",
     "reject",
     "retired",
+    "legacy",
     "replaces",
     "rather than",
     "former",
@@ -266,17 +320,16 @@ SERVICES_NO_RETURN_MARKERS: Tuple[str, ...] = (
     "migrated",
     "migration source",
     "moved",
+    "moves",
     "removed",
     "drained",
     "deleted",
     "historical",
 )
 
-SERVICES_LIVE_MARKERS: Tuple[str, ...] = (
+RETIRED_LIVE_MARKERS: Tuple[str, ...] = (
     "tolerated",
     "still contain",
-    "current",
-    "currently",
     "remains",
     "feed this root",
     "feeds this root",
@@ -403,17 +456,19 @@ def _iter_current_doc_paths() -> Iterable[Path]:
         yield path
     for path in sorted(APP_DIR.glob("*/__init__.py")):
         yield path
+    for path in sorted(APP_DIR.glob("*/README.md")):
+        yield path
 
 
-def _is_allowed_services_history(line: str) -> bool:
+def _is_allowed_retired_history(line: str) -> bool:
     lower = line.lower()
-    if not any(marker in lower for marker in SERVICES_NO_RETURN_MARKERS):
+    if not any(marker in lower for marker in RETIRED_NO_RETURN_MARKERS):
         return False
-    return not any(marker in lower for marker in SERVICES_LIVE_MARKERS)
+    return not any(marker in lower for marker in RETIRED_LIVE_MARKERS)
 
 
-def check_no_live_services_docs() -> List[Violation]:
-    """NBB-811: current guidance must not present services as live."""
+def check_no_live_retired_root_docs() -> List[Violation]:
+    """NBB-811/NBB-812: current guidance must not present retired roots as live."""
     violations: List[Violation] = []
     seen: set[Path] = set()
     for path in _iter_current_doc_paths():
@@ -427,29 +482,25 @@ def check_no_live_services_docs() -> List[Violation]:
             violations.append(Violation(path, 0, f"cannot read file: {exc}"))
             continue
         for index, line in enumerate(lines, start=1):
-            if not any(
-                token in line
-                for token in (
-                    "backend/app/services",
-                    "app/services",
-                    "services/",
-                    "app.services.",
-                )
-            ):
-                continue
-            if _is_allowed_services_history(line):
-                continue
-            if not any(pattern.search(line) for pattern in ACTIVE_SERVICES_GUIDANCE_PATTERNS):
-                continue
-            violations.append(Violation(
-                path,
-                index,
-                (
-                    "current docs must not describe services/ as a live "
-                    "destination after NBB-811; keep only no-return or "
-                    "historical migration wording."
-                ),
-            ))
+            for label, tokens, ticket in RETIRED_DOC_TARGETS:
+                if not any(token in line for token in tokens):
+                    continue
+                if _is_allowed_retired_history(line):
+                    continue
+                if not any(
+                    pattern.search(line)
+                    for pattern in ACTIVE_RETIRED_GUIDANCE_PATTERNS
+                ):
+                    continue
+                violations.append(Violation(
+                    path,
+                    index,
+                    (
+                        f"current docs must not describe {label} as a live "
+                        f"destination after {ticket}; keep only no-return or "
+                        "historical migration wording."
+                    ),
+                ))
     return violations
 
 
@@ -678,7 +729,7 @@ def main() -> int:
     violations.extend(check_root_registry())
     violations.extend(check_no_retired_paths())
     violations.extend(check_no_retired_imports())
-    violations.extend(check_no_live_services_docs())
+    violations.extend(check_no_live_retired_root_docs())
     violations.extend(check_providers_imports())
     violations.extend(check_connectors_imports())
     violations.extend(check_chat_publics_only())

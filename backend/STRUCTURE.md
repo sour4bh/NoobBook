@@ -37,9 +37,9 @@ Two CI guardrails run on every push/PR:
    NBB-104 table. The `config/` package is known migration state for the
    `backend/config.py` vs `backend/app/config/` follow-up. `services/` is
    retired by NBB-811; `utils/` and `data/prompts/` are retired by NBB-812.
-   Any tracked file under those retired roots, any `app.services.*` or
-   `app.utils.*` reference in backend app code or tests, or current docs that
-   present retired roots as live architecture fail the check.
+   Any tracked file under those retired roots, any forbidden `app.services.*`
+   or forbidden `app.utils.*` reference in backend app code or tests, or
+   current docs that present retired roots as live architecture fail the check.
 2. **`providers/` is a leaf.** Modules under `backend/app/providers/` must
    not import from `app.api`, `app.connectors`, or any domain root (`auth`,
    `projects`, `chat`, `sources`, `studio`, `brand`, `background`,

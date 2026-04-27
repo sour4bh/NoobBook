@@ -10,7 +10,7 @@ This inventory names the owner for each observability concern, calls out what lo
 
 | Concern | File | Notes |
 |---|---|---|
-| Root logger setup | `backend/app/utils/logger.py` (`setup_logging`) | Called once from `create_app`. Streams to stdout with `"%(asctime)s [%(levelname)s] %(name)s: %(message)s"`. Quiets `urllib3`, `werkzeug`, `httpcore`, `httpx`, `hpack`, `PIL`. |
+| Root logger setup | `backend/app/base/logging.py` (`setup_logging`) | Called once from `create_app`. Streams to stdout with `"%(asctime)s [%(levelname)s] %(name)s: %(message)s"`. Quiets `urllib3`, `werkzeug`, `httpcore`, `httpx`, `hpack`, `PIL`. |
 | Log level env | `LOG_LEVEL` (Flask config) and `GUNICORN_LOG_LEVEL` (Gunicorn only) | Flask uses `LOG_LEVEL`; Gunicorn access/error logs use `GUNICORN_LOG_LEVEL` (default `info`). |
 | Module logger convention | `logging.getLogger(__name__)` at module top | Every service follows this pattern. No custom handler/formatter installed per-module. |
 | Gunicorn access/error log | `backend/gunicorn.conf.py` | `accesslog = "-"` (stdout), `errorlog = "-"` (stderr). No trace header injection. |
@@ -57,14 +57,14 @@ This inventory names the owner for each observability concern, calls out what lo
 |---|---|
 | `backend/gunicorn.conf.py` | Binds `0.0.0.0:$PORT` (default 5001), one `GeventWebSocketWorker`, `timeout=300`, `graceful_timeout=30`, `keepalive=5`, `max_requests=5000` with `max_requests_jitter=200`, `accesslog/errorlog` to stdout/stderr. |
 | `frontend/nginx.conf` | Serves the Vite SPA bundle, proxies `/api/` to `noobbook-backend:5001`, streams `/api/v1/projects/*/chats/*/messages/stream` with `proxy_buffering off` + `X-Accel-Buffering: no`, upgrades `/socket.io/` for WebSocket with `proxy_read_timeout 86400s`, allows 100 MB uploads. |
-| `backend/entrypoint.sh` | Seeds `data/prompts/` from the baked staging dir, then chooses `gunicorn -c gunicorn.conf.py run:app` when `FLASK_ENV=production`, else `python run.py` (Werkzeug). |
+| `backend/entrypoint.sh` | Ensures runtime data directories exist, then chooses `gunicorn -c gunicorn.conf.py run:app` when `FLASK_ENV=production`, else `python run.py` (Werkzeug). Prompt JSON is loaded from domain-owned app paths through the asset registry, not from the data volume. |
 | `docker/` | Self-hosted Supabase stack plus backend/frontend images. See `docker/MAC_SETUP.md`. Not in the backend Python write scope. |
 
 ## Owner split for future migrations
 
 | Class of concern | Owning ticket/root | Action |
 |---|---|---|
-| Cross-cutting logger bootstrap | `backend/app/utils/logger.py` under the cross-cutting utility family | Reviewed by each utility drain (`NBB-705A` through `NBB-705E`). No domain move. |
+| Cross-cutting logger bootstrap | `backend/app/base/logging.py` under the base root | Rehomed by `NBB-812` after the utility drain. No domain owner is tighter than process-wide logging bootstrap. |
 | Opik wrapping, provider trace metadata | `providers/` per `backend/app/providers/CHARTER.md` | Stays attached to `ClaudeService`. `reload_config()` already symmetrical with other providers after `NBB-208A`. |
 | Background task logs | `background/` per `backend/app/background/CHARTER.md` | Moves under `NBB-210`. The polymorphic-RLS constraint documented in the charter governs what gets logged (never log cross-tenant ids). |
 | Chat SSE event formatting | `chat/` public surface (`NBB-301`/`NBB-302`) | The SSE envelope (`_format_sse`, worker thread, sentinel) moves with chat streaming. The route adapter stays under `backend/app/api/`. |
@@ -83,7 +83,7 @@ These are the invariants encoded in `backend/gunicorn.conf.py`, `frontend/nginx.
 7. **`max_requests = 5000` drops active SSE/WebSocket streams when it trips.** With `workers=1` and gevent, a worker recycle kills every in-flight long-lived connection. Keep the threshold high enough that idle-reload is the dominant cause of recycling.
 8. **`client_max_body_size 100M`.** Upload ceiling for PDFs, PPTX, and audio sources. Any stricter nginx frontend will return 413 before the backend sees the request.
 9. **Opik attachment must stay lazy.** `claude_service._get_client` wraps the client on first use. Eager attachment would fail imports when `OPIK_API_KEY` is unset and no test covers the eager path. The `try/except ImportError` guard must stay.
-10. **`entrypoint.sh` reseeds `data/prompts/`.** Prompt JSON is container-baked; the volume is rewritten on every start. Prompt-ownership migrations (`NBB-207B`) must keep the staging-dir contract intact.
+10. **Prompt JSON is registry-owned app code.** `backend/entrypoint.sh` must not recreate `data/prompts/`; prompt assets live under domain-owned `prompts/` directories and resolve through `backend/app/config/asset_registry.py`.
 
 ## Behavior local tests cannot prove
 

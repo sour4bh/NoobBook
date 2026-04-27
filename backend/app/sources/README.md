@@ -11,7 +11,7 @@ The `sources/` domain owns the full lifecycle of a user-provided source from upl
 1. **Upload** — accept file, URL, pasted text, or connector-delivered bytes; enforce the upload contract (extension, MIME, size, source category).
 2. **Ingestion** — run the source through the appropriate extractor, persist metadata, and route to background workers when needed.
 3. **Extraction** — turn raw bytes into text-plus-page-markers per format (PDF, PPTX, DOCX, image, link, YouTube, audio, pasted text).
-4. **Chunking** — split extracted text into ~200-token chunks for embeddings (uses `utils/text/chunking.py` today; `utils/text/` is an approved exception under `NBB-705E` review).
+4. **Chunking** — split extracted text into ~200-token chunks for embeddings with `sources/text/chunking.py`.
 5. **Indexing** — embed chunks, upsert to the vector store, and record per-source embedding metadata.
 6. **Citations** — resolve `[[cite:chunk_id]]` markers back to source chunk content for the frontend tooltip; preserve the chunk-ID format `{source_id}_page_{page}_chunk_{n}`.
 7. **Analysis** — source-scoped analysis slices (CSV, database, Freshdesk, deep research) that operate on source content after ingestion.
@@ -45,7 +45,7 @@ Package markers present today: `sources/upload/__init__.py`, `sources/pdf/__init
 - **Low-level external API clients** (Anthropic vision, OpenAI embeddings, Pinecone, ElevenLabs, Tavily, YouTube transcript fetch, Supabase storage). These stay under `providers/` per `NBB-206`. `sources/` imports them as provider-neutral runtime primitives.
 - **Configured product ingestion hand-offs** (Google Drive download, connector attachment fetch, Notion/Jira/Freshdesk product orchestration). These stay under `connectors/<name>/` per `NBB-206`. A connector may fetch bytes and hand them to `sources/`; it must not parse file formats.
 - **Studio export and screenshot helpers** (`studio/export/presentation.py`, `studio/export/screenshot.py`). These are studio-owned; landed under `NBB-705D`.
-- **Cross-cutting helpers** (`path_utils.py`, `logger.py`, `utils/text/`). These are approved exceptions unless `NBB-705E` rehomes them.
+- **Cross-cutting helpers** (`base/paths.py`, `base/logging.py`). These stay in `base/` because no tighter source owner exists. Source text processing lives in `sources/text/`.
 
 `platform/files/` and `providers/files/` are explicitly rejected as default homes for any file-format helper. There is no generic file-adapter root; source format operations live under `sources/<format>/` per the decision map in `CHARTER.md`.
 

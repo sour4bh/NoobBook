@@ -44,7 +44,7 @@ Rich import-direction enforcement lands in `NBB-704A` and `NBB-704B`.
 | `backend/app/providers/anthropic/cost.py:357` | `app.auth.user.store.get_user_service` | Period-spend write companion to the lookup above; lazy-imported inside `record_user_period_spend`. |
 | `backend/app/providers/anthropic/token_count.py:12` | `app.sources.tokens.count_tokens` | tiktoken fallback when the Anthropic count-tokens API call fails; the fallback is the same helper `sources/` uses for chunking, so duplicating it here would diverge the two estimators. Eager import is acceptable because `sources.tokens` does not import back into `providers/`. |
 
-NBB-705C reviewer confirmed the `cost.py` imports are byte-identical to the pre-move `utils/cost_tracking.py` source. The allowlist is keyed on `(rel_path, lineno, target_root)`; if any of these helpers move to a new line, the verifier surfaces the move and the entry must be re-confirmed under the same rationale.
+NBB-705C reviewer confirmed the `cost.py` imports are byte-identical to the former `utils/cost_tracking.py` source. The allowlist is keyed on `(rel_path, lineno, target_root)`; if any of these helpers move to a new line, the verifier surfaces the move and the entry must be re-confirmed under the same rationale.
 
 ## Current-code inventory
 

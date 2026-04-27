@@ -570,7 +570,7 @@ class MessageStore:
         """
         Get the directory for a specific agent's execution logs.
 
-        Educational Note: Uses path_utils for centralized path management.
+        Educational Note: Uses base path helpers for centralized path management.
         Currently supports 'web_agent', can be extended for other agents.
 
         Args:
@@ -625,7 +625,7 @@ class MessageStore:
             return None
 
         try:
-            # Get agent directory using path_utils
+            # Get agent directory using base path helpers
             agent_dir = self._get_agent_dir(project_id, agent_name)
 
             # Build execution log

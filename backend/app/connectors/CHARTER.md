@@ -76,8 +76,8 @@ Tool moves were gated on `NBB-207A` loader compatibility and the static connecto
 
 | Former file | Target | Public name |
 |---|---|---|
-| `services/data_services/database_connection_service.py` | `connectors/database/connection/store.py` | `DatabaseConnectionStore` |
-| `services/data_services/mcp_connection_service.py` | `connectors/mcp/connection/store.py` | `McpConnectionStore` |
+| former `services/data_services/database_connection_service.py` | `connectors/database/connection/store.py` | `DatabaseConnectionStore` |
+| former `services/data_services/mcp_connection_service.py` | `connectors/mcp/connection/store.py` | `McpConnectionStore` |
 
 Schema/RLS implications stay with `NBB-204`; the `*Service → *Store` rename is a refactory `rename_symbol` step recorded in `move-plan.csv` by `NBB-209E`.
 

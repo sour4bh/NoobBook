@@ -356,7 +356,7 @@ Status flow: `uploaded → processing → [embedding] → ready` (embedding only
 
 ### Processed Output Format
 
-All processors use `build_processed_output()` from `app/utils/text/processed_output.py` for consistent output format:
+All processors use `build_processed_output()` from `app.sources.text.processed_output` for consistent output format:
 
 ```
 # Extracted from {TYPE} document: {source_name}
@@ -389,7 +389,7 @@ Types: PDF, TEXT, DOCX, PPTX, AUDIO, IMAGE, LINK, YOUTUBE
 
 ### Source Types & AI Patterns
 
-Paths in the table below describe current module locations during the structure migration. The bucket names (`tool_executors/`, `utils/`) are legacy/migration sources, not preferred homes for new work.
+Paths in the table below describe current module locations after the structure migration.
 
 | Type | Service | AI Method | Pages |
 |------|---------|-----------|-------|
@@ -398,13 +398,13 @@ Paths in the table below describe current module locations during the structure 
 | **Image** | `sources/image/extract.py` | Single Codex vision call with `submit_image_extraction` tool. | 1 per image |
 | **URL** | `sources/link/agent.py` | Agentic loop with `web_fetch`, `tavily_search` tools. | Single page |
 | **DOCX** | `sources/docx/ops.py` | No AI - python-docx extraction | Single page |
-| **Audio** | `integrations/elevenlabs/audio_service.py` | No AI - ElevenLabs Scribe v1 transcription | Single page |
-| **Text** | `sources/pipeline.py` | No AI - direct file read | Single page |
-| **YouTube** | `integrations/youtube/youtube_service.py` | No AI - youtube-transcript-api | Single page |
+| **Audio** | `sources/audio/process.py` | Source-side orchestration over the ElevenLabs provider | Single page |
+| **Text** | `sources/text/process.py` | No AI - direct file read | Single page |
+| **YouTube** | `sources/youtube/process.py` | Source-side orchestration over the YouTube transcript provider | Single page |
 
 **Design**: Raw files preserved on error (retry without re-upload). Processing runs in background threads. Tool-based extraction ensures structured output.
 
-### Text Utilities (`app/utils/text/`)
+### Source Text Utilities (`app/sources/text/`)
 
 Modular text processing for the RAG pipeline:
 
@@ -424,7 +424,7 @@ Token counting uses **tiktoken** (local) for speed, with Codex API available for
 **Why tiktoken?** Chunking calls `count_tokens()` thousands of times (per page, per sentence, per word for long sentences). API calls would take minutes due to network latency. tiktoken is local and instant.
 
 ```python
-# embedding_utils.py
+# app.sources.tokens / app.providers.anthropic.token_count
 count_tokens(text)      # Uses tiktoken (fast, local) - for chunking operations
 count_tokens_api(text)  # Uses Codex API (accurate, slower) - for billing/quota
 ```
@@ -516,12 +516,12 @@ Debug logging for API calls is available during development for troubleshooting 
 
 ## Codex API Response Parsing
 
-Centralized parsing via `utils/claude_parsing_utils.py`. Clean separation of concerns:
+Centralized parsing via `app.providers.anthropic.response_parser`. Clean separation of concerns:
 
 ```
-claude_service.py (API call) → returns raw {content_blocks, stop_reason, usage, model}
+app.providers.anthropic.messages (API call) → returns raw {content_blocks, stop_reason, usage, model}
          ↓
-claude_parsing_utils.py (parse response)
+response_parser.py (parse response)
    - is_tool_use(response) / is_end_turn(response)
    - extract_text(response)
    - extract_tool_use_blocks(response)
@@ -572,11 +572,11 @@ This section describes the Codex-API integration pattern NoobBook uses: configur
    └── get_anthropic_config()                           # Tier config (workers, rate limits)
 
 2. PATH MANAGEMENT
-   └── path_utils.get_*_dir(project_id)                 # Use path_utils for ALL directory access
+   └── app.base.paths.get_*_dir(project_id)             # Use base path helpers for local runtime dirs
        ├── get_processed_dir()     # For output files
        ├── get_raw_dir()           # For input files
        ├── get_chunks_dir()        # For chunked text
-       └── get_chats_dir()         # For chat files
+       └── get_web_agent_dir()     # For debug agent logs
 
 3. API CALL
    └── claude_service.send_message(                     # Thin wrapper, returns raw response
@@ -586,7 +586,7 @@ This section describes the Codex-API integration pattern NoobBook uses: configur
        )
 
 4. RESPONSE PARSING
-   └── claude_parsing_utils.*                           # Centralized parsing utilities
+   └── response_parser.*                                # Centralized parsing utilities
        ├── is_tool_use(response)                        # Check if tool was called
        ├── is_end_turn(response)                        # Check if conversation ended
        ├── extract_text(response)                       # Get text content
@@ -636,7 +636,7 @@ from app.providers.anthropic.content import build_tool_result_content
 from app.base.paths import get_processed_dir
 from app.providers.anthropic.rate import RateLimiter  # If rate limiting needed
 from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE  # If batching needed
-from app.chat.message.store import message_service  # If message storage is required
+from app.chat.store import message_service  # If message storage is required
 
 
 class ServiceName:
@@ -673,7 +673,7 @@ class ServiceName:
         )
 
         # 5. Parse response
-        tool_inputs = claude_parsing_utils.extract_tool_inputs(response, "tool_name")
+        tool_inputs = response_parser.extract_tool_inputs(response, "tool_name")
 
         return {"success": True, "data": tool_inputs}
 
@@ -685,8 +685,8 @@ service_name = ServiceName()
 ### What NOT to Do
 
 - **Never** duplicate configuration loading logic - use `prompt_loader`, `tool_loader`, `tier_loader`
-- **Never** hardcode paths - use `path_utils` functions
-- **Never** parse Codex responses manually - use `claude_parsing_utils`
+- **Never** hardcode paths - use `app.base.paths` functions
+- **Never** parse Codex responses manually - use `response_parser`
 - **Never** implement custom rate limiting - use `RateLimiter` class
 - **Never** implement custom batching - use `create_batches()` utility
 - **Never** skip `project_id` in API calls - needed for cost tracking

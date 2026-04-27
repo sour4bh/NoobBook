@@ -71,12 +71,12 @@ Copied verbatim from `docs/tickets/epics/NBB-004.md#nbb-401`. Downstream tickets
 
 | Current code/concept | Target owner under `backend/app/` | Locked decision |
 |---|---|---|
-| `utils/file_utils.py` | `sources/file_contract.py` | Owns allowed extension, source category, MIME, and upload size contract. Frontend mirrors this through `NBB-205`. Locked target: not `backend/app/api/`, not `platform/files/`, not `providers/files/`. |
-| `utils/citation_utils.py` | `sources/citations.py` | Source chunk/citation lookup. Preserve `[[cite:chunk_id]]`; not chat-owned. Verified importer is `backend/app/api/sources/content.py`; docstring-only mentions in text utilities do not change ownership. |
-| `utils/source_content_utils.py` | `sources/content.py` | Source-content read helper used by studio/agent code. |
-| `utils/pdf_utils.py` | `sources/pdf/ops.py` | PDF page count and page-byte operations for source extraction. |
-| `utils/pptx_utils.py` | `sources/pptx/ops.py` | PPTX conversion operations for source extraction. |
-| `utils/docx_utils.py` | `sources/docx/ops.py` | DOCX text extraction for source ingestion. |
+| former `utils/file_utils.py` | `sources/file_contract.py` | Owns allowed extension, source category, MIME, and upload size contract. Frontend mirrors this through `NBB-205`. Locked target: not `backend/app/api/`, not `platform/files/`, not `providers/files/`. |
+| former `utils/citation_utils.py` | `sources/citations.py` | Source chunk/citation lookup. Preserve `[[cite:chunk_id]]`; not chat-owned. Verified importer is `backend/app/api/sources/content.py`; docstring-only mentions in text utilities do not change ownership. |
+| former `utils/source_content_utils.py` | `sources/content.py` | Source-content read helper used by studio/agent code. |
+| former `utils/pdf_utils.py` | `sources/pdf/ops.py` | PDF page count and page-byte operations for source extraction. |
+| former `utils/pptx_utils.py` | `sources/pptx/ops.py` | PPTX conversion operations for source extraction. |
+| former `utils/docx_utils.py` | `sources/docx/ops.py` | DOCX text extraction for source ingestion. |
 | PDF extraction behavior | `sources/pdf/extract.py` | Landed by `NBB-803`; model/client calls stay behind providers/connectors. |
 | PPTX extraction behavior | `sources/pptx/extract.py` | Landed by `NBB-803`; model/client calls stay behind providers/connectors. |
 | Source image extraction behavior | `sources/image/extract.py` | Landed by `NBB-803`; model/client calls stay behind providers/connectors. |
@@ -84,10 +84,10 @@ Copied verbatim from `docs/tickets/epics/NBB-004.md#nbb-401`. Downstream tickets
 | YouTube source orchestration | `sources/youtube/` | Source-side transcript orchestration. Vendor/library client code stays under provider ownership. |
 | Audio source orchestration | `sources/audio/` | Source-side transcription flow. ElevenLabs client code stays under provider ownership. |
 | Deep research source processing | `sources/analysis/research/` | Source analysis slice; implementation move happens in `NBB-403`. |
-| `studio/export/presentation.py` (was `utils/presentation_export_utils.py`) | Not `NBB-401`; landed under `NBB-705D` | Studio export ownership. |
-| `studio/export/screenshot.py` (was `utils/screenshot_utils.py`) | Not `NBB-401`; landed under `NBB-705D` | Studio screenshot/export ownership. |
-| `path_utils.py` | Not `NBB-401`; approved exception unless `NBB-705E` rehomes it | Cross-cutting filesystem path helper. |
-| `logger.py`, `utils/text/` | Not `NBB-401`; approved exceptions unless `NBB-705E` rehomes them | Bootstrap logging and cohesive text package. |
+| `studio/export/presentation.py` (former `utils/presentation_export_utils.py`) | Not `NBB-401`; landed under `NBB-705D` | Studio export ownership. |
+| `studio/export/screenshot.py` (former `utils/screenshot_utils.py`) | Not `NBB-401`; landed under `NBB-705D` | Studio screenshot/export ownership. |
+| `base/paths.py` | Rehomed by `NBB-812` | Cross-cutting filesystem path helper. |
+| `base/logging.py`, `sources/text/` | Rehomed by `NBB-812` | Bootstrap logging and cohesive source text package. |
 
 - `platform/files/` and `providers/files/` are not targets for any row in this map.
 - Any newly discovered source file-format helper must be added to this map before it moves.

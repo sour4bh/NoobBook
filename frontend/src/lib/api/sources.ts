@@ -7,6 +7,13 @@
 import axios from 'axios';
 import { API_BASE_URL } from './client';
 import { createLogger } from '@/lib/logger';
+import {
+  parseCitationResponse,
+  parseGeneratedAssetAccess,
+  parseProcessedContentResponse,
+  type ChunkContent,
+  type ProcessedContent,
+} from './contracts';
 
 const log = createLogger('sources-api');
 
@@ -81,14 +88,7 @@ export const ALLOWED_EXTENSIONS = {
  * When Claude cites a source with [[cite:chunk_id]], we fetch the chunk content to display.
  * Chunk ID format: {source_id}_page_{page}_chunk_{n}
  */
-export interface ChunkContent {
-  content: string;
-  chunk_id: string;
-  source_id: string;
-  source_name: string;
-  page_number: number;
-  chunk_index: number;
-}
+export type { ChunkContent };
 
 /**
  * Processed content returned from the processed content API
@@ -96,10 +96,7 @@ export interface ChunkContent {
  * in the Sources panel. Users can click on a processed source to see
  * the full extracted text with page markers.
  */
-export interface ProcessedContent {
-  content: string;
-  source_name: string;
-}
+export type { ProcessedContent };
 
 /**
  * File extensions that are viewable in the processed content viewer
@@ -523,7 +520,7 @@ class SourcesAPI {
       const response = await axios.get(
         `${API_BASE_URL}/projects/${projectId}/citations/${chunkId}`
       );
-      return response.data.chunk;
+      return parseCitationResponse(response.data).chunk;
     } catch (error) {
       log.error({ err: error }, 'failed to fetch citation content');
       throw error;
@@ -544,9 +541,10 @@ class SourcesAPI {
       const response = await axios.get(
         `${API_BASE_URL}/projects/${projectId}/sources/${sourceId}/processed`
       );
+      const data = parseProcessedContentResponse(response.data);
       return {
-        content: response.data.content,
-        source_name: response.data.source_name,
+        content: data.content,
+        source_name: data.source_name,
       };
     } catch (error) {
       log.error({ err: error }, 'failed to fetch processed content');
@@ -561,6 +559,11 @@ class SourcesAPI {
    * syntax which gets converted to <img> tags pointing to this URL.
    */
   getAIImageUrl(projectId: string, filename: string): string {
+    parseGeneratedAssetAccess({
+      project_id: projectId,
+      filename,
+      mime_type: getGeneratedAssetMimeType(filename),
+    });
     return `${API_BASE_URL}/projects/${projectId}/ai-images/${filename}`;
   }
 }
@@ -576,6 +579,24 @@ export function formatFileSize(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+export function getGeneratedAssetMimeType(filename: string): string {
+  const extension = filename.toLowerCase().split('.').pop();
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'png':
+    default:
+      return 'image/png';
+  }
 }
 
 /**

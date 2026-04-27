@@ -5,6 +5,13 @@
  */
 
 import { api } from './client';
+import {
+  parseActiveTasksResponse,
+  parseProjectCostsResponse,
+  type ActiveTasksResponse,
+  type CostTracking,
+} from './contracts';
+import type { AxiosResponse } from 'axios';
 
 /**
  * Memory Types
@@ -20,20 +27,12 @@ export interface MemoryData {
  * Cost Tracking Types
  * Educational Note: These types match the backend cost tracking structure.
  */
-export interface ModelCostBreakdown {
-  input_tokens: number;
-  output_tokens: number;
-  cost: number;
-}
+export type { ActiveTask, ActiveTasksResponse, CostTracking, ModelCostBreakdown } from './contracts';
 
-export interface CostTracking {
-  total_cost: number;
-  by_model: {
-    opus: ModelCostBreakdown;
-    sonnet: ModelCostBreakdown;
-    haiku: ModelCostBreakdown;
-  };
-}
+type ProjectCostsAxiosResponse = AxiosResponse<{
+  success: true;
+  costs: CostTracking;
+}>;
 
 /**
  * Project API Methods
@@ -60,7 +59,18 @@ export const projectsAPI = {
   open: (id: string) => api.post(`/projects/${id}/open`),
 
   // Get project cost tracking data
-  getCosts: (id: string) => api.get(`/projects/${id}/costs`),
+  getCosts: async (id: string): Promise<ProjectCostsAxiosResponse> => {
+    const response = await api.get(`/projects/${id}/costs`);
+    return {
+      ...response,
+      data: parseProjectCostsResponse(response.data),
+    };
+  },
+
+  getActiveTasks: async (id: string): Promise<ActiveTasksResponse> => {
+    const response = await api.get(`/projects/${id}/active-tasks`);
+    return parseActiveTasksResponse(response.data);
+  },
 
   // Get project memory data (user memory + project memory)
   getMemory: (id: string) => api.get(`/projects/${id}/memory`),

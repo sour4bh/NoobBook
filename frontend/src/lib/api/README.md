@@ -4,6 +4,11 @@ This folder holds the thin TypeScript clients that call the Flask backend at
 `/api/v1/...`. Each `*.ts` file wraps one backend route group (auth, chats, sources,
 studio, etc.) and returns typed responses.
 
+Runtime parsing for preserved public contracts lives in `contracts.ts`. API
+clients should parse covered backend DTOs once at this boundary, then pass typed
+values inward. Chat SSE uses the same token-refresh retry path as axios calls via
+`fetchWithAuthRefresh`.
+
 ## Wire contracts
 
 The wire contracts consumed by every file in this folder are cataloged in
@@ -33,5 +38,5 @@ commit. Additive-only changes (new optional fields) are allowed inside migration
 tickets NBB-301..304 (chat), NBB-401..403 (sources), NBB-501..507 (studio), and
 NBB-602..604 (frontend) as long as the contract doc is updated.
 
-Redesigning any listed contract is deferred in
+Redesigning any listed contract beyond the preservation/parser work is tracked in
 [`docs/tickets/DEFERRED.md`](../../../../docs/tickets/DEFERRED.md) D-005.

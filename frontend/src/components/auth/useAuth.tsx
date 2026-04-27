@@ -84,7 +84,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await authAPI.signIn(email, password);
 
-      if (result.success && result.user) {
+      if (!result.success) {
+        return { success: false as const, error: result.error || 'Login failed' };
+      }
+
+      if (result.user) {
         // Fetch /auth/me to get the user's role
         const meResponse = await authAPI.me();
         const role: 'admin' | 'user' = meResponse.user?.role === 'admin' ? 'admin' : 'user';
@@ -92,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true as const, role };
       }
 
-      return { success: false as const, error: result.error || 'Login failed' };
+      return { success: false as const, error: 'Login failed' };
     } catch (err) {
       const message = (err as AxiosError<ApiErrorBody>).response?.data?.error || 'Login failed. Please try again.';
       return { success: false as const, error: message };
@@ -103,7 +107,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await authAPI.signUp(email, password);
 
-      if (result.success && result.user) {
+      if (!result.success) {
+        return { success: false as const, error: result.error || 'Signup failed' };
+      }
+
+      if (result.user) {
         // Fetch /auth/me to get the user's role
         const meResponse = await authAPI.me();
         const role: 'admin' | 'user' = meResponse.user?.role === 'admin' ? 'admin' : 'user';
@@ -111,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true as const, role };
       }
 
-      return { success: false as const, error: result.error || 'Signup failed' };
+      return { success: false as const, error: 'Signup failed' };
     } catch (err) {
       const message = (err as AxiosError<ApiErrorBody>).response?.data?.error || 'Signup failed. Please try again.';
       return { success: false as const, error: message };

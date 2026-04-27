@@ -7,10 +7,16 @@
 
 import axios from 'axios';
 import type { StudioSignal } from '../../components/studio/types';
-import { API_BASE_URL } from './client';
+import { API_BASE_URL, fetchWithAuthRefresh, readApiErrorMessage } from './client';
 import { createLogger } from '@/lib/logger';
-import { getAccessToken } from '../auth/session';
 import type { CostTracking } from './projects';
+import {
+  parseChatMessageResponse,
+  parseChatStreamEvent,
+  parseProjectCostsResponse,
+  type ChatStreamEvent,
+  type Message,
+} from './contracts';
 
 const log = createLogger('chats-api');
 
@@ -18,18 +24,7 @@ const log = createLogger('chats-api');
  * Educational Note: A message in the conversation.
  * Each message has a role (user or assistant) and content.
  */
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  model?: string;
-  tokens?: {
-    input: number;
-    output: number;
-  };
-  error?: boolean;
-}
+export type { Message };
 
 /**
  * Educational Note: Chat metadata for list views.
@@ -87,14 +82,8 @@ export interface SendMessageResponse {
   assistant_message: Message;
 }
 
-export type ChatStreamEvent =
-  | { type: 'user_message'; payload: Message }
-  | { type: 'assistant_delta'; payload: { delta: string } }
-  | { type: 'assistant_done'; payload: Message }
-  | { type: 'error'; payload: { message: string; assistant_message?: Message | null } };
-
 export interface StreamMessageCallbacks {
-  onEvent?: (event: ChatStreamEvent) => void;
+  onEvent?: (event: Exclude<ChatStreamEvent, { type: 'ping' }>) => void;
   onUserMessage?: (message: Message) => void;
   onAssistantDelta?: (delta: string) => void;
   onAssistantDone?: (message: Message) => void;
@@ -129,7 +118,7 @@ export interface PromptConfig {
 
 class ChatsAPI {
   private notifyStreamEvent(
-    event: ChatStreamEvent,
+    event: Exclude<ChatStreamEvent, { type: 'ping' }>,
     callbacks?: StreamMessageCallbacks
   ) {
     callbacks?.onEvent?.(event);
@@ -171,29 +160,28 @@ class ChatsAPI {
     }
 
     const payloadText = dataLines.join('\n');
-    const payload = payloadText ? JSON.parse(payloadText) : {};
+    const rawPayload = payloadText ? JSON.parse(payloadText) : {};
+    const event = parseChatStreamEvent(eventName, rawPayload);
 
-    switch (eventName) {
+    switch (event.type) {
       case 'user_message':
         state.hadUserMessage = true;
-        this.notifyStreamEvent({ type: 'user_message', payload }, callbacks);
+        this.notifyStreamEvent(event, callbacks);
         break;
       case 'assistant_delta':
         state.hadAssistantDelta = true;
-        this.notifyStreamEvent({ type: 'assistant_delta', payload }, callbacks);
+        this.notifyStreamEvent(event, callbacks);
         break;
       case 'assistant_done':
         state.terminalEvent = 'assistant_done';
-        this.notifyStreamEvent({ type: 'assistant_done', payload }, callbacks);
+        this.notifyStreamEvent(event, callbacks);
         break;
       case 'error':
         state.terminalEvent = 'error';
-        this.notifyStreamEvent({ type: 'error', payload }, callbacks);
+        this.notifyStreamEvent(event, callbacks);
         break;
       case 'ping':
         break;
-      default:
-        log.warn({ eventName }, 'unknown chat stream event');
     }
   }
 
@@ -280,9 +268,10 @@ class ChatsAPI {
         { message },
         signal ? { signal } : undefined
       );
+      const data = parseChatMessageResponse(response.data);
       return {
-        user_message: response.data.user_message,
-        assistant_message: response.data.assistant_message
+        user_message: data.user_message,
+        assistant_message: data.assistant_message,
       };
     } catch (error) {
       log.error({ err: error }, 'failed to send message');
@@ -297,14 +286,12 @@ class ChatsAPI {
     callbacks?: StreamMessageCallbacks,
     signal?: AbortSignal
   ): Promise<StreamMessageResult> {
-    const token = getAccessToken();
-    const response = await fetch(
+    const response = await fetchWithAuthRefresh(
       `${API_BASE_URL}/projects/${projectId}/chats/${chatId}/messages/stream`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ message }),
         signal,
@@ -312,7 +299,7 @@ class ChatsAPI {
     );
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
+      const errorText = await readApiErrorMessage(response).catch(() => '');
       throw new Error(errorText || `Streaming request failed with status ${response.status}`);
     }
 
@@ -428,7 +415,7 @@ class ChatsAPI {
       const response = await axios.get(
         `${API_BASE_URL}/projects/${projectId}/chats/${chatId}/costs`
       );
-      return response.data.costs;
+      return parseProjectCostsResponse(response.data).costs;
     } catch (error) {
       log.error({ err: error }, 'failed to fetch chat costs');
       throw error;

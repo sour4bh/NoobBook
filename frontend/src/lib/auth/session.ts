@@ -17,6 +17,8 @@ export const getAssetToken = (): string | null => {
 export const setAssetToken = (assetToken?: string | null) => {
   if (assetToken) {
     localStorage.setItem(ASSET_TOKEN_KEY, assetToken);
+  } else {
+    localStorage.removeItem(ASSET_TOKEN_KEY);
   }
 };
 

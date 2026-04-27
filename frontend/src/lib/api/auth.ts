@@ -1,35 +1,15 @@
 import type { AxiosError } from 'axios';
 import { api } from './client';
 import { setSession, setAssetToken, clearSession } from '../auth/session';
+import {
+  parseAuthSessionResponse,
+  parseMeResponse,
+  type AuthSessionResponse,
+  type MeResponse,
+} from './contracts';
 
-export interface MeResponse {
-  success: boolean;
-  auth_required?: boolean;
-  asset_token?: string | null;
-  user: {
-    id: string;
-    email?: string | null;
-    role: 'admin' | 'user' | string;
-    is_admin: boolean;
-    is_authenticated: boolean;
-  };
-}
-
-export interface AuthResponse {
-  success: boolean;
-  user?: {
-    id: string;
-    email?: string | null;
-  };
-  session?: {
-    access_token?: string | null;
-    refresh_token?: string | null;
-    expires_in?: number | null;
-    token_type?: string | null;
-  };
-  asset_token?: string | null;
-  error?: string;
-}
+export type { MeResponse };
+export type AuthResponse = AuthSessionResponse | { success: false; error: string };
 
 interface ApiErrorBody {
   error?: string;
@@ -39,7 +19,7 @@ interface ApiErrorBody {
 export const authAPI = {
   async me(): Promise<MeResponse> {
     const response = await api.get('/auth/me');
-    const data = response.data as MeResponse;
+    const data = parseMeResponse(response.data);
     setAssetToken(data.asset_token);
     return data;
   },
@@ -47,8 +27,8 @@ export const authAPI = {
   async signIn(email: string, password: string): Promise<AuthResponse> {
     try {
       const response = await api.post('/auth/signin', { email, password });
-      const data = response.data as AuthResponse;
-      if (data?.session?.access_token) {
+      const data = parseAuthSessionResponse(response.data);
+      if (data.session?.access_token) {
         setSession(data.session.access_token, data.session.refresh_token, data.asset_token);
       }
       return data;
@@ -66,8 +46,8 @@ export const authAPI = {
   async signUp(email: string, password: string): Promise<AuthResponse> {
     try {
       const response = await api.post('/auth/signup', { email, password });
-      const data = response.data as AuthResponse;
-      if (data?.session?.access_token) {
+      const data = parseAuthSessionResponse(response.data);
+      if (data.session?.access_token) {
         setSession(data.session.access_token, data.session.refresh_token, data.asset_token);
       }
       return data;

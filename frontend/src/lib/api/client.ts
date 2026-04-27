@@ -9,6 +9,7 @@ import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { getAccessToken, getRefreshToken, getAssetToken, setSession, clearSession } from '../auth/session';
 import { createLogger } from '@/lib/logger';
+import { parseAuthSessionResponse, parseErrorEnvelope } from './contracts';
 
 const log = createLogger('api-client');
 
@@ -69,8 +70,9 @@ async function tryRefreshToken(): Promise<boolean> {
     const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
       refresh_token: refreshToken,
     });
-    if (data?.success && data.session?.access_token) {
-      setSession(data.session.access_token, data.session.refresh_token, data.asset_token);
+    const parsed = parseAuthSessionResponse(data);
+    if (parsed.session?.access_token) {
+      setSession(parsed.session.access_token, parsed.session.refresh_token, parsed.asset_token);
       return true;
     }
   } catch (err) {
@@ -79,6 +81,51 @@ async function tryRefreshToken(): Promise<boolean> {
 
   clearSession();
   return false;
+}
+
+function isAuthRoute(url: string | URL): boolean {
+  return String(url).includes('/auth/');
+}
+
+function withAuthHeader(init: RequestInit): RequestInit {
+  const headers = new Headers(init.headers);
+  const token = getAccessToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    headers.delete('Authorization');
+  }
+  return { ...init, headers };
+}
+
+export async function readApiErrorMessage(response: Response): Promise<string> {
+  const contentType = response.headers.get('Content-Type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      return parseErrorEnvelope(await response.clone().json()).error;
+    } catch {
+      // Fall through to text below.
+    }
+  }
+  return response.text();
+}
+
+export async function fetchWithAuthRefresh(url: string | URL, init: RequestInit = {}): Promise<Response> {
+  const response = await fetch(url, withAuthHeader(init));
+  if (response.status !== 401 || isAuthRoute(url)) {
+    return response;
+  }
+
+  if (!refreshPromise) {
+    refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
+  }
+
+  const refreshed = await refreshPromise;
+  if (!refreshed) {
+    return response;
+  }
+
+  return fetch(url, withAuthHeader(init));
 }
 
 // Shared 401 error handler used by both the `api` instance and global `axios` interceptors.

@@ -15,7 +15,7 @@ export { authAPI } from './auth';
 
 // Projects API
 export { projectsAPI } from './projects';
-export type { MemoryData, ModelCostBreakdown, CostTracking } from './projects';
+export type { ActiveTask, ActiveTasksResponse, MemoryData, ModelCostBreakdown, CostTracking } from './projects';
 
 // Feature APIs (re-export for convenience)
 export * from './chats';

@@ -19,20 +19,18 @@ import {
   CheckCircle,
   ArrowRight,
 } from '@phosphor-icons/react';
-import { API_BASE_URL } from '@/lib/api/client';
+import { projectsAPI, type ActiveTask } from '@/lib/api';
 import { sourcesAPI } from '@/lib/api/sources';
-import axios from 'axios';
 
-interface ActiveTask {
+type VisibleTask = ActiveTask | {
   id: string;
-  type: 'source' | 'studio' | 'background' | 'chat';
+  type: 'chat';
   label: string;
   detail: string;
   status: string;
-  progress?: number;
   created_at: string;
-  chatId?: string;
-}
+  chatId: string;
+};
 
 interface CompletedChat {
   chatId: string;
@@ -58,7 +56,7 @@ const TASK_ICONS: Record<string, TaskIconComponent> = {
 };
 
 
-const TaskRow: React.FC<{ task: ActiveTask; onCancel?: (taskId: string) => void }> = ({ task, onCancel }) => {
+const TaskRow: React.FC<{ task: VisibleTask; onCancel?: (taskId: string) => void }> = ({ task, onCancel }) => {
   const Icon = TASK_ICONS[task.type] || Gear;
 
   return (
@@ -129,10 +127,8 @@ export const ActiveTasksBar: React.FC<ActiveTasksBarProps> = ({
 
   const fetchTasks = useCallback(async () => {
     try {
-      const resp = await axios.get(`${API_BASE_URL}/projects/${projectId}/active-tasks`);
-      if (resp.data.success) {
-        setTasks(resp.data.tasks || []);
-      }
+      const data = await projectsAPI.getActiveTasks(projectId);
+      setTasks(data.tasks);
     } catch {
       // Silently ignore polling errors
     }
@@ -199,16 +195,16 @@ export const ActiveTasksBar: React.FC<ActiveTasksBarProps> = ({
   }, [sendingChatIds, chatNames, activeChatId]);
 
   // Build the combined task list (API tasks + one entry per sending chat)
-  const chatTasks: ActiveTask[] = useMemo(() => Array.from(currentIds).map((chatId) => ({
+  const chatTasks: VisibleTask[] = useMemo(() => Array.from(currentIds).map((chatId) => ({
     id: `__chat_sending_${chatId}__`,
-    type: 'chat' as ActiveTask['type'],
+    type: 'chat',
     label: names.get(chatId) || 'Chat',
     detail: 'Processing...',
     status: 'sending',
     created_at: chatSendStarts.get(chatId) || new Date().toISOString(),
     chatId,
   })), [currentIds, names, chatSendStarts]);
-  const allTasks: ActiveTask[] = [...chatTasks, ...tasks];
+  const allTasks: VisibleTask[] = [...chatTasks, ...tasks];
 
   const visibleCompletedChats = useMemo(
     () => completedChats.filter((chat) => chat.chatId !== activeChatId),

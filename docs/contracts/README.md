@@ -10,6 +10,8 @@ is deferred to `D-005` in `docs/tickets/DEFERRED.md` and is out of this ticket.
 shape owner for JSONB fields they catalog (`chats.costs`, `chats.selected_source_ids`,
 `messages.content`, `background_tasks.progress`, studio rows, etc.). This file is the
 source of truth for wire shape; the charters remain the access-control source of truth.
+`NBB-916` adds backend Pydantic DTOs near the owning domains so public response,
+event, and JSONB payloads are validated before frontend runtime parsers tighten.
 
 Each contract below carries seven fields:
 
@@ -28,6 +30,7 @@ Each contract below carries seven fields:
 **Backend owner:**
 - Transport: `backend/app/api/messages/routes.py::stream_message` (framing via `_format_sse`)
 - Event producer: `app.chat.loop.ChatLoop._run_message_flow` and streaming bridge `app.chat.streaming.iter_chat_events` / `app.chat.streaming.call_claude`; emit machinery `app.chat.persistence.emit_event`
+- DTO: `backend/app/chat/contracts.py::ChatStreamEvent`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` (SSE reader used by the chat view)
 
@@ -77,10 +80,10 @@ event: assistant_done
 data: {"id":"m_02","role":"assistant","content":"Revenue grew 15% [[cite:abc123_page_5_chunk_2]].","model":"claude-sonnet-4-5-20250929","tokens":{"input_tokens":1240,"output_tokens":42}}
 ```
 
-**Invalid example:** No runtime validation on event payload shape. The SSE framing is
-produced by `_format_sse` which always emits the `event:`/`data:` pair; malformed JSON
-inside `data:` would only be caught by the frontend parser. Treat the frontend SSE
-reader as the validator.
+**Invalid example (runtime validation exists):** `_format_sse` validates every event
+through `ChatStreamEvent` before writing the SSE frame. Unknown event names, non-empty
+`ping` payloads, `assistant_delta` without `data.delta`, and `error` without
+`data.message` fail before they reach the wire.
 
 **Test plan:**
 - Extend `backend/tests/test_streaming_events.py` (new) to POST to
@@ -101,6 +104,7 @@ reader as the validator.
 - Chunk ID format: `backend/app/sources/citations.py::parse_chunk_id` (regex `^(.+)_page_(\d+)_chunk_(\d+)$`)
 - Lookup endpoint: `backend/app/api/sources/content.py::get_citation_content` at
   `GET /api/v1/projects/<project_id>/citations/<chunk_id>`
+- DTO: `backend/app/sources/contracts.py::CitationResponse`
 
 **Frontend consumer:** `frontend/src/lib/api/sources.ts` (citation fetch) and the chat
 renderer that parses `[[cite:...]]` markers.
@@ -242,6 +246,7 @@ This heading covers two linked contracts: **identity** (`/auth/me`) and **sessio
 - Session: `backend/app/api/auth/routes.py::signup|signin|refresh|signout` +
   `backend/app/providers/supabase/auth.py::AuthService._serialize_user` and
   `::_serialize_session`
+- DTOs: `backend/app/auth/contracts.py::MeResponse` and `::AuthSessionResponse`
 
 **Frontend consumer:** `frontend/src/lib/api/auth.ts`
 
@@ -254,6 +259,7 @@ from Supabase and must be stored client-side; the server does not hold session s
 {
   "success": true,
   "auth_required": true,
+  "asset_token": null,
   "user": {
     "id": "uuid",
     "email": "user@example.com",
@@ -275,7 +281,8 @@ from Supabase and must be stored client-side; the server does not hold session s
     "refresh_token": "<opaque>",
     "expires_in": 3600,
     "token_type": "bearer"
-  }
+  },
+  "asset_token": "<opaque browser-asset token>"
 }
 ```
 
@@ -350,6 +357,7 @@ extension map (`png|jpg|jpeg|gif|webp|svg` -> `image/*`), default `image/png`.
 **Backend owner:** `backend/app/auth/access.py::get_current_user_id`
 (current request identity) and `backend/app/api/auth/middleware.py` (Bearer JWT
 and scoped asset-token extraction).
+DTO: `backend/app/auth/contracts.py::AssetTokenPayload`.
 Call sites that inject the token into rendered HTML:
 - `backend/app/api/studio/emails.py::preview_email_template` (rewrites `src="..."` to append `?asset_token=<token>`)
 - `backend/app/api/studio/websites.py` (same pattern for CSS/JS/image URLs)
@@ -489,6 +497,7 @@ never written. An all-invalid input returns
 - Writer: `backend/app/providers/anthropic/cost.py::_apply_usage` and `::update_project_costs`
 - Default/ensure: `::_get_default_costs`, `::_ensure_cost_structure`
 - Read endpoint: `backend/app/api/projects/costs.py::get_project_costs_endpoint`
+- DTO: `backend/app/projects/contracts.py::ProjectCostsResponse`
 
 **Frontend consumer:** `frontend/src/lib/api/projects.ts` (ProjectHeader tooltip)
 
@@ -525,9 +534,9 @@ initialized, even if never used. Per-bucket keys `input_tokens`, `output_tokens`
 
 **Invalid example (runtime validation exists):** `_ensure_cost_structure` repairs any
 JSONB read whose `total_cost` or `by_model` keys are missing (zero-fills). Unknown
-model strings collapse to `"sonnet"` via `_get_model_key`. Therefore the only way to
-produce an invalid persisted shape is to write outside `_apply_usage`; the
-`NBB-109`-landed `verify_project_id_coverage.py` guards against skipping `project_id`.
+model strings collapse to `"sonnet"` via `_get_model_key`. The read endpoint validates
+the public payload through `ProjectCostsResponse`; malformed buckets fail before
+crossing the API boundary.
 
 **Test plan:**
 - Reuse `backend/tests/test_claude_cost_tracking.py` and `test_cost_tracking.py` from
@@ -543,6 +552,7 @@ produce an invalid persisted shape is to write outside `_apply_usage`; the
 - Writer: `backend/app/chat/message/store.py` (via
   `app.providers.anthropic.content.serialize_content_blocks` and `build_tool_result_content`)
 - Reader: `backend/app/chat/message/store.py::build_api_messages`
+- DTO: `backend/app/chat/contracts.py::MessageContent`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts`; the chat renderer parses
 `text` blocks for `[[cite:...]]` markers and ignores `tool_use`/`tool_result` blocks.
@@ -583,10 +593,11 @@ Role is `"user" | "assistant"`. `tool_result` blocks are stored on `user`-role r
 ]
 ```
 
-**Invalid example:** No runtime validator on the JSONB field; validation is implicit
-via `build_api_messages` replay -- an orphaned `tool_use` with no matching `tool_result`
-causes Anthropic to return 400 on the next call. The `app.chat.loop.ChatLoop` loop writes
-`tool_result` even on tool exceptions to prevent orphaned `tool_use`.
+**Invalid example (runtime validation exists):** `MessageStore.add_message` validates
+new writes through `MessageContent`. Unknown block discriminants now fail before they
+enter the `messages.content` JSONB column. Sequence validity still relies on
+`build_api_messages` replay and the `ChatLoop` invariant that writes `tool_result` even
+on tool exceptions.
 
 **Test plan:**
 - Shared with Contract 3. Add one round-trip assertion: write a message row with each
@@ -600,6 +611,7 @@ causes Anthropic to return 400 on the next call. The `app.chat.loop.ChatLoop` lo
 
 **Backend owner:** `backend/app/api/projects/active_tasks.py::get_active_tasks` at
 `GET /api/v1/projects/<project_id>/active-tasks`.
+DTO: `backend/app/background/contracts.py::ActiveTasksResponse`.
 
 Reads from three sources: `sources` (processing + embedding statuses), `studio_jobs`
 (pending + processing), and `background_tasks` (pending + running); merges them into
@@ -640,10 +652,10 @@ strings are inherited from each underlying table and are frozen per Contracts 12
 }
 ```
 
-**Invalid example:** No runtime validation. Partial-fetch failures are swallowed (the
-route logs a warning and returns the tasks that did resolve, still inside the frozen
-envelope). Therefore any response with `success: true` is guaranteed to carry the
-three required envelope keys.
+**Invalid example (runtime validation exists):** Each normalized row is validated as
+`ActiveTask`, then the route validates the envelope as `ActiveTasksResponse`. Unknown
+task `type` values or missing required task keys fail before response serialization.
+Partial-fetch failures are still swallowed per existing behavior.
 
 **Test plan:**
 - `backend/tests/test_active_tasks.py` (new): seed one `sources` row in
@@ -714,6 +726,7 @@ call that includes the tool; our loader does not currently pre-validate shape.
 - Kind + MIME: `backend/app/sources/file_contract.py::ALLOWED_EXTENSIONS` and `::MIME_TYPES`, plus `::get_file_info`
 - Status: `backend/app/sources/catalog.py::SourceCatalog.update_source` (status writes) and the per-type processors under `backend/app/sources/**/process.py`
 - Row: `sources` table; charter owner `backend/app/sources/CHARTER.md`
+- DTOs: `backend/app/sources/contracts.py::FileInfo` and `::SourceRow`
 
 **Frontend consumer:** `frontend/src/lib/api/sources.ts`
 
@@ -792,6 +805,7 @@ and upload routes write `status`, and they use string literals from the enum abo
 - Table: `studio_jobs` in `backend/supabase/migrations/00009_studio_jobs.sql` and
   follow-ups (see `backend/app/studio/CHARTER.md`)
 - Per-type readers: `backend/app/api/studio/<type>.py` (e.g., `audio.py`, `videos.py`)
+- DTOs: `backend/app/studio/contracts.py::StudioJob` and `::StudioEventPayload`
 
 **Frontend consumer:** `frontend/src/lib/api/studio/*`
 
@@ -839,18 +853,16 @@ read by `_map_job`.
 ```
 
 Note: `error` is a read-time alias of `error_message` (see
-`studio_index_service._map_job`).
+`app.studio.jobs.store._map_job`).
 
-**Invalid example (runtime validation exists):** Any update through `update_job`
-passes through a column-vs-JSONB split in the service; there is no enum validator on
-`status`. Downstream consumers (the per-type `*.py` routes) rely on the enum above
-and return 404/422 for unexpected values. For example, `audio_overview` edit flow
-returns 404 when `parent_job_id` points at a missing job (see `emails.py` preview
-pattern).
+**Invalid example (runtime validation exists):** `StudioJob` names the public flattened
+status/progress/result shape and rejects statuses outside
+`pending | processing | ready | error | cancelled`. The store still owns the
+column-vs-JSONB split; per-type routes keep their existing 404/422 behavior.
 
 **Test plan:**
 - `backend/tests/test_studio_jobs_contract.py` (new): create a job via
-  `studio_index_service.create_job`, transition through each status via
+  `app.studio.jobs.store.create_job`, transition through each status via
   `update_job`, assert the flattened dict shape returned matches the example above
   (JSONB `audio_url`/`script_preview` merged to top level, `error_message` aliased).
 

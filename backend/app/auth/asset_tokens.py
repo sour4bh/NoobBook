@@ -3,6 +3,9 @@
 from typing import Any, Optional
 
 from itsdangerous import BadData, SignatureExpired, URLSafeTimedSerializer
+from pydantic import ValidationError
+
+from app.auth.contracts import AssetTokenPayload
 
 
 ASSET_TOKEN_MAX_AGE_SECONDS = 15 * 60
@@ -14,12 +17,12 @@ _ASSET_TOKEN_VERSION = 1
 def build_asset_token(user_id: str, secret_key: str) -> str:
     """Build a short-lived token for browser-loaded asset routes."""
     serializer = URLSafeTimedSerializer(secret_key=secret_key, salt=_ASSET_TOKEN_SALT)
-    payload = {
-        "scope": _ASSET_TOKEN_SCOPE,
-        "version": _ASSET_TOKEN_VERSION,
-        "user_id": user_id,
-    }
-    return serializer.dumps(payload)
+    payload = AssetTokenPayload(
+        scope=_ASSET_TOKEN_SCOPE,
+        version=_ASSET_TOKEN_VERSION,
+        user_id=user_id,
+    )
+    return serializer.dumps(payload.model_dump(mode="json"))
 
 
 def parse_asset_token(
@@ -37,14 +40,8 @@ def parse_asset_token(
     except (BadData, SignatureExpired):
         return None
 
-    if not isinstance(payload, dict):
+    try:
+        validated = AssetTokenPayload.model_validate(payload)
+    except ValidationError:
         return None
-    if payload.get("scope") != _ASSET_TOKEN_SCOPE:
-        return None
-    if payload.get("version") != _ASSET_TOKEN_VERSION:
-        return None
-
-    user_id = payload.get("user_id")
-    if not isinstance(user_id, str) or not user_id:
-        return None
-    return user_id
+    return validated.user_id

@@ -8,6 +8,12 @@ below preserve current production wire shape; redesign is deferred to D-005.
 """
 from typing import Any, Dict, Tuple, TypedDict
 
+from app.chat.contracts import (
+    ChatMessageResponse,
+    ChatStreamEvent,
+    MessageContent,
+)
+
 
 # Frozen catalog of chat streaming event names per NBB-205 Contract 1.
 # Adding a new event kind requires a DEFERRED.md entry and a paired

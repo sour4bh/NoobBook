@@ -26,6 +26,7 @@ import logging
 
 from app.providers.supabase import get_supabase, is_supabase_enabled
 import app.providers.anthropic.content
+from app.chat.contracts import MessageContent
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,8 @@ class MessageStore:
         if metadata and metadata.get("error"):
             if isinstance(db_content, dict):
                 db_content = {**db_content, "error": True}
+
+        MessageContent.model_validate(db_content)
 
         # Create message data
         message_data = {

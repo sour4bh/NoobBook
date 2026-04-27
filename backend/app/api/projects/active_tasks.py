@@ -9,7 +9,9 @@ and background tasks into a unified list.
 from datetime import datetime
 from flask import jsonify, current_app
 
+from app.api.responses import ErrorEnvelope, body
 from app.api.projects import projects_bp
+from app.background.contracts import ActiveTask, ActiveTasksResponse
 from app.providers.supabase import get_supabase
 from app.sources.catalog import source_service
 
@@ -52,14 +54,14 @@ def get_active_tasks(project_id: str):
                     else:
                         detail = f"{'Embedding' if status == 'embedding' else 'Processing'}..."
 
-                    tasks.append({
-                        "id": src.get("id"),
-                        "type": "source",
-                        "label": src.get("name", "Source"),
-                        "detail": detail,
-                        "status": status,
-                        "created_at": src.get("created_at"),
-                    })
+                    tasks.append(ActiveTask(
+                        id=src.get("id"),
+                        type="source",
+                        label=src.get("name", "Source"),
+                        detail=detail,
+                        status=status,
+                        created_at=src.get("created_at"),
+                    ))
         except Exception as e:
             current_app.logger.warning(f"Error fetching sources for active tasks: {e}")
 
@@ -81,15 +83,15 @@ def get_active_tasks(project_id: str):
                 if job.get("source_name"):
                     detail = job.get("source_name")
 
-                tasks.append({
-                    "id": job.get("id"),
-                    "type": "studio",
-                    "label": label,
-                    "detail": detail,
-                    "status": job.get("status"),
-                    "progress": job.get("progress"),
-                    "created_at": job.get("created_at"),
-                })
+                tasks.append(ActiveTask(
+                    id=job.get("id"),
+                    type="studio",
+                    label=label,
+                    detail=detail,
+                    status=job.get("status"),
+                    progress=job.get("progress"),
+                    created_at=job.get("created_at"),
+                ))
         except Exception as e:
             current_app.logger.warning(f"Error fetching studio jobs for active tasks: {e}")
 
@@ -105,31 +107,28 @@ def get_active_tasks(project_id: str):
                 .execute()
             )
             # Only include bg tasks not already covered by sources/studio
-            existing_ids = {t["id"] for t in tasks}
+            existing_ids = {t.id for t in tasks}
             for task in (bg_response.data or []):
                 if task.get("id") in existing_ids:
                     continue
                 task_type = task.get("task_type", "unknown")
-                tasks.append({
-                    "id": task.get("id"),
-                    "type": "background",
-                    "label": _format_task_type(task_type),
-                    "detail": task.get("message") or "Processing...",
-                    "status": task.get("status"),
-                    "created_at": task.get("started_at") or task.get("created_at"),
-                })
+                tasks.append(ActiveTask(
+                    id=task.get("id"),
+                    type="background",
+                    label=_format_task_type(task_type),
+                    detail=task.get("message") or "Processing...",
+                    status=task.get("status"),
+                    created_at=task.get("started_at") or task.get("created_at"),
+                ))
         except Exception as e:
             current_app.logger.warning(f"Error fetching background tasks: {e}")
 
-        return jsonify({
-            "success": True,
-            "tasks": tasks,
-            "count": len(tasks),
-        }), 200
+        response = ActiveTasksResponse(tasks=tasks, count=len(tasks))
+        return jsonify(body(response)), 200
 
     except Exception as e:
         current_app.logger.error(f"Error getting active tasks for project {project_id}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(body(ErrorEnvelope(error=str(e)))), 500
 
 
 def _format_job_type(job_type: str) -> str:

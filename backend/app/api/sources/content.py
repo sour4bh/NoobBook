@@ -47,7 +47,9 @@ Routes:
 - GET /projects/<id>/sources/<source_id>/processed - Get processed text content
 """
 from flask import jsonify, current_app, Response
+from app.api.responses import ErrorEnvelope, body
 from app.api.sources import sources_bp
+from app.sources.contracts import CitationResponse, GeneratedAssetAccess, ProcessedContentResponse
 from app.sources.citations import get_chunk_content
 from app.providers.supabase import storage_service
 from app.sources.catalog import source_service
@@ -90,29 +92,14 @@ def get_citation_content(project_id: str, chunk_id: str):
         chunk_data = get_chunk_content(project_id, chunk_id)
 
         if not chunk_data:
-            return jsonify({
-                'success': False,
-                'error': f'Chunk not found: {chunk_id}'
-            }), 404
+            return jsonify(body(ErrorEnvelope(error=f"Chunk not found: {chunk_id}"))), 404
 
-        return jsonify({
-            'success': True,
-            'chunk': {
-                'content': chunk_data['content'],
-                'chunk_id': chunk_data['chunk_id'],
-                'source_id': chunk_data['source_id'],
-                'source_name': chunk_data['source_name'],
-                'page_number': chunk_data['page_number'],
-                'chunk_index': chunk_data['chunk_index']
-            }
-        }), 200
+        response = CitationResponse(chunk=chunk_data)
+        return jsonify(body(response)), 200
 
     except Exception as e:
         current_app.logger.error(f"Error getting citation content: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify(body(ErrorEnvelope(error=str(e)))), 500
 
 
 @sources_bp.route('/projects/<project_id>/ai-images/<filename>', methods=['GET'])
@@ -147,10 +134,7 @@ def get_ai_image(project_id: str, filename: str):
         image_data = storage_service.download_ai_image(project_id, filename)
 
         if not image_data:
-            return jsonify({
-                'success': False,
-                'error': f'Image not found: {filename}'
-            }), 404
+            return jsonify(body(ErrorEnvelope(error=f"Image not found: {filename}"))), 404
 
         # Determine MIME type based on extension
         extension = filename.lower().split('.')[-1]
@@ -163,15 +147,17 @@ def get_ai_image(project_id: str, filename: str):
             'svg': 'image/svg+xml'
         }
         mime_type = mime_types.get(extension, 'image/png')
+        GeneratedAssetAccess(
+            project_id=project_id,
+            filename=filename,
+            mime_type=mime_type,
+        )
 
         return Response(image_data, mimetype=mime_type)
 
     except Exception as e:
         current_app.logger.error(f"Error serving AI image: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify(body(ErrorEnvelope(error=str(e)))), 500
 
 
 # File extensions that are NOT viewable (excluded from processed content viewer)
@@ -223,35 +209,23 @@ def get_processed_content(project_id: str, source_id: str):
         # Get source metadata to check type and status
         source = source_service.get_source(project_id, source_id)
         if not source:
-            return jsonify({
-                'success': False,
-                'error': 'Source not found'
-            }), 404
+            return jsonify(body(ErrorEnvelope(error="Source not found"))), 404
 
         # Check if source is processed (ready status)
         if source.get('status') != 'ready':
-            return jsonify({
-                'success': False,
-                'error': 'Source is not processed yet'
-            }), 400
+            return jsonify(body(ErrorEnvelope(error="Source is not processed yet"))), 400
 
         # Check if source type is viewable (get extension from embedding_info)
         embedding_info = source.get('embedding_info', {})
         file_extension = embedding_info.get('file_extension', '').lower()
         if file_extension in NON_VIEWABLE_EXTENSIONS:
-            return jsonify({
-                'success': False,
-                'error': f'Source type {file_extension} is not viewable'
-            }), 400
+            return jsonify(body(ErrorEnvelope(error=f"Source type {file_extension} is not viewable"))), 400
 
         # Download processed content from Supabase Storage
         full_content = storage_service.download_processed_file(project_id, source_id)
 
         if not full_content:
-            return jsonify({
-                'success': False,
-                'error': 'Processed file not found'
-            }), 404
+            return jsonify(body(ErrorEnvelope(error="Processed file not found"))), 404
 
         # Strip the metadata header (everything before "# ---")
         # The header format is:
@@ -271,15 +245,12 @@ def get_processed_content(project_id: str, source_id: str):
             # No header found, return full content
             content = full_content.strip()
 
-        return jsonify({
-            'success': True,
-            'content': content,
-            'source_name': source.get('name', 'Unknown')
-        }), 200
+        response = ProcessedContentResponse(
+            content=content,
+            source_name=source.get('name', 'Unknown'),
+        )
+        return jsonify(body(response)), 200
 
     except Exception as e:
         current_app.logger.error(f"Error getting processed content: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify(body(ErrorEnvelope(error=str(e)))), 500

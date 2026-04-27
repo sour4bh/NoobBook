@@ -8,6 +8,8 @@ extraction. They are stateless functions that can be used across services.
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
+from app.sources.contracts import FileInfo
+
 
 # Size limits (in bytes)
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB per image
@@ -97,6 +99,7 @@ def get_file_info(filename: str) -> Tuple[str, str, str]:
     ext = Path(filename).suffix.lower()
     category = ALLOWED_EXTENSIONS.get(ext, 'unknown')
     mime_type = MIME_TYPES.get(ext, 'application/octet-stream')
+    FileInfo(extension=ext, category=category, mime_type=mime_type)
     return ext, category, mime_type
 
 

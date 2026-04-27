@@ -13,7 +13,9 @@ from typing import Any, Optional
 
 from flask import current_app, jsonify, request
 
+from app.api.responses import ErrorEnvelope, body
 from app.api.auth import auth_bp
+from app.auth.contracts import AuthSessionResponse, MeResponse
 from app.auth.asset_tokens import build_asset_token
 from app.auth.identity import get_request_identity, is_auth_required
 from app.providers.supabase.auth import auth_service
@@ -58,23 +60,18 @@ def me():
             secret_key=_secret_key(),
         )
 
-    return (
-        jsonify(
-            {
-                "success": True,
-                "auth_required": auth_required,
-                "asset_token": asset_token,
-                "user": {
-                    "id": identity.user_id,
-                    "email": identity.email,
-                    "role": identity.role,
-                    "is_admin": identity.is_admin,
-                    "is_authenticated": identity.is_authenticated,
-                },
-            }
-        ),
-        200,
+    response = MeResponse(
+        auth_required=auth_required,
+        asset_token=asset_token,
+        user={
+            "id": identity.user_id,
+            "email": identity.email,
+            "role": identity.role,
+            "is_admin": identity.is_admin,
+            "is_authenticated": identity.is_authenticated,
+        },
     )
+    return jsonify(body(response)), 200
 
 
 @auth_bp.route("/auth/signup", methods=["POST"])
@@ -88,13 +85,13 @@ def signup():
     password = (data.get("password") or "").strip()
 
     if not email or not password:
-        return jsonify({"success": False, "error": "email and password are required"}), 400
+        return jsonify(body(ErrorEnvelope(error="email and password are required"))), 400
 
     result = auth_service.sign_up(email=email, password=password)
     if not result.get("success"):
-        return jsonify({"success": False, "error": result.get("error", "Sign up failed")}), 400
+        return jsonify(body(ErrorEnvelope(error=result.get("error", "Sign up failed")))), 400
 
-    return jsonify(_with_asset_token(result)), 200
+    return jsonify(body(AuthSessionResponse.model_validate(_with_asset_token(result)))), 200
 
 
 @auth_bp.route("/auth/signin", methods=["POST"])
@@ -107,13 +104,13 @@ def signin():
     password = (data.get("password") or "").strip()
 
     if not email or not password:
-        return jsonify({"success": False, "error": "email and password are required"}), 400
+        return jsonify(body(ErrorEnvelope(error="email and password are required"))), 400
 
     result = auth_service.sign_in(email=email, password=password)
     if not result.get("success"):
-        return jsonify({"success": False, "error": result.get("error", "Sign in failed")}), 400
+        return jsonify(body(ErrorEnvelope(error=result.get("error", "Sign in failed")))), 400
 
-    return jsonify(_with_asset_token(result)), 200
+    return jsonify(body(AuthSessionResponse.model_validate(_with_asset_token(result)))), 200
 
 
 @auth_bp.route("/auth/signout", methods=["POST"])
@@ -123,7 +120,7 @@ def signout():
     """
     result = auth_service.sign_out()
     if not result.get("success"):
-        return jsonify({"success": False, "error": result.get("error", "Sign out failed")}), 400
+        return jsonify(body(ErrorEnvelope(error=result.get("error", "Sign out failed")))), 400
     return jsonify({"success": True}), 200
 
 
@@ -141,9 +138,9 @@ def refresh():
     data = request.get_json() or {}
     refresh_token = data.get("refresh_token")
     if not refresh_token:
-        return jsonify({"success": False, "error": "refresh_token is required"}), 400
+        return jsonify(body(ErrorEnvelope(error="refresh_token is required"))), 400
 
     result = auth_service.refresh_with_token(refresh_token)
     if not result.get("success"):
         return jsonify(result), 401
-    return jsonify(_with_asset_token(result)), 200
+    return jsonify(body(AuthSessionResponse.model_validate(_with_asset_token(result)))), 200

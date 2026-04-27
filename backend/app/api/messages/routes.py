@@ -31,14 +31,20 @@ import json
 from flask import jsonify, request, current_app, Response, stream_with_context
 
 from app import chat
+from app.api.responses import ErrorEnvelope, body
 from app.api.messages import messages_bp
 from app.auth.identity import get_request_identity
+from app.chat.schemas import ChatMessageResponse, ChatStreamEvent
 
 
 def _format_sse(event_name: str, payload: dict | None = None) -> str:
     """Format a single SSE event chunk."""
-    data = json.dumps(payload or {}, ensure_ascii=False)
-    return f"event: {event_name}\ndata: {data}\n\n"
+    event = ChatStreamEvent.model_validate({
+        "event": event_name,
+        "data": payload or {},
+    })
+    data = json.dumps(event.data, ensure_ascii=False)
+    return f"event: {event.event}\ndata: {data}\n\n"
 
 
 @messages_bp.route('/projects/<project_id>/chats/<chat_id>/messages', methods=['POST'])
@@ -69,10 +75,7 @@ def send_message(project_id, chat_id):
         data = request.get_json()
 
         if not data or 'message' not in data:
-            return jsonify({
-                'success': False,
-                'error': 'Message is required'
-            }), 400
+            return jsonify(body(ErrorEnvelope(error="Message is required"))), 400
 
         identity = get_request_identity()
         result = chat.send(
@@ -82,24 +85,18 @@ def send_message(project_id, chat_id):
             identity=identity,
         )
 
-        return jsonify({
-            'success': True,
-            'user_message': result['user_message'],
-            'assistant_message': result['assistant_message'],
-        }), 200
+        response = ChatMessageResponse(
+            user_message=result["user_message"],
+            assistant_message=result["assistant_message"],
+        )
+        return jsonify(body(response)), 200
 
     except ValueError as e:
         # Chat or project not found
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 404
+        return jsonify(body(ErrorEnvelope(error=str(e)))), 404
     except Exception as e:
         current_app.logger.exception("Error sending message")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify(body(ErrorEnvelope(error=str(e)))), 500
 
 
 @messages_bp.route('/projects/<project_id>/chats/<chat_id>/messages/stream', methods=['POST'])
@@ -112,10 +109,7 @@ def stream_message(project_id, chat_id):
     data = request.get_json()
 
     if not data or 'message' not in data:
-        return jsonify({
-            'success': False,
-            'error': 'Message is required'
-        }), 400
+        return jsonify(body(ErrorEnvelope(error="Message is required"))), 400
 
     user_message_text = data['message']
     identity = get_request_identity()

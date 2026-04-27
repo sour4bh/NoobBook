@@ -26,9 +26,11 @@ Routes:
 - GET /projects/<id>/costs - Get cost breakdown for project
 """
 from flask import jsonify
+from app.api.responses import ErrorEnvelope, body
 from app.api.projects import projects_bp
 from app.providers.anthropic.cost import get_project_costs
 from app.auth.identity import get_request_identity
+from app.projects.contracts import ProjectCostsResponse
 from app.projects.store import project_service
 
 
@@ -71,21 +73,13 @@ def get_project_costs_endpoint(project_id):
         # Verify project exists
         project = project_service.get_project(project_id, user_id=identity.user_id)
         if not project:
-            return jsonify({
-                "success": False,
-                "error": "Project not found"
-            }), 404
+            return jsonify(body(ErrorEnvelope(error="Project not found"))), 404
 
         # Get cost tracking data
         costs = get_project_costs(project_id, user_id=identity.user_id)
 
-        return jsonify({
-            "success": True,
-            "costs": costs
-        }), 200
+        response = ProjectCostsResponse(costs=costs)
+        return jsonify(body(response)), 200
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Failed to get project costs: {str(e)}"
-        }), 500
+        return jsonify(body(ErrorEnvelope(error=f"Failed to get project costs: {str(e)}"))), 500

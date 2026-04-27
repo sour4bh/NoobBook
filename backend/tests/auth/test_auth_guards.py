@@ -12,8 +12,9 @@ Scope:
 - `NOOBBOOK_AUTH_REQUIRED=false` dev/single-user behavior reaches the API
   transport layer and attaches the fallback identity.
 """
+from types import SimpleNamespace
 from urllib.parse import parse_qs, quote, urlparse
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -184,19 +185,148 @@ def test_auth_signin_mints_scoped_asset_token(auth_client):
     ) == "user-abc"
 
 
+def test_auth_signup_returns_personal_workspace_context(auth_client):
+    """Signup orchestration creates/returns workspace context outside providers."""
+    workspace_context = {
+        "available_workspaces": [],
+        "selected_workspace": None,
+        "selected_workspace_id": None,
+        "workspace_role": None,
+        "can_manage_workspace": False,
+        "can_create_project": False,
+    }
+    with patch("app.api.auth.routes.auth_service") as service, patch(
+        "app.api.auth.routes.workspace_store"
+    ) as store:
+        service.sign_up.return_value = {
+            "success": True,
+            "user": {
+                "id": "user-abc",
+                "email": "user@example.com",
+                "global_role": "user",
+            },
+            "session": {
+                "access_token": "primary-jwt",
+                "refresh_token": "refresh",
+                "expires_in": 3600,
+                "token_type": "bearer",
+            },
+        }
+        store.session_context.return_value = workspace_context
+
+        response = auth_client.post(
+            "/api/v1/auth/signup",
+            json={"email": "user@example.com", "password": "password"},
+        )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["user"]["global_role"] == "user"
+    assert body["workspace"] == workspace_context
+    store.session_context.assert_called_once_with(
+        user_id="user-abc",
+        email="user@example.com",
+        selected_workspace_id=None,
+    )
+
+
 def test_dev_mode_api_routes_use_fallback_identity(auth_client, auth_optional_env):
     """NBB-903: API middleware honors dev/single-user mode instead of
     requiring a bearer token after the domain identity resolver falls back."""
     with patch("app.api.projects.routes.project_service") as projects:
         projects.list_all_projects.return_value = []
 
-        response = auth_client.get("/api/v1/projects")
+        response = auth_client.get("/api/v1/projects?workspace_id=workspace-1")
 
     assert response.status_code == 200
     assert response.get_json() == {"success": True, "projects": [], "count": 0}
     projects.list_all_projects.assert_called_once_with(
-        user_id="00000000-0000-0000-0000-000000000001"
+        user_id="00000000-0000-0000-0000-000000000001",
+        workspace_id="workspace-1",
     )
+
+
+def test_projects_list_requires_workspace_id(auth_client, auth_optional_env):
+    """NBB-1004: project listing is scoped to an explicit workspace."""
+    response = auth_client.get("/api/v1/projects")
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "success": False,
+        "error": "workspace_id is required",
+    }
+
+
+def test_project_content_mutation_requires_editor_role(
+    auth_client,
+    auth_required_env,
+):
+    """NBB-1004: private project viewers cannot reach mutating handlers."""
+    with patch(
+        "app.api.auth.middleware.get_supabase"
+    ) as mock_get_supabase, patch(
+        "app.projects.store.project_service.has_project_access",
+        return_value=True,
+    ), patch(
+        "app.projects.store.project_service.can_edit_project",
+        return_value=False,
+    ) as can_edit:
+        supabase = MagicMock()
+        supabase.auth.get_user.return_value = SimpleNamespace(
+            user=SimpleNamespace(id="viewer-user")
+        )
+        mock_get_supabase.return_value = supabase
+
+        response = auth_client.post(
+            f"/api/v1/projects/{PROJECT_ID}/chats",
+            headers={"Authorization": "Bearer viewer-mutate-jwt"},
+            json={"title": "Blocked"},
+        )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "success": False,
+        "error": "Project editor role required",
+    }
+    can_edit.assert_called_once_with(PROJECT_ID, "viewer-user")
+
+
+def test_project_open_action_allows_viewer_role(auth_client, auth_required_env):
+    """NBB-1004: opening a project records access but is not content mutation."""
+    opened_project = {
+        "id": PROJECT_ID,
+        "name": "Project",
+        "description": "",
+        "created_at": "2026-01-01T00:00:00",
+        "updated_at": "2026-01-01T00:00:00",
+        "last_accessed": "2026-01-01T00:00:00",
+    }
+    with patch(
+        "app.api.auth.middleware.get_supabase"
+    ) as mock_get_supabase, patch(
+        "app.projects.store.project_service.has_project_access",
+        return_value=True,
+    ), patch(
+        "app.projects.store.project_service.can_edit_project"
+    ) as can_edit, patch(
+        "app.api.projects.routes.project_service.open_project",
+        return_value=opened_project,
+    ) as open_project:
+        supabase = MagicMock()
+        supabase.auth.get_user.return_value = SimpleNamespace(
+            user=SimpleNamespace(id="viewer-user")
+        )
+        mock_get_supabase.return_value = supabase
+
+        response = auth_client.post(
+            f"/api/v1/projects/{PROJECT_ID}/open",
+            headers={"Authorization": "Bearer viewer-open-jwt"},
+        )
+
+    assert response.status_code == 200
+    assert response.get_json()["project"] == opened_project
+    open_project.assert_called_once_with(PROJECT_ID, user_id=ANY)
+    can_edit.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

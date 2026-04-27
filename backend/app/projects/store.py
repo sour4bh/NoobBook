@@ -14,6 +14,11 @@ from app.providers.supabase import get_supabase, is_supabase_enabled
 
 logger = logging.getLogger(__name__)
 
+PROJECT_OWNER = "owner"
+PROJECT_EDITOR = "editor"
+PROJECT_VIEWER = "viewer"
+PROJECT_EDIT_ROLES = {PROJECT_OWNER, PROJECT_EDITOR}
+
 
 # Default user ID for single-user mode (fallback when no auth token provided).
 # Policy decision about when DEFAULT_USER_ID applies lives in
@@ -52,7 +57,11 @@ class ProjectStore:
         self.supabase = get_supabase()
         self.table = "projects"
 
-    def list_all_projects(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_all_projects(
+        self,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """
         List all available projects for the given user.
 
@@ -66,16 +75,40 @@ class ProjectStore:
         We access .data to get the actual records.
         """
         uid = _resolve_user_id(user_id)
+        if not workspace_id:
+            raise ValueError("workspace_id is required")
+
+        memberships = (
+            self.supabase.table("project_members")
+            .select("project_id")
+            .eq("user_id", uid)
+            .execute()
+        )
+        project_ids = [
+            row["project_id"]
+            for row in (memberships.data or [])
+            if row.get("project_id")
+        ]
+        if not project_ids:
+            return []
+
         response = (
             self.supabase.table(self.table)
-            .select("id, name, description, created_at, updated_at, last_accessed, costs")
-            .eq("user_id", uid)
+            .select("id, workspace_id, name, description, created_at, updated_at, last_accessed, costs")
+            .eq("workspace_id", workspace_id)
+            .in_("id", project_ids)
             .order("last_accessed", desc=True)
             .execute()
         )
         return response.data or []
 
-    def create_project(self, name: str, description: str = "", user_id: Optional[str] = None) -> Dict[str, Any]:
+    def create_project(
+        self,
+        name: str,
+        description: str = "",
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Create a new project.
 
@@ -94,12 +127,16 @@ class ProjectStore:
         We use .select() after insert to get the full record back.
         """
         uid = _resolve_user_id(user_id)
+        if not workspace_id:
+            raise ValueError("workspace_id is required")
+        if not self.has_workspace_access(workspace_id, uid):
+            raise PermissionError("Workspace access required")
 
-        # Check if project name already exists for this user
+        # Project names are unique within the workspace.
         existing = (
             self.supabase.table(self.table)
             .select("id")
-            .eq("user_id", uid)
+            .eq("workspace_id", workspace_id)
             .ilike("name", name)
             .execute()
         )
@@ -110,6 +147,7 @@ class ProjectStore:
         # Create project data
         project_data = {
             "user_id": uid,
+            "workspace_id": workspace_id,
             "name": name,
             "description": description,
             "custom_prompt": None,
@@ -131,6 +169,14 @@ class ProjectStore:
 
         if response.data:
             project = response.data[0]
+            self.supabase.table("project_members").upsert(
+                {
+                    "project_id": project["id"],
+                    "user_id": uid,
+                    "role": PROJECT_OWNER,
+                },
+                on_conflict="project_id,user_id",
+            ).execute()
             return self._format_project_metadata(project)
 
         raise RuntimeError("Failed to create project")
@@ -150,12 +196,14 @@ class ProjectStore:
         open_project() method records last_accessed when the user opens a
         project from the dashboard.
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid and not self.has_project_access(project_id, uid):
+            return None
+
         response = (
             self.supabase.table(self.table)
             .select("*")
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -185,7 +233,13 @@ class ProjectStore:
         Raises:
             ValueError: If new name conflicts with existing project
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid:
+            role = self.get_project_role(project_id, uid)
+            if role is None:
+                return None
+            if role not in PROJECT_EDIT_ROLES:
+                raise PermissionError("Project editor role required")
 
         # Check if project exists
         project = self.get_project(project_id, user_id=user_id)
@@ -197,7 +251,7 @@ class ProjectStore:
             existing = (
                 self.supabase.table(self.table)
                 .select("id")
-                .eq("user_id", uid)
+                .eq("workspace_id", project.get("workspace_id"))
                 .ilike("name", name)
                 .neq("id", project_id)
                 .execute()
@@ -220,7 +274,6 @@ class ProjectStore:
             self.supabase.table(self.table)
             .update(update_data)
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -244,14 +297,19 @@ class ProjectStore:
         foreign key constraints. Deleting a project also deletes its
         sources, chats, messages, etc.
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid:
+            role = self.get_project_role(project_id, uid)
+            if role is None:
+                return False
+            if role != PROJECT_OWNER:
+                raise PermissionError("Project owner role required")
 
         # Check if project exists first
         existing = (
             self.supabase.table(self.table)
             .select("id")
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -259,7 +317,7 @@ class ProjectStore:
             return False
 
         # Delete the project
-        self.supabase.table(self.table).delete().eq("id", project_id).eq("user_id", uid).execute()
+        self.supabase.table(self.table).delete().eq("id", project_id).execute()
 
         return True
 
@@ -274,7 +332,7 @@ class ProjectStore:
         Returns:
             Project metadata or None if not found
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
         project = self.get_project(project_id, user_id=uid)
         if not project:
             return None
@@ -284,7 +342,6 @@ class ProjectStore:
             self.supabase.table(self.table)
             .update({"last_accessed": last_accessed})
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -311,14 +368,19 @@ class ProjectStore:
         Returns:
             Updated project or None if project not found
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid:
+            role = self.get_project_role(project_id, uid)
+            if role is None:
+                return None
+            if role not in PROJECT_EDIT_ROLES:
+                raise PermissionError("Project editor role required")
 
         # Check if project exists
         existing = (
             self.supabase.table(self.table)
             .select("id")
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -330,7 +392,6 @@ class ProjectStore:
             self.supabase.table(self.table)
             .update({"custom_prompt": custom_prompt})
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -350,12 +411,14 @@ class ProjectStore:
         Returns:
             Project settings or None if project not found
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid and not self.has_project_access(project_id, uid):
+            return None
+
         response = (
             self.supabase.table(self.table)
             .select("custom_prompt, memory")
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -382,12 +445,14 @@ class ProjectStore:
         Returns:
             Project costs or None if project not found
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid and not self.has_project_access(project_id, uid):
+            return None
+
         response = (
             self.supabase.table(self.table)
             .select("costs")
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -417,12 +482,18 @@ class ProjectStore:
         Returns:
             True if updated, False if project not found
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid:
+            role = self.get_project_role(project_id, uid)
+            if role is None:
+                return False
+            if role not in PROJECT_EDIT_ROLES:
+                raise PermissionError("Project editor role required")
+
         response = (
             self.supabase.table(self.table)
             .update({"costs": costs})
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -439,12 +510,14 @@ class ProjectStore:
         Returns:
             Project memory or None if project not found
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid and not self.has_project_access(project_id, uid):
+            return None
+
         response = (
             self.supabase.table(self.table)
             .select("memory")
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -469,12 +542,18 @@ class ProjectStore:
         Returns:
             True if updated, False if project not found
         """
-        uid = _resolve_user_id(user_id)
+        uid = _resolve_user_id(user_id) if user_id is not None else None
+        if uid:
+            role = self.get_project_role(project_id, uid)
+            if role is None:
+                return False
+            if role not in PROJECT_EDIT_ROLES:
+                raise PermissionError("Project editor role required")
+
         response = (
             self.supabase.table(self.table)
             .update({"memory": memory})
             .eq("id", project_id)
-            .eq("user_id", uid)
             .execute()
         )
 
@@ -546,6 +625,7 @@ class ProjectStore:
         """
         return {
             "id": project["id"],
+            "workspace_id": project.get("workspace_id"),
             "name": project["name"],
             "description": project.get("description", ""),
             "created_at": project["created_at"],
@@ -566,18 +646,47 @@ class ProjectStore:
             return None
         return response.data[0].get("user_id")
 
-    def has_project_access(self, project_id: str, user_id: str) -> bool:
-        """Check if a user owns the project."""
-        if not project_id or not user_id:
+    def has_workspace_access(self, workspace_id: str, user_id: str) -> bool:
+        """Check if a user is a workspace member."""
+        if not workspace_id or not user_id:
             return False
         response = (
-            self.supabase.table(self.table)
+            self.supabase.table("workspace_members")
             .select("id")
-            .eq("id", project_id)
+            .eq("workspace_id", workspace_id)
             .eq("user_id", user_id)
             .execute()
         )
         return bool(response.data)
+
+    def get_project_role(self, project_id: str, user_id: str) -> Optional[str]:
+        """Return a user's explicit private-project role."""
+        if not project_id or not user_id:
+            return None
+        response = (
+            self.supabase.table("project_members")
+            .select("role")
+            .eq("project_id", project_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return None
+        role = response.data[0].get("role")
+        return str(role) if role else None
+
+    def has_project_access(self, project_id: str, user_id: str) -> bool:
+        """Check if a user has explicit private-project membership."""
+        return self.get_project_role(project_id, user_id) is not None
+
+    def can_edit_project(self, project_id: str, user_id: str) -> bool:
+        """Check if a user can mutate project content."""
+        return self.get_project_role(project_id, user_id) in PROJECT_EDIT_ROLES
+
+    def can_manage_project(self, project_id: str, user_id: str) -> bool:
+        """Check if a user can manage project sharing and deletion."""
+        return self.get_project_role(project_id, user_id) == PROJECT_OWNER
 
 
 # Singleton instance

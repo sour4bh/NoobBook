@@ -10,7 +10,7 @@
 
 | Table | Defined in | Access enforcement | Notes |
 |---|---|---|---|
-| `projects` | `backend/supabase/migrations/00001_initial_schema.sql`, `00003_rls_policies.sql`, `00023_workspace_membership.sql` | Hosted: RLS checks explicit `project_members` membership through `user_has_project_access`. Self-hosted: backend guard `project_service.has_project_access` (runtime switch lands in NBB-1004). | Project row belongs to a workspace through `workspace_id`, but workspace membership alone is not project access. |
+| `projects` | `backend/supabase/migrations/00001_initial_schema.sql`, `00003_rls_policies.sql`, `00023_workspace_membership.sql` | Hosted: RLS checks explicit `project_members` membership through `user_has_project_access`. Self-hosted: backend guard `project_service.has_project_access` checks explicit `project_members` roles. | Project row belongs to a workspace through `workspace_id`, but workspace membership alone is not project access. |
 | `project_members` | `backend/supabase/migrations/00006_user_roles.sql`, rewritten by `00023_workspace_membership.sql` | Hosted: RLS lets project members view membership and project owners manage membership. Backend guard/API checks augment in self-hosted mode. | Private project access roles are `owner`, `editor`, and `viewer`. |
 
 Auxiliary tables defined elsewhere but keyed to `project_id`:
@@ -32,7 +32,7 @@ Auxiliary tables defined elsewhere but keyed to `project_id`:
 ## Access guard of record
 
 - Entry guard: `@before_request` enforcement in `backend/app/__init__.py` calls `project_service.has_project_access(project_id, user_id)` for every `/api/v1/projects/{id}/...` route.
-- Runtime guard transition: `NBB-1002` adds the durable schema and helper SQL. `NBB-1004` must switch `backend/app/projects/store.py::has_project_access` and project CRUD from `projects.user_id` owner checks to explicit `project_members` roles.
+- Runtime guard: `backend/app/projects/store.py::has_project_access` and project CRUD use explicit `project_members` roles. Workspace membership alone does not satisfy project reads or writes.
 - RLS defence-in-depth (hosted): `migrations/00023_workspace_membership.sql` gates `projects` and project-owned child tables through private project membership.
 
 ## Data-move pre-flight (any `NBB-209*` ticket touching project data)

@@ -35,6 +35,7 @@ interface Project {
 interface CreateProjectDialogProps {
   onClose: () => void;
   onProjectCreated: (project: Project) => void;
+  workspaceId: string | null;
   editProject?: {
     id: string;
     name: string;
@@ -45,6 +46,7 @@ interface CreateProjectDialogProps {
 export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
   onClose,
   onProjectCreated,
+  workspaceId,
   editProject = null
 }) => {
   const [name, setName] = useState(editProject?.name || '');
@@ -73,10 +75,16 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
           description: description.trim()
         });
       } else {
+        if (!workspaceId) {
+          setError('Select a workspace before creating a project');
+          setLoading(false);
+          return;
+        }
         // Create new project
         response = await projectsAPI.create({
           name: name.trim(),
-          description: description.trim()
+          description: description.trim(),
+          workspace_id: workspaceId,
         });
       }
 

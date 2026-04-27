@@ -15,6 +15,7 @@ Per-root charters live next to each root:
 - `backend/app/providers/CHARTER.md`
 - `backend/app/sources/CHARTER.md`
 - `backend/app/studio/CHARTER.md`
+- `backend/app/workspaces/CHARTER.md`
 
 Storage contracts live under [`supabase/STORAGE_CONTRACTS.md`](supabase/STORAGE_CONTRACTS.md)
 and [`supabase/migrations/OWNERS.md`](supabase/migrations/OWNERS.md) (NBB-204).
@@ -42,25 +43,25 @@ Two CI guardrails run on every push/PR:
    current docs that present retired roots as live architecture fail the check.
 2. **`providers/` is a leaf.** Modules under `backend/app/providers/` must
    not import from `app.api`, `app.connectors`, or any domain root (`auth`,
-   `projects`, `chat`, `sources`, `studio`, `brand`, `background`,
-   `settings`). Five inherited Anthropic-cost/token imports are documented
+   `workspaces`, `projects`, `chat`, `sources`, `studio`, `brand`,
+   `background`, `settings`). Five inherited Anthropic-cost/token imports are documented
    in `backend/app/providers/CHARTER.md` "Documented exceptions (NBB-704B)"
    and allowlisted in the script as `(path, lineno, target_root)` tuples.
 3. **`connectors/` stays at the external edge.** Modules under
    `backend/app/connectors/` may import from `app.providers`, `app.auth`,
-   and `app.projects` (per `connectors/CHARTER.md`). Imports from `app.api`
-   or any other domain root fail the check.
+   `app.workspaces`, and `app.projects` (per `connectors/CHARTER.md`).
+   Imports from `app.api` or any other domain root fail the check.
 4. **Chat publics-only.** Code outside `backend/app/chat/` must reach chat
    through the public surface declared in `app.chat.__all__` (`store`,
    `tools`, `schemas`, `send`, `stream`, `ChatEvent`, `ChatResponse`).
    Reaching deeper paths such as `app.chat.message.store` or
    `app.chat.loop` is rejected.
-5. **Independent roots stay independent.** `auth/`, `projects/`,
-   `connectors/`, `brand/`, `background/`, and `settings/` may not import
-   from `app.chat`, `app.sources`, or `app.studio`. The empirically-zero
-   state at base commit `f118268` is the regression guard. One inherited
-   exception is allowlisted: `auth/tool_policy.py` lazily registers
-   sources-owned tool capabilities (NBB-202B cross-cutting registry).
+5. **Independent roots stay independent.** `auth/`, `workspaces/`,
+   `projects/`, `connectors/`, `brand/`, `background/`, and `settings/` may
+   not import from `app.chat`, `app.sources`, or `app.studio`. The
+   empirically-zero state at base commit `f118268` is the regression guard.
+   One inherited exception is allowlisted: `auth/tool_policy.py` lazily
+   registers sources-owned tool capabilities (NBB-202B cross-cutting registry).
 6. **API is transport-only.** App code outside `backend/app/api/` must not
    import `app.api.*` route modules. The app factory is the only non-route
    exception because it registers the root blueprint.

@@ -30,6 +30,9 @@ class _FakeProjectTable:
     def eq(self, *_args):
         return self
 
+    def limit(self, *_args):
+        return self
+
     def execute(self):
         if self.operation == "update":
             return _Response([{**deepcopy(self.project), **self.update_payload}])
@@ -56,6 +59,7 @@ def test_get_project_is_read_only() -> None:
         {
             "id": "proj-1",
             "user_id": "user-1",
+            "role": "owner",
             "name": "Project",
             "last_accessed": "old",
         }
@@ -72,6 +76,7 @@ def test_open_project_is_only_last_accessed_mutation_path() -> None:
         {
             "id": "proj-1",
             "user_id": "user-1",
+            "role": "owner",
             "name": "Project",
             "description": "",
             "created_at": "2026-01-01T00:00:00",
@@ -84,3 +89,41 @@ def test_open_project_is_only_last_accessed_mutation_path() -> None:
 
     assert project["last_accessed"] != "old"
     assert list(store.supabase.table_obj.updates[0]) == ["last_accessed"]
+
+
+def test_project_access_uses_explicit_membership_role() -> None:
+    store = _project_store(
+        {
+            "id": "proj-1",
+            "user_id": "owner-1",
+            "role": "viewer",
+            "name": "Project",
+        }
+    )
+
+    assert store.has_project_access("proj-1", "viewer-1") is True
+    assert store.can_edit_project("proj-1", "viewer-1") is False
+    assert store.can_manage_project("proj-1", "viewer-1") is False
+
+
+def test_viewer_cannot_update_project_metadata() -> None:
+    store = _project_store(
+        {
+            "id": "proj-1",
+            "workspace_id": "workspace-1",
+            "user_id": "owner-1",
+            "role": "viewer",
+            "name": "Project",
+            "description": "",
+            "created_at": "2026-01-01T00:00:00",
+            "updated_at": "2026-01-01T00:00:00",
+            "last_accessed": "old",
+        }
+    )
+
+    try:
+        store.update_project("proj-1", name="New name", user_id="viewer-1")
+    except PermissionError as exc:
+        assert str(exc) == "Project editor role required"
+    else:
+        raise AssertionError("viewer update should fail")

@@ -45,6 +45,7 @@ interface AppContentProps {
   userEmail: string | null;
   globalRole: string;
   workspaceRole: string | null;
+  selectedWorkspaceId: string | null;
 }
 
 /**
@@ -64,6 +65,7 @@ function AppContent({
   userEmail,
   globalRole,
   workspaceRole,
+  selectedWorkspaceId,
 }: AppContentProps) {
   const navigate = useNavigate();
 
@@ -91,12 +93,14 @@ function AppContent({
         userEmail={userEmail}
         globalRole={globalRole}
         workspaceRole={workspaceRole}
+        selectedWorkspaceId={selectedWorkspaceId}
       />
 
       {showCreateDialog && (
         <CreateProjectDialog
           onClose={() => setShowCreateDialog(false)}
           onProjectCreated={handleProjectCreated}
+          workspaceId={selectedWorkspaceId}
         />
       )}
     </>
@@ -276,6 +280,7 @@ function App() {
                 userEmail={userEmail}
                 globalRole={globalRole}
                 workspaceRole={workspace?.workspace_role || null}
+                selectedWorkspaceId={workspace?.selected_workspace_id || null}
               />
             }
           />

@@ -33,9 +33,9 @@ auth, RBAC, project access, Supabase, or integrations must update this file.
    - `is_auth_required()` gates enforcement; `/auth/*` and `/health` are
      exempt.
    - Project-scoped routes (`/projects/{id}/...`) run
-     `project_service.has_project_access(...)` — `NBB-107` owns the auth
-     test seam; `NBB-204` owns the RLS/data-access rules that back this
-     check.
+     `project_service.has_project_access(...)` against explicit
+     `project_members` roles; mutating routes additionally require editor
+     access except the dedicated `/open` action.
 9. `register_error_handlers(app)` registers 400/404/500 JSON handlers.
 
 Observability and deployment boundaries are inventoried separately in
@@ -151,6 +151,14 @@ def create_app(config_name='development'):
                 from app.projects.store import project_service
                 if not project_service.has_project_access(project_id, user_id):
                     return {"success": False, "error": "Project not found"}, 404
+                is_open_action = (
+                    request.method == "POST"
+                    and remainder == f"{project_id}/open"
+                )
+                mutates_project_content = request.method in {"POST", "PUT", "PATCH", "DELETE"}
+                if mutates_project_content and not is_open_action:
+                    if not project_service.can_edit_project(project_id, user_id):
+                        return {"success": False, "error": "Project editor role required"}, 403
 
         return None
 

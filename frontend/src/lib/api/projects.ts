@@ -39,10 +39,10 @@ type ProjectCostsAxiosResponse = AxiosResponse<{
  */
 export const projectsAPI = {
   // List all projects
-  list: () => api.get('/projects'),
+  list: (workspaceId: string) => api.get('/projects', { params: { workspace_id: workspaceId } }),
 
   // Create a new project
-  create: (data: { name: string; description?: string }) =>
+  create: (data: { name: string; description?: string; workspace_id: string }) =>
     api.post('/projects', data),
 
   // Get a specific project

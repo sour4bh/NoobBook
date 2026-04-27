@@ -55,7 +55,6 @@ class AuthService:
             if response.user:
                 signup_role = self._resolve_signup_role(email)
                 self._create_user_profile(response.user.id, email, role=signup_role)
-                self._ensure_personal_workspace(response.user.id, email)
 
             return {
                 "success": True,
@@ -284,18 +283,8 @@ class AuthService:
                 self.supabase.table("users").update({"email": email, "role": role}).eq("id", user_id).execute()
             else:
                 self._create_user_profile(user_id, email, role=role)
-            self._ensure_personal_workspace(user_id, email)
         except Exception as e:
             logger.warning("Failed to ensure user profile: %s", e)
-
-    def _ensure_personal_workspace(self, user_id: str, email: str) -> None:
-        """Ensure every signed-up or bootstrapped user owns a personal workspace."""
-        try:
-            from app.workspaces.store import workspace_store
-
-            workspace_store.ensure_personal_workspace(user_id, email)
-        except Exception as e:
-            logger.warning("Failed to ensure personal workspace: %s", e)
 
     def _find_user_by_email(self, email: str):
         try:

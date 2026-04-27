@@ -16,6 +16,7 @@ The backend root list is finalized. Every backend file belongs under exactly one
 |---|---|
 | `backend/app/api/` | Transport adapters only: parse HTTP, run guards, call domain public surfaces, format responses. |
 | `backend/app/auth/` | Identity, route/service guards, permission policy, user identity store. |
+| `backend/app/workspaces/` | Workspace ownership, workspace membership, invite/session context, and workspace-scoped capability checks. |
 | `backend/app/projects/` | Project domain behavior and project store. |
 | `backend/app/chat/` | Chat loop, streaming, memory invocation, chat persistence coordination. |
 | `backend/app/sources/` | Source ingestion, search, citation, extraction, indexing, and analysis. |

@@ -49,7 +49,16 @@ def list_projects():
     """
     try:
         identity = get_request_identity()
-        projects = project_service.list_all_projects(user_id=identity.user_id)
+        workspace_id = (request.args.get("workspace_id") or "").strip()
+        if not workspace_id:
+            return jsonify({
+                "success": False,
+                "error": "workspace_id is required"
+            }), 400
+        projects = project_service.list_all_projects(
+            user_id=identity.user_id,
+            workspace_id=workspace_id,
+        )
         return jsonify({
             "success": True,
             "projects": projects,
@@ -93,6 +102,12 @@ def create_project():
                 "success": False,
                 "error": "Project name is required"
             }), 400
+        workspace_id = (data.get('workspace_id') or "").strip()
+        if not workspace_id:
+            return jsonify({
+                "success": False,
+                "error": "workspace_id is required"
+            }), 400
 
         # Validate name is not empty
         name = data['name'].strip()
@@ -107,6 +122,7 @@ def create_project():
             name=name,
             description=data.get('description', ''),
             user_id=identity.user_id,
+            workspace_id=workspace_id,
         )
 
         return jsonify({
@@ -120,6 +136,11 @@ def create_project():
             "success": False,
             "error": str(e)
         }), 400
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -226,6 +247,11 @@ def update_project(project_id):
             "success": False,
             "error": str(e)
         }), 400
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -271,6 +297,11 @@ def delete_project(project_id):
             "message": f"Project {project_id} deleted successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,

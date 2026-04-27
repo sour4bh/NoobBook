@@ -36,12 +36,14 @@ interface ProjectListProps {
   onSelectProject: (project: Project) => void;
   onCreateNew: () => void;
   refreshTrigger?: number; // Used to refresh the list when projects change
+  workspaceId: string | null;
 }
 
 export const ProjectList: React.FC<ProjectListProps> = ({
   onSelectProject,
   onCreateNew,
-  refreshTrigger = 0
+  refreshTrigger = 0,
+  workspaceId,
 }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,13 +55,18 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   // Fetch projects from API
   useEffect(() => {
     loadProjects();
-  }, [refreshTrigger]); // Re-fetch when refreshTrigger changes
+  }, [refreshTrigger, workspaceId]); // Re-fetch when refreshTrigger or workspace changes
 
   const loadProjects = async () => {
+    if (!workspaceId) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
-      const response = await projectsAPI.list();
+      const response = await projectsAPI.list(workspaceId);
       setProjects(response.data.projects || []);
     } catch (err) {
       setError('Failed to load projects');
@@ -226,6 +233,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             setEditProject(null);
             loadProjects();
           }}
+          workspaceId={workspaceId}
         />
       )}
     </div>

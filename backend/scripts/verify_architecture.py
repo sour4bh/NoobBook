@@ -11,9 +11,9 @@ NBB-704A established two narrow rules that hold long before migration finishes:
 
 2. Import direction at the external edge (NBB-104, NBB-206).
    - ``backend/app/providers/`` is a leaf. It must not import from ``app.api``,
-     ``app.connectors``, or any domain root (``app.auth``, ``app.projects``,
-     ``app.chat``, ``app.sources``, ``app.studio``, ``app.brand``,
-     ``app.background``, ``app.settings``).
+     ``app.connectors``, or any domain root (``app.auth``, ``app.workspaces``,
+     ``app.projects``, ``app.chat``, ``app.sources``, ``app.studio``,
+     ``app.brand``, ``app.background``, ``app.settings``).
    - ``backend/app/connectors/`` may import from ``app.providers``,
      ``app.auth``, and ``app.projects`` (per ``connectors/CHARTER.md``); it
      must not import from ``app.api`` or from the other domain roots.
@@ -36,11 +36,12 @@ NBB-704B adds richer post-migration boundary checks now that domains exist:
    ``app.chat.message.store`` is rejected; callers that need message
    persistence import ``message_service`` from ``app.chat.store``.
 
-5. Inter-domain regression guard. ``app.auth/``, ``app.projects/``,
-   ``app.connectors/``, ``app.brand/``, ``app.background/``, and ``app.settings/``
-   currently do not import from ``app.chat``, ``app.sources``, or ``app.studio``
-   at all (one allowlisted registry exception: ``auth/tool_policy.py`` lazily
-   imports ``sources.analysis.tool_capabilities`` for cross-cutting capability
+5. Inter-domain regression guard. ``app.auth/``, ``app.workspaces/``,
+   ``app.projects/``, ``app.connectors/``, ``app.brand/``, ``app.background/``,
+   and ``app.settings/`` currently do not import from ``app.chat``,
+   ``app.sources``, or ``app.studio`` at all (one allowlisted registry
+   exception: ``auth/tool_policy.py`` lazily imports
+   ``sources.analysis.tool_capabilities`` for cross-cutting capability
    registration owned by NBB-202B). Lock the property — these roots may not
    depend on the migrated domains in either direction, today or in future
    commits.
@@ -83,6 +84,7 @@ REPO_ROOT = BACKEND_DIR.parent
 CANONICAL_ROOTS: frozenset[str] = frozenset({
     "api",
     "auth",
+    "workspaces",
     "projects",
     "chat",
     "sources",
@@ -99,6 +101,7 @@ CANONICAL_ROOTS: frozenset[str] = frozenset({
 # Domain roots. Used for import-direction checks at the external edge.
 DOMAIN_ROOTS: frozenset[str] = frozenset({
     "auth",
+    "workspaces",
     "projects",
     "chat",
     "sources",
@@ -146,11 +149,14 @@ PROVIDERS_FORBIDDEN_PREFIXES: Tuple[str, ...] = tuple(
     sorted({"api", "connectors"} | set(DOMAIN_ROOTS))
 )
 
-# connectors/ may depend on providers, auth, and projects (per CHARTER.md).
+# connectors/ may depend on providers, auth, workspaces, and projects
+# (per CHARTER.md). Workspace-scoped connector settings are product-owned
+# capability state rather than raw provider SDK behavior.
 # Anything else under app. is a boundary violation.
 CONNECTORS_ALLOWED_PREFIXES: frozenset[str] = frozenset({
     "providers",
     "auth",
+    "workspaces",
     "projects",
 })
 CONNECTORS_FORBIDDEN_PREFIXES: Tuple[str, ...] = tuple(
@@ -199,6 +205,7 @@ CHAT_PUBLIC_SUBMODULES: frozenset[str] = frozenset({
 # regression guard — these roots stay independent of the migrated domains.
 INDEPENDENT_ROOTS: Tuple[str, ...] = (
     "auth",
+    "workspaces",
     "projects",
     "connectors",
     "brand",

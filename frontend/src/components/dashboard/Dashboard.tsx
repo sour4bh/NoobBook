@@ -43,6 +43,7 @@ interface DashboardProps {
   userEmail: string | null;
   globalRole: string;
   workspaceRole: string | null;
+  selectedWorkspaceId: string | null;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -56,6 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   userEmail,
   globalRole,
   workspaceRole,
+  selectedWorkspaceId,
 }) => {
   const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
@@ -107,6 +109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           onSelectProject={onSelectProject}
           onCreateNew={onCreateNewProject}
           refreshTrigger={refreshTrigger}
+          workspaceId={selectedWorkspaceId}
         />
       </main>
 

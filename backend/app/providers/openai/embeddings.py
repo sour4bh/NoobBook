@@ -16,6 +16,8 @@ from typing import List, Optional
 
 from openai import OpenAI
 
+from app.config.secret import get_project_secret
+
 DEFAULT_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536
 
@@ -28,8 +30,15 @@ _DIMENSIONS_BY_MODEL = {
 _client: Optional[OpenAI] = None
 
 
-def _get_client() -> OpenAI:
+def _get_client(project_id: Optional[str] = None) -> OpenAI:
     """Return the cached OpenAI client, building it lazily on first use."""
+    workspace_api_key = get_project_secret(
+        project_id,
+        "OPENAI_API_KEY",
+    )
+    if workspace_api_key:
+        return OpenAI(api_key=workspace_api_key)
+
     global _client
     if _client is None:
         api_key = os.getenv("OPENAI_API_KEY")
@@ -39,7 +48,11 @@ def _get_client() -> OpenAI:
     return _client
 
 
-def create_embedding(text: str, model: str = DEFAULT_MODEL) -> List[float]:
+def create_embedding(
+    text: str,
+    model: str = DEFAULT_MODEL,
+    project_id: Optional[str] = None,
+) -> List[float]:
     """Create a single embedding vector for `text`.
 
     Empty text raises `ValueError`. Callers own any domain-specific text
@@ -47,7 +60,7 @@ def create_embedding(text: str, model: str = DEFAULT_MODEL) -> List[float]:
     """
     if not text:
         raise ValueError("Cannot create embedding for empty text")
-    client = _get_client()
+    client = _get_client(project_id=project_id)
     response = client.embeddings.create(model=model, input=text)
     return response.data[0].embedding
 
@@ -55,6 +68,7 @@ def create_embedding(text: str, model: str = DEFAULT_MODEL) -> List[float]:
 def create_embeddings_batch(
     texts: List[str],
     model: str = DEFAULT_MODEL,
+    project_id: Optional[str] = None,
 ) -> List[List[float]]:
     """Create embeddings for `texts` in a single batched API call.
 
@@ -75,7 +89,7 @@ def create_embeddings_batch(
     if not cleaned_texts:
         raise ValueError("All texts are empty after cleaning")
 
-    client = _get_client()
+    client = _get_client(project_id=project_id)
     response = client.embeddings.create(model=model, input=cleaned_texts)
 
     embeddings_map = {item.index: item.embedding for item in response.data}

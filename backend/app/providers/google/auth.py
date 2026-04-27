@@ -22,7 +22,7 @@ Required Setup:
     3. Create OAuth 2.0 credentials (Web application)
     4. Set API_PUBLIC_ORIGIN or GOOGLE_OAUTH_REDIRECT_URI
     5. Add the resulting callback URI to Google Console
-    6. Copy Client ID and Client Secret to Admin Settings
+    6. Copy Client ID and Client Secret to Workspace Settings
 
 Migration Note (2026-01):
     Previously tokens were stored in data/google_tokens.json (single file for all users).
@@ -31,7 +31,6 @@ Migration Note (2026-01):
 """
 
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
 from uuid import uuid4
@@ -42,6 +41,7 @@ from google_auth_oauthlib.flow import Flow
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.config.runtime import RuntimeSettings
+from app.config.secret import get_secret
 from app.providers.supabase import get_supabase
 
 
@@ -83,9 +83,13 @@ class GoogleAuthService:
         """Return the OAuth callback URI registered with Google."""
         return redirect_uri or RuntimeSettings().google_callback_url
 
-    def _get_client_config(self, redirect_uri: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def _get_client_config(
+        self,
+        redirect_uri: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
         """
-        Get OAuth client configuration from environment.
+        Get OAuth client configuration from workspace settings or environment.
 
         Educational Note: We build the client config dict that google-auth
         expects from our environment variables. This avoids needing a
@@ -94,8 +98,14 @@ class GoogleAuthService:
         Returns:
             Client config dict or None if credentials not set
         """
-        client_id = os.getenv("GOOGLE_CLIENT_ID")
-        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        client_id = get_secret(
+            "GOOGLE_CLIENT_ID",
+            workspace_id=workspace_id,
+        )
+        client_secret = get_secret(
+            "GOOGLE_CLIENT_SECRET",
+            workspace_id=workspace_id,
+        )
 
         if not client_id or not client_secret:
             return None
@@ -132,16 +142,20 @@ class GoogleAuthService:
             logger.error("Error getting default user: %s", e)
             return None
 
-    def is_configured(self) -> bool:
+    def is_configured(self, workspace_id: Optional[str] = None) -> bool:
         """
         Check if Google OAuth credentials are configured.
 
         Returns:
             True if both client ID and secret are set
         """
-        return self._get_client_config() is not None
+        return self._get_client_config(workspace_id=workspace_id) is not None
 
-    def is_connected(self, user_id: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    def is_connected(
+        self,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Tuple[bool, Optional[str]]:
         """
         Check if we have valid Google credentials for a user.
 
@@ -156,23 +170,31 @@ class GoogleAuthService:
             Tuple of (is_connected, user_email or None)
         """
         # Use get_credentials() which handles token refresh
-        creds = self.get_credentials(user_id)
+        creds = self.get_credentials(user_id, workspace_id=workspace_id)
         if creds and creds.valid:
             # Try to get user info
             email = self._get_user_email(creds)
             return True, email
         return False, None
 
-    def build_state(self, user_id: str, secret_key: str) -> str:
+    def build_state(
+        self,
+        user_id: str,
+        secret_key: str,
+        workspace_id: Optional[str] = None,
+    ) -> str:
         """Build an opaque signed OAuth state token for the callback."""
         nonce = str(uuid4())
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=self.STATE_MAX_AGE_SECONDS)
         self._store_state_nonce(user_id=user_id, nonce=nonce, expires_at=expires_at)
         serializer = URLSafeTimedSerializer(secret_key, salt="google-oauth-state")
-        return serializer.dumps({"user_id": user_id, "nonce": nonce})
+        payload: Dict[str, str] = {"user_id": user_id, "nonce": nonce}
+        if workspace_id:
+            payload["workspace_id"] = workspace_id
+        return serializer.dumps(payload)
 
-    def parse_state(self, state: str, secret_key: str) -> Optional[str]:
-        """Consume and return the user id from a valid OAuth state token."""
+    def parse_state_context(self, state: str, secret_key: str) -> Optional[Dict[str, str]]:
+        """Consume and return validated OAuth state context."""
         serializer = URLSafeTimedSerializer(secret_key, salt="google-oauth-state")
         try:
             payload = serializer.loads(state, max_age=self.STATE_MAX_AGE_SECONDS)
@@ -187,7 +209,16 @@ class GoogleAuthService:
         user_id = str(user_id)
         if not self._consume_state_nonce(user_id=user_id, nonce=str(nonce)):
             return None
-        return user_id
+        context = {"user_id": user_id}
+        workspace_id = payload.get("workspace_id")
+        if workspace_id:
+            context["workspace_id"] = str(workspace_id)
+        return context
+
+    def parse_state(self, state: str, secret_key: str) -> Optional[str]:
+        """Consume and return the user id from a valid OAuth state token."""
+        context = self.parse_state_context(state, secret_key)
+        return context["user_id"] if context else None
 
     def _store_state_nonce(self, user_id: str, nonce: str, expires_at: datetime) -> None:
         """Persist a one-time state nonce before sending the user to Google."""
@@ -222,6 +253,7 @@ class GoogleAuthService:
         user_id: Optional[str] = None,
         state: Optional[str] = None,
         redirect_uri: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Optional[str]:
         """
         Generate the Google OAuth authorization URL.
@@ -243,7 +275,7 @@ class GoogleAuthService:
         Returns:
             Authorization URL or None if not configured
         """
-        client_config = self._get_client_config(redirect_uri)
+        client_config = self._get_client_config(redirect_uri, workspace_id=workspace_id)
         if not client_config:
             return None
         if not state:
@@ -274,6 +306,7 @@ class GoogleAuthService:
         authorization_code: str,
         user_id: Optional[str] = None,
         redirect_uri: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Tuple[bool, str]:
         """
         Handle the OAuth callback and exchange code for tokens.
@@ -290,7 +323,7 @@ class GoogleAuthService:
         Returns:
             Tuple of (success, message or error)
         """
-        client_config = self._get_client_config(redirect_uri)
+        client_config = self._get_client_config(redirect_uri, workspace_id=workspace_id)
         if not client_config:
             return False, "Google OAuth not configured"
 
@@ -313,7 +346,7 @@ class GoogleAuthService:
             credentials = flow.credentials
 
             # Save credentials to Supabase
-            self._save_credentials(credentials, effective_user_id)
+            self._save_credentials(credentials, effective_user_id, workspace_id=workspace_id)
 
             # Get user email for confirmation
             email = self._get_user_email(credentials)
@@ -351,7 +384,11 @@ class GoogleAuthService:
         except Exception as e:
             return False, f"Failed to disconnect: {str(e)}"
 
-    def get_credentials(self, user_id: Optional[str] = None) -> Optional[Credentials]:
+    def get_credentials(
+        self,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Optional[Credentials]:
         """
         Get valid credentials, refreshing if necessary.
 
@@ -369,7 +406,7 @@ class GoogleAuthService:
             Valid Credentials object or None
         """
         effective_user_id = user_id or self._get_default_user_id()
-        creds = self._load_credentials(effective_user_id)
+        creds = self._load_credentials(effective_user_id, workspace_id=workspace_id)
         if not creds:
             return None
 
@@ -384,7 +421,11 @@ class GoogleAuthService:
 
         return creds if creds.valid else None
 
-    def _load_credentials(self, user_id: Optional[str] = None) -> Optional[Credentials]:
+    def _load_credentials(
+        self,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Optional[Credentials]:
         """
         Load credentials from Supabase for a user.
 
@@ -407,9 +448,10 @@ class GoogleAuthService:
             if not token_data:
                 return None
 
-            # Get client_id and client_secret from env vars, not from DB
-            # Security: app credentials should never be stored in the database
-            client_config = self._get_client_config()
+            # Use the workspace that initiated OAuth when present. App client
+            # credentials are encrypted workspace secrets with .env fallback.
+            token_workspace_id = token_data.get("workspace_id") or workspace_id
+            client_config = self._get_client_config(workspace_id=token_workspace_id)
             if not client_config:
                 return None
             web_config = client_config['web']
@@ -426,7 +468,12 @@ class GoogleAuthService:
             logger.error("Error loading Google credentials: %s", e)
             return None
 
-    def _save_credentials(self, credentials: Credentials, user_id: str) -> None:
+    def _save_credentials(
+        self,
+        credentials: Credentials,
+        user_id: str,
+        workspace_id: Optional[str] = None,
+    ) -> None:
         """
         Save credentials to Supabase for a user.
 
@@ -451,6 +498,8 @@ class GoogleAuthService:
             'google_email': email,
             'saved_at': datetime.now().isoformat()
         }
+        if workspace_id:
+            token_data["workspace_id"] = workspace_id
 
         try:
             self.supabase.table("users").update(

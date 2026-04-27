@@ -148,9 +148,28 @@ TIER_ENV_VARS: Dict[str, str] = {
 }
 
 
-def get_tier(provider: str) -> int:
+def _workspace_tier(provider: str, project_id: Optional[str]) -> Optional[int]:
+    if not project_id:
+        return None
+    try:
+        from app.config.secret import get_project_settings
+
+        settings = get_project_settings(project_id)
+    except Exception:
+        return None
+    provider_tiers = settings.get("provider_tiers") if isinstance(settings, dict) else None
+    if not isinstance(provider_tiers, dict):
+        return None
+    try:
+        tier = int(provider_tiers.get(provider))
+    except (TypeError, ValueError):
+        return None
+    return tier if tier in TIER_CONFIGS.get(provider, {}) else None
+
+
+def get_tier(provider: str, project_id: Optional[str] = None) -> int:
     """
-    Get the current tier for a provider from environment.
+    Get the current tier for a provider from workspace settings or environment.
 
     Args:
         provider: API provider name (anthropic, openai, pinecone)
@@ -158,6 +177,10 @@ def get_tier(provider: str) -> int:
     Returns:
         Tier number (1-4), defaults to 1
     """
+    workspace_tier = _workspace_tier(provider, project_id)
+    if workspace_tier is not None:
+        return workspace_tier
+
     env_var = TIER_ENV_VARS.get(provider, f"{provider.upper()}_TIER")
     tier_str = os.getenv(env_var, "1")
 
@@ -174,7 +197,11 @@ def get_tier(provider: str) -> int:
     return tier
 
 
-def get_tier_config(provider: str, tier: Optional[int] = None) -> Dict[str, Any]:
+def get_tier_config(
+    provider: str,
+    tier: Optional[int] = None,
+    project_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Get tier configuration for a provider.
 
@@ -186,7 +213,7 @@ def get_tier_config(provider: str, tier: Optional[int] = None) -> Dict[str, Any]
         Tier configuration dict with name, description, max_workers, etc.
     """
     if tier is None:
-        tier = get_tier(provider)
+        tier = get_tier(provider, project_id=project_id)
 
     provider_tiers = TIER_CONFIGS.get(provider, {})
 
@@ -211,7 +238,11 @@ def get_all_tiers(provider: str) -> Dict[int, Dict[str, Any]]:
     return TIER_CONFIGS.get(provider, {})
 
 
-def get_max_workers(provider: str, tier: Optional[int] = None) -> int:
+def get_max_workers(
+    provider: str,
+    tier: Optional[int] = None,
+    project_id: Optional[str] = None,
+) -> int:
     """
     Get max workers for a provider's current tier.
 
@@ -222,21 +253,30 @@ def get_max_workers(provider: str, tier: Optional[int] = None) -> int:
     Returns:
         Maximum number of parallel workers
     """
-    config = get_tier_config(provider, tier)
+    config = get_tier_config(provider, tier, project_id=project_id)
     return config.get("max_workers", 4)
 
 
 # Convenience functions for specific providers
-def get_anthropic_config(tier: Optional[int] = None) -> Dict[str, Any]:
+def get_anthropic_config(
+    tier: Optional[int] = None,
+    project_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Get Anthropic tier configuration."""
-    return get_tier_config(APIProvider.ANTHROPIC.value, tier)
+    return get_tier_config(APIProvider.ANTHROPIC.value, tier, project_id=project_id)
 
 
-def get_openai_config(tier: Optional[int] = None) -> Dict[str, Any]:
+def get_openai_config(
+    tier: Optional[int] = None,
+    project_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Get OpenAI tier configuration."""
-    return get_tier_config(APIProvider.OPENAI.value, tier)
+    return get_tier_config(APIProvider.OPENAI.value, tier, project_id=project_id)
 
 
-def get_pinecone_config(tier: Optional[int] = None) -> Dict[str, Any]:
+def get_pinecone_config(
+    tier: Optional[int] = None,
+    project_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Get Pinecone tier configuration."""
-    return get_tier_config(APIProvider.PINECONE.value, tier)
+    return get_tier_config(APIProvider.PINECONE.value, tier, project_id=project_id)

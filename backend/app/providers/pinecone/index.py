@@ -17,6 +17,8 @@ import os
 from typing import List, Dict, Any, Optional
 from pinecone import Pinecone
 
+from app.config.secret import get_project_secret, get_secret
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +41,7 @@ class PineconeService:
         self._client: Optional[Pinecone] = None
         self._index = None
 
-    def _get_client(self) -> Pinecone:
+    def _get_client(self, project_id: Optional[str] = None) -> Pinecone:
         """
         Get or create the Pinecone client.
 
@@ -49,6 +51,13 @@ class PineconeService:
         Raises:
             ValueError: If PINECONE_API_KEY is not set
         """
+        workspace_api_key = get_project_secret(
+            project_id,
+            'PINECONE_API_KEY',
+        )
+        if workspace_api_key:
+            return Pinecone(api_key=workspace_api_key)
+
         if self._client is None:
             api_key = os.getenv('PINECONE_API_KEY')
             if not api_key:
@@ -56,7 +65,16 @@ class PineconeService:
             self._client = Pinecone(api_key=api_key)
         return self._client
 
-    def _get_index(self):
+    def _index_name(self, project_id: Optional[str] = None) -> str:
+        return (
+            get_secret(
+                'PINECONE_INDEX_NAME',
+                project_id=project_id,
+            )
+            or self.INDEX_NAME
+        )
+
+    def _get_index(self, project_id: Optional[str] = None):
         """
         Get the Pinecone index.
 
@@ -67,16 +85,31 @@ class PineconeService:
         Raises:
             ValueError: If the index doesn't exist
         """
-        if self._index is None:
-            client = self._get_client()
-
-            if not client.has_index(self.INDEX_NAME):
+        workspace_api_key = get_project_secret(
+            project_id,
+            'PINECONE_API_KEY',
+        )
+        if workspace_api_key:
+            client = self._get_client(project_id=project_id)
+            index_name = self._index_name(project_id=project_id)
+            if not client.has_index(index_name):
                 raise ValueError(
-                    f"Pinecone index '{self.INDEX_NAME}' not found. "
-                    "Please validate your Pinecone API key in Admin Settings first."
+                    f"Pinecone index '{index_name}' not found. "
+                    "Please validate your Pinecone API key in Workspace Settings first."
+                )
+            return client.Index(index_name)
+
+        if self._index is None:
+            client = self._get_client(project_id=project_id)
+            index_name = self._index_name(project_id=project_id)
+
+            if not client.has_index(index_name):
+                raise ValueError(
+                    f"Pinecone index '{index_name}' not found. "
+                    "Please validate your Pinecone API key in Workspace Settings first."
                 )
 
-            self._index = client.Index(self.INDEX_NAME)
+            self._index = client.Index(index_name)
 
         return self._index
 
@@ -107,7 +140,7 @@ class PineconeService:
         if not vectors:
             return {"upserted_count": 0}
 
-        index = self._get_index()
+        index = self._get_index(project_id=namespace)
 
         # Upsert in batches of 100 (Pinecone recommendation)
         batch_size = 100
@@ -155,7 +188,7 @@ class PineconeService:
                 ...
             ]
         """
-        index = self._get_index()
+        index = self._get_index(project_id=namespace)
 
         response = index.query(
             vector=query_vector,
@@ -197,7 +230,7 @@ class PineconeService:
         Returns:
             Dict with deletion info
         """
-        index = self._get_index()
+        index = self._get_index(project_id=namespace)
 
         # Delete by metadata filter
         index.delete(
@@ -225,7 +258,7 @@ class PineconeService:
         if not ids:
             return {"deleted_count": 0}
 
-        index = self._get_index()
+        index = self._get_index(project_id=namespace)
 
         # Delete in batches of 1000 (Pinecone limit)
         batch_size = 1000
@@ -248,7 +281,7 @@ class PineconeService:
         Returns:
             Dict with deletion info
         """
-        index = self._get_index()
+        index = self._get_index(project_id=namespace)
 
         index.delete(namespace=namespace, delete_all=True)
 
@@ -264,7 +297,7 @@ class PineconeService:
         Returns:
             Dict with stats like vector count
         """
-        index = self._get_index()
+        index = self._get_index(project_id=namespace)
 
         stats = index.describe_index_stats()
 
@@ -276,20 +309,27 @@ class PineconeService:
             "total_vector_count": stats.total_vector_count
         }
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """
         Check if Pinecone is configured and ready to use.
+
+        Args:
+            project_id: Optional project UUID for workspace-scoped provider
+                secrets.
 
         Returns:
             True if API key is set and index exists
         """
         try:
-            api_key = os.getenv('PINECONE_API_KEY')
+            api_key = get_project_secret(
+                project_id,
+                'PINECONE_API_KEY',
+            ) or os.getenv('PINECONE_API_KEY')
             if not api_key:
                 return False
 
-            client = self._get_client()
-            return client.has_index(self.INDEX_NAME)
+            client = self._get_client(project_id=project_id)
+            return client.has_index(self._index_name(project_id=project_id))
         except Exception as e:
             logger.error("Pinecone configuration check failed: %s", e)
             return False

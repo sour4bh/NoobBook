@@ -17,6 +17,7 @@ from typing import Optional, List, Dict, Any, Callable
 import anthropic
 from anthropic import APIStatusError, APITimeoutError, APIConnectionError
 
+from app.config.secret import get_project_secret
 from app.providers.anthropic.cost import add_usage as add_cost_usage, check_user_spending_limit
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class ClaudeService:
         self._client = None
         self._opik_enabled = False
 
-    def _get_client(self) -> anthropic.Anthropic:
+    def _get_client(self, project_id: Optional[str] = None) -> anthropic.Anthropic:
         """
         Get or create the Anthropic client.
 
@@ -64,6 +65,13 @@ class ClaudeService:
         Raises:
             ValueError: If ANTHROPIC_API_KEY is not set
         """
+        workspace_api_key = get_project_secret(
+            project_id,
+            'ANTHROPIC_API_KEY',
+        )
+        if workspace_api_key:
+            return anthropic.Anthropic(api_key=workspace_api_key)
+
         if self._client is None:
             api_key = os.getenv('ANTHROPIC_API_KEY')
             if not api_key:
@@ -270,6 +278,9 @@ class ClaudeService:
         if limit_error:
             raise ValueError(limit_error)
 
+        from app.config.model import resolve_model_for_project
+        model = resolve_model_for_project(model, project_id)
+
         # Warn loudly if project_id is missing so cost tracking omissions are
         # observable. The call still proceeds — billing just won't be recorded.
         if not project_id:
@@ -279,7 +290,7 @@ class ClaudeService:
                 model,
             )
 
-        client = self._get_client()
+        client = self._get_client(project_id=project_id)
         api_params = self._build_api_params(
             messages=messages,
             system_prompt=system_prompt,
@@ -358,7 +369,10 @@ class ClaudeService:
         if limit_error:
             raise ValueError(limit_error)
 
-        client = self._get_client()
+        from app.config.model import resolve_model_for_project
+        model = resolve_model_for_project(model, project_id)
+
+        client = self._get_client(project_id=project_id)
         api_params = self._build_api_params(
             messages=messages,
             system_prompt=system_prompt,

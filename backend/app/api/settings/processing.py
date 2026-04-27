@@ -26,7 +26,8 @@ Anthropic Tier Limits (as of 2024):
 - Tier 3: 8000 RPM, 800K output/min
 - Tier 4: 16000 RPM, 1.6M output/min
 
-The tier config is stored in .env as ANTHROPIC_TIER (1-4).
+The tier config is stored in workspace settings in Supabase mode, with .env
+`ANTHROPIC_TIER` kept as the local/bootstrap fallback.
 
 Routes:
 - GET  /settings/processing - Get current tier config
@@ -34,6 +35,7 @@ Routes:
 """
 from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
+from app.api.settings.workspace import resolve_workspace_context
 from app.settings.env import EnvService
 from app.config.provider import (
     get_tier,
@@ -41,14 +43,27 @@ from app.config.provider import (
     APIProvider,
     ANTHROPIC_TIERS,
 )
-from app.auth.guards import require_admin
+from app.workspaces.settings import workspace_settings_store
 
 # Initialize service
 env_service = EnvService()
 
 
+def _workspace_anthropic_tier(workspace_id: str, requester_user_id: str) -> int:
+    current_tier = get_tier(APIProvider.ANTHROPIC.value)
+    if not workspace_settings_store.supabase:
+        return current_tier
+    settings = workspace_settings_store.get_settings(workspace_id, requester_user_id)
+    provider_tiers = settings.get("provider_tiers") or {}
+    value = provider_tiers.get(APIProvider.ANTHROPIC.value)
+    try:
+        tier = int(value)
+    except (TypeError, ValueError):
+        return current_tier
+    return tier if tier in ANTHROPIC_TIERS else current_tier
+
+
 @settings_bp.route('/settings/processing', methods=['GET'])
-@require_admin
 def get_processing_settings():
     """
     Get processing settings including Anthropic tier configuration.
@@ -75,8 +90,9 @@ def get_processing_settings():
         }
     """
     try:
+        identity, workspace_id = resolve_workspace_context(require_manager=True)
         # Get current tier using centralized config
-        current_tier = get_tier(APIProvider.ANTHROPIC.value)
+        current_tier = _workspace_anthropic_tier(workspace_id, identity.user_id)
         tier_config = get_tier_config(APIProvider.ANTHROPIC.value, current_tier)
 
         return jsonify({
@@ -91,6 +107,11 @@ def get_processing_settings():
             ]
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error getting processing settings: {e}")
         return jsonify({
@@ -100,17 +121,15 @@ def get_processing_settings():
 
 
 @settings_bp.route('/settings/processing', methods=['POST'])
-@require_admin
 def update_processing_settings():
     """
     Update processing settings.
 
-    Educational Note: Saves the selected tier to .env file. The tier
+    Educational Note: Saves the selected tier to workspace settings. The tier
     affects how parallel processing operates - higher tier = more
     concurrent API calls allowed.
 
-    Important: Changing tier takes effect immediately after env reload.
-    No app restart required.
+    Important: Changing tier takes effect immediately. No app restart required.
 
     Request Body:
         { "anthropic_tier": 2 }
@@ -123,6 +142,7 @@ def update_processing_settings():
         }
     """
     try:
+        identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
         if not data:
             return jsonify({
@@ -141,14 +161,23 @@ def update_processing_settings():
                     'error': f'Invalid tier. Must be one of: {list(ANTHROPIC_TIERS.keys())}'
                 }), 400
 
-            env_service.set_key('ANTHROPIC_TIER', str(tier))
-            current_app.logger.info(f"Updated ANTHROPIC_TIER to {tier}")
-
-        # Reload to pick up changes
-        env_service.reload_env()
+            if workspace_settings_store.supabase:
+                settings = workspace_settings_store.get_settings(workspace_id, identity.user_id)
+                provider_tiers = dict(settings.get("provider_tiers") or {})
+                provider_tiers[APIProvider.ANTHROPIC.value] = tier
+                workspace_settings_store.update_settings(
+                    workspace_id,
+                    identity.user_id,
+                    {"provider_tiers": provider_tiers},
+                )
+                current_app.logger.info("Updated workspace Anthropic tier to %s", tier)
+            else:
+                env_service.set_key('ANTHROPIC_TIER', str(tier))
+                current_app.logger.info(f"Updated ANTHROPIC_TIER to {tier}")
+                env_service.reload_env()
 
         # Return updated settings
-        current_tier = get_tier(APIProvider.ANTHROPIC.value)
+        current_tier = _workspace_anthropic_tier(workspace_id, identity.user_id)
         tier_config = get_tier_config(APIProvider.ANTHROPIC.value, current_tier)
 
         return jsonify({
@@ -160,6 +189,11 @@ def update_processing_settings():
             }
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error updating processing settings: {e}")
         return jsonify({

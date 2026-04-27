@@ -1,5 +1,5 @@
 """
-Model Loader - Admin-configurable Claude model overrides per use case.
+Model Loader - Workspace-configurable Claude model overrides per use case.
 
 Educational Note: Every registered prompt config has a baked-in model (Haiku,
 Sonnet, or Opus). This module lets an admin override those models at runtime
@@ -7,14 +7,17 @@ per category (chat, studio, query agents, source extraction) without editing
 domain-owned JSON files.
 
 How it works:
-1. MODEL_CATEGORIES maps each category to an env var (e.g. CHAT_MODEL_OVERRIDE)
+1. MODEL_CATEGORIES maps each category to an env var fallback
+   (e.g. CHAT_MODEL_OVERRIDE)
 2. PROMPT_TO_CATEGORY maps each prompt name (e.g. "default", "presentation_agent")
    to its category
 3. prompt_loader consults this module when building a prompt config. If the
-   category's env var is set to a valid model id, it swaps config["model"].
-4. Empty / unset env var = "Default" (use whatever the prompt JSON declares)
+   selected workspace or env fallback has a valid override, it swaps
+   config["model"].
+4. Empty / unset override = "Default" (use whatever the prompt JSON declares)
 
-Persisted in .env, mirroring the existing ANTHROPIC_TIER pattern.
+Persisted in workspace settings in Supabase mode, with .env kept as the local
+bootstrap fallback.
 """
 import os
 from typing import Dict, Optional
@@ -114,6 +117,15 @@ PROMPT_TO_CATEGORY: Dict[str, str] = {
 }
 
 
+class PromptModel(str):
+    """String model id that carries the source prompt for workspace overrides."""
+
+    def __new__(cls, value: str, prompt_name: Optional[str] = None):
+        instance = str.__new__(cls, value)
+        instance.prompt_name = prompt_name
+        return instance
+
+
 def get_category_override(category: str) -> Optional[str]:
     """
     Read the override model for a category from the environment.
@@ -130,6 +142,25 @@ def get_category_override(category: str) -> Optional[str]:
     return None
 
 
+def get_workspace_category_override(category: str, project_id: Optional[str]) -> Optional[str]:
+    """Read a workspace model override through the current project."""
+    if not project_id:
+        return None
+    try:
+        from app.config.secret import get_project_settings
+
+        settings = get_project_settings(project_id)
+    except Exception:
+        return None
+    overrides = settings.get("model_overrides") if isinstance(settings, dict) else None
+    if not isinstance(overrides, dict):
+        return None
+    value = overrides.get(category)
+    if isinstance(value, str) and value in AVAILABLE_MODELS:
+        return value
+    return None
+
+
 def get_model_override_for_prompt(prompt_name: str) -> Optional[str]:
     """
     Given a prompt name (e.g. "default", "presentation_agent"), return the
@@ -140,6 +171,18 @@ def get_model_override_for_prompt(prompt_name: str) -> Optional[str]:
     if not category:
         return None
     return get_category_override(category)
+
+
+def resolve_model_for_project(model: str, project_id: Optional[str]) -> str:
+    """Resolve a PromptModel against workspace settings when possible."""
+    prompt_name = getattr(model, "prompt_name", None)
+    if prompt_name:
+        category = PROMPT_TO_CATEGORY.get(prompt_name)
+        if category:
+            override = get_workspace_category_override(category, project_id)
+            if override:
+                return override
+    return str(model)
 
 
 def get_current_settings() -> Dict[str, Optional[str]]:

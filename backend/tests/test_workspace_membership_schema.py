@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATION = ROOT / "backend/supabase/migrations/00023_workspace_membership.sql"
+BRAND_MIGRATION = ROOT / "backend/supabase/migrations/00024_workspace_brand_settings.sql"
 INIT_SQL = ROOT / "backend/supabase/init.sql"
 
 
@@ -67,3 +68,18 @@ def test_workspace_storage_paths_are_workspace_project_aware() -> None:
     assert "SET name = projects.workspace_id::text" in sql
     assert "SET raw_file_path = projects.workspace_id::text" in sql
     assert "SET processed_file_path = projects.workspace_id::text" in sql
+
+
+def test_brand_settings_are_workspace_scoped() -> None:
+    sql = _read(BRAND_MIGRATION)
+    init_sql = _read(INIT_SQL)
+
+    for content in [sql, init_sql]:
+        assert "brand_config_workspace_id_key UNIQUE (workspace_id)" in content
+        assert "Workspace members can view brand config" in content
+        assert "Workspace managers can update brand assets" in content
+        assert "user_has_workspace_access(workspace_id, auth.uid())" in content
+        assert "{workspace_id}/brand/{asset_id}/{filename}" in content
+
+    assert "ALTER TABLE brand_config DROP COLUMN IF EXISTS user_id" in sql
+    assert "ALTER TABLE brand_assets DROP COLUMN IF EXISTS user_id" in sql

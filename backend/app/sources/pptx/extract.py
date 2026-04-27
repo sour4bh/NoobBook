@@ -109,7 +109,7 @@ class PPTXService:
                 # Step 3: Load configurations using centralized loaders
                 prompt_config = prompt_loader.get_prompt_config("pptx_extraction")
                 tool_def = self._load_tool_definition()
-                tier_config = get_anthropic_config()
+                tier_config = get_anthropic_config(project_id=project_id)
                 max_workers = tier_config["max_workers"]
 
                 # Calculate batches per minute for rate limiting

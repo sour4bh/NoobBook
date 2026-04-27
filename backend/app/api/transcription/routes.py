@@ -20,13 +20,40 @@ Routes:
 - GET /transcription/config - Get WebSocket URL with fresh token
 - GET /transcription/status - Check if ElevenLabs is configured
 """
-from flask import jsonify, current_app
+from flask import jsonify, current_app, request
 from app.api.transcription import transcription_bp
 from app.auth.guards import require_permission
+from app.auth.identity import get_request_identity
+from app.projects.store import DEFAULT_USER_ID
 from app.providers.elevenlabs import TranscriptionService
+from app.workspaces.settings import workspace_settings_store
+from app.workspaces.store import workspace_store
 
 # Initialize service (lazy loads API key from env)
 transcription_service = TranscriptionService()
+
+
+def _requested_workspace_id() -> str | None:
+    header_value = (request.headers.get("X-NoobBook-Workspace-Id") or "").strip()
+    if header_value:
+        return header_value
+    query_value = (request.args.get("workspace_id") or "").strip()
+    return query_value or None
+
+
+def _current_workspace_id() -> str:
+    identity = get_request_identity()
+    try:
+        workspace_id = workspace_settings_store.resolve_workspace_id(
+            user_id=identity.user_id,
+            email=identity.email,
+            requested_workspace_id=_requested_workspace_id(),
+        )
+    except ValueError:
+        return DEFAULT_USER_ID
+    if not workspace_store.has_workspace_access(workspace_id, identity.user_id):
+        raise PermissionError("Workspace access required")
+    return workspace_id
 
 
 @transcription_bp.route('/transcription/config', methods=['GET'])
@@ -60,7 +87,9 @@ def get_transcription_config():
         }
     """
     try:
-        config = transcription_service.get_elevenlabs_config()
+        config = transcription_service.get_elevenlabs_config(
+            workspace_id=_current_workspace_id()
+        )
 
         return jsonify({
             'success': True,
@@ -73,6 +102,11 @@ def get_transcription_config():
             'success': False,
             'error': str(e)
         }), 400
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
 
     except Exception as e:
         current_app.logger.error(f"Error getting transcription config: {e}")
@@ -106,13 +140,20 @@ def get_transcription_status():
         }
     """
     try:
-        is_configured = transcription_service.is_configured()
+        is_configured = transcription_service.is_configured(
+            workspace_id=_current_workspace_id()
+        )
 
         return jsonify({
             'success': True,
             'configured': is_configured
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error checking transcription status: {e}")
         return jsonify({

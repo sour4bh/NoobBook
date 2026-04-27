@@ -53,8 +53,7 @@ class EmailWriter:
     def _prepare_brand_logo(
         self,
         project_id: str,
-        job_id: str,
-        user_id: str = None
+        job_id: str
     ) -> Optional[Dict[str, str]]:
         """
         Download the primary brand logo and save it locally for the email template.
@@ -66,32 +65,23 @@ class EmailWriter:
         Args:
             project_id: The project UUID
             job_id: The email job UUID (used for filename prefix)
-            user_id: The authenticated user's UUID (avoids project lookup)
 
         Returns:
             Logo info dict with filename/url/placeholder, or None if no logo
         """
         try:
-            # Use provided user_id, or fall back to project lookup
-            if not user_id:
-                project = project_service.get_project(project_id)
-                if not project:
-                    return None
-                user_id = project.get("user_id")
-            if not user_id:
+            project = project_service.get_project(project_id)
+            if not project or not project.get("workspace_id"):
                 return None
+            workspace_id = project["workspace_id"]
 
             # Get primary logo asset metadata
-            logo_asset = brand_asset_service.get_primary_asset(user_id, "logo")
+            logo_asset = brand_asset_service.get_primary_asset(workspace_id, "logo")
             if not logo_asset:
                 return None
 
             # Download logo bytes from Supabase storage
-            logo_bytes = storage_service.download_brand_asset(
-                user_id=user_id,
-                asset_id=logo_asset["id"],
-                filename=logo_asset["file_name"]
-            )
+            logo_bytes = storage_service.download_brand_asset_by_path(logo_asset["file_path"])
             if not logo_bytes:
                 logger.warning("Could not download brand logo")
                 return None
@@ -167,7 +157,7 @@ class EmailWriter:
 
         # Load brand context if configured for email feature
         brand_context = brand_context_loader.load_brand_context(
-            project_id, "email", user_id=user_id
+            project_id, "email"
         )
         system_prompt = config["system_prompt"]
         logo_info = None
@@ -176,16 +166,12 @@ class EmailWriter:
         if brand_context:
             system_prompt = f"{system_prompt}\n\n{brand_context}"
             # Download brand logo so it can be embedded in the email HTML
-            logo_info = self._prepare_brand_logo(project_id, job_id, user_id=user_id)
+            logo_info = self._prepare_brand_logo(project_id, job_id)
             # Extract brand colors for plan validation in the tool executor
-            if user_id:
-                brand_config = brand_config_service.get_config(user_id) or {}
+            project = project_service.get_project(project_id)
+            if project and project.get("workspace_id"):
+                brand_config = brand_config_service.get_config(project["workspace_id"]) or {}
                 brand_colors = brand_config.get("colors")
-            else:
-                project = project_service.get_project(project_id)
-                if project and project.get("user_id"):
-                    brand_config = brand_config_service.get_config(project["user_id"]) or {}
-                    brand_colors = brand_config.get("colors")
 
         # Filter brand_colors to only include user-enabled colors
         if brand_colors:

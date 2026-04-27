@@ -55,7 +55,7 @@ def process_embeddings(
             "reason": reason,
         }
 
-    if not pinecone_service.is_configured():
+    if not pinecone_service.is_configured(project_id=project_id):
         return {
             "is_embedded": False,
             "embedded_at": None,
@@ -96,7 +96,10 @@ def process_embeddings(
         logger.info("Uploaded %d chunks to Supabase Storage", uploaded_count)
 
         chunk_texts = [clean_text_for_embedding(chunk.text) for chunk in chunks]
-        embeddings = openai_embeddings.create_embeddings_batch(chunk_texts)
+        embeddings = openai_embeddings.create_embeddings_batch(
+            chunk_texts,
+            project_id=project_id,
+        )
         logger.info("Created %d embeddings", len(embeddings))
 
         vectors = chunks_to_pinecone_format(chunks, embeddings)
@@ -131,7 +134,7 @@ def delete_embeddings(project_id: str, source_id: str) -> Dict[str, Any]:
     """Delete the source's Pinecone vectors and chunk files."""
     results = {"pinecone_deleted": False, "chunks_deleted": False}
 
-    if pinecone_service.is_configured():
+    if pinecone_service.is_configured(project_id=project_id):
         try:
             pinecone_service.delete_by_source(
                 source_id=source_id,
@@ -157,12 +160,13 @@ def search_similar(
     source_filter: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """RAG retrieval: embed the query, search Pinecone, attach chunk text."""
-    if not pinecone_service.is_configured():
+    if not pinecone_service.is_configured(project_id=project_id):
         return []
 
     try:
         query_embedding = openai_embeddings.create_embedding(
-            clean_text_for_embedding(query_text)
+            clean_text_for_embedding(query_text),
+            project_id=project_id,
         )
         pinecone_filter = (
             {"source_id": {"$eq": source_filter}} if source_filter else None

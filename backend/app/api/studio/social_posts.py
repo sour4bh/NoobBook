@@ -117,10 +117,10 @@ def generate_social_posts(project_id: str):
             }), 400
 
         # Check if Gemini is configured
-        if not imagen_service.is_configured():
+        if not imagen_service.is_configured(project_id=project_id):
             return jsonify({
                 'success': False,
-                'error': 'Gemini API key not configured. Please add it in Admin Settings.'
+                'error': 'Gemini API key not configured. Please add it in Workspace Settings.'
             }), 400
 
         # Resolve logo image bytes (brand icon or image source)

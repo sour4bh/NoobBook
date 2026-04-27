@@ -22,6 +22,8 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import GenericProxyConfig
 import requests as http_requests  # Aliased to avoid confusion with flask.request
 
+from app.config.secret import get_secret
+
 logger = logging.getLogger(__name__)
 
 # Proxy cache TTL in seconds (30 minutes)
@@ -83,7 +85,7 @@ class YouTubeService:
                 return match.group(1)
         return None
 
-    def _get_proxies(self) -> List[str]:
+    def _get_proxies(self, project_id: Optional[str] = None) -> List[str]:
         """
         Fetch and cache proxy list from the Webshare API.
 
@@ -94,7 +96,10 @@ class YouTubeService:
         Returns:
             List of proxy URLs like "http://user:pass@ip:port" (empty if not configured)
         """
-        api_key = os.getenv("WEBSHARE_API_KEY")
+        api_key = get_secret(
+            "WEBSHARE_API_KEY",
+            project_id=project_id,
+        )
         if not api_key:
             return []
 
@@ -133,14 +138,14 @@ class YouTubeService:
             # Return stale cache if available, otherwise empty
             return self._proxies
 
-    def _get_next_proxy(self) -> Optional[str]:
+    def _get_next_proxy(self, project_id: Optional[str] = None) -> Optional[str]:
         """
         Get the next proxy URL using round-robin rotation.
 
         Returns:
             A proxy URL string, or None if no proxies available
         """
-        proxies = self._get_proxies()
+        proxies = self._get_proxies(project_id=project_id)
         if not proxies:
             return None
         proxy = proxies[self._proxy_index % len(proxies)]
@@ -167,7 +172,8 @@ class YouTubeService:
         self,
         url: str,
         include_timestamps: bool = False,
-        preferred_languages: List[str] = None
+        preferred_languages: List[str] = None,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Fetch transcript for a YouTube video.
@@ -216,7 +222,7 @@ class YouTubeService:
                 return self._build_error_response(video_id, direct_error)
 
         # Step 2: Fallback to proxy if available
-        proxy_url = self._get_next_proxy()
+        proxy_url = self._get_next_proxy(project_id=project_id)
         if not proxy_url:
             # No proxies configured — return the original error
             logger.info("No proxies available, returning original error for %s", video_id)

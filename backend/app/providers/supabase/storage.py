@@ -940,17 +940,17 @@ def delete_source_files(project_id: str, source_id: str, filename: str) -> bool:
 # BRAND ASSETS (Logos, icons, fonts, images for brand kit)
 # =============================================================================
 
-def _build_brand_path(user_id: str, asset_id: str, filename: str) -> str:
+def _build_brand_path(workspace_id: str, asset_id: str, filename: str) -> str:
     """
     Build storage path for brand assets.
-    Pattern: {user_id}/brand/{asset_id}/{filename}
+    Pattern: {workspace_id}/brand/{asset_id}/{filename}
     Example: abc123/brand/def456/logo.svg
     """
-    return f"{user_id}/brand/{asset_id}/{filename}"
+    return f"{workspace_id}/brand/{asset_id}/{filename}"
 
 
 def upload_brand_asset(
-    user_id: str,
+    workspace_id: str,
     asset_id: str,
     filename: str,
     file_data: bytes,
@@ -960,7 +960,7 @@ def upload_brand_asset(
     Upload a brand asset file to storage.
 
     Args:
-        user_id: The user UUID
+        workspace_id: The workspace UUID
         asset_id: The brand asset UUID
         filename: Asset filename (e.g., logo.svg)
         file_data: File bytes
@@ -970,7 +970,7 @@ def upload_brand_asset(
         Storage path if successful, None otherwise
     """
     client = _get_client()
-    path = _build_brand_path(user_id, asset_id, filename)
+    path = _build_brand_path(workspace_id, asset_id, filename)
 
     try:
         return _upsert_file(
@@ -984,7 +984,7 @@ def upload_brand_asset(
 
 
 def download_brand_asset(
-    user_id: str,
+    workspace_id: str,
     asset_id: str,
     filename: str
 ) -> Optional[bytes]:
@@ -992,16 +992,19 @@ def download_brand_asset(
     Download a brand asset file from storage.
 
     Args:
-        user_id: The user UUID
+        workspace_id: The workspace UUID
         asset_id: The brand asset UUID
         filename: Asset filename
 
     Returns:
         File bytes or None if not found
     """
-    client = _get_client()
-    path = _build_brand_path(user_id, asset_id, filename)
+    return download_brand_asset_by_path(_build_brand_path(workspace_id, asset_id, filename))
 
+
+def download_brand_asset_by_path(path: str) -> Optional[bytes]:
+    """Download a brand asset from its stored bucket path."""
+    client = _get_client()
     try:
         response = client.storage.from_(BUCKET_BRAND_ASSETS).download(path)
         return response
@@ -1011,7 +1014,7 @@ def download_brand_asset(
 
 
 def delete_brand_asset(
-    user_id: str,
+    workspace_id: str,
     asset_id: str,
     filename: str
 ) -> bool:
@@ -1019,16 +1022,19 @@ def delete_brand_asset(
     Delete a brand asset file from storage.
 
     Args:
-        user_id: The user UUID
+        workspace_id: The workspace UUID
         asset_id: The brand asset UUID
         filename: Asset filename
 
     Returns:
         True if successful
     """
-    client = _get_client()
-    path = _build_brand_path(user_id, asset_id, filename)
+    return delete_brand_asset_by_path(_build_brand_path(workspace_id, asset_id, filename))
 
+
+def delete_brand_asset_by_path(path: str) -> bool:
+    """Delete a brand asset from its stored bucket path."""
+    client = _get_client()
     try:
         client.storage.from_(BUCKET_BRAND_ASSETS).remove([path])
         return True
@@ -1038,7 +1044,7 @@ def delete_brand_asset(
 
 
 def get_brand_asset_url(
-    user_id: str,
+    workspace_id: str,
     asset_id: str,
     filename: str,
     expires_in: int = 3600
@@ -1047,7 +1053,7 @@ def get_brand_asset_url(
     Get a signed URL for a brand asset (for private bucket access).
 
     Args:
-        user_id: The user UUID
+        workspace_id: The workspace UUID
         asset_id: The brand asset UUID
         filename: Asset filename
         expires_in: URL expiration time in seconds (default 1 hour)
@@ -1055,9 +1061,15 @@ def get_brand_asset_url(
     Returns:
         Signed URL or None
     """
-    client = _get_client()
-    path = _build_brand_path(user_id, asset_id, filename)
+    return get_brand_asset_url_by_path(
+        _build_brand_path(workspace_id, asset_id, filename),
+        expires_in,
+    )
 
+
+def get_brand_asset_url_by_path(path: str, expires_in: int = 3600) -> Optional[str]:
+    """Return a signed URL for a stored brand asset path."""
+    client = _get_client()
     try:
         response = client.storage.from_(BUCKET_BRAND_ASSETS).create_signed_url(path, expires_in)
         return response.get("signedURL")
@@ -1066,21 +1078,21 @@ def get_brand_asset_url(
         return None
 
 
-def delete_user_brand_assets(user_id: str) -> bool:
+def delete_workspace_brand_assets(workspace_id: str) -> bool:
     """
-    Delete all brand assets for a user.
+    Delete all brand assets for a workspace.
 
     Educational Note: Uses iterative folder scanning because Supabase .list()
     only returns immediate children. Folders have id=None, files have a UUID id.
 
     Args:
-        user_id: The user UUID
+        workspace_id: The workspace UUID
 
     Returns:
         True if successful
     """
     client = _get_client()
-    root_prefix = f"{user_id}/brand"
+    root_prefix = f"{workspace_id}/brand"
 
     try:
         # Iteratively scan folders to collect all file paths
@@ -1106,5 +1118,5 @@ def delete_user_brand_assets(user_id: str) -> bool:
             client.storage.from_(BUCKET_BRAND_ASSETS).remove(all_paths)
         return True
     except Exception as e:
-        logger.error("Failed to delete brand assets for user %s: %s", user_id, e)
+        logger.error("Failed to delete brand assets for workspace %s: %s", workspace_id, e)
         return False

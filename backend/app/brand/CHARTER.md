@@ -10,14 +10,14 @@
 
 | Table | Defined in | Access enforcement | Notes |
 |---|---|---|---|
-| `brand_config` | `backend/supabase/migrations/00007_brand_assets.sql`, re-scoped to user in `00010_brand_to_user_level.sql` | Hosted: RLS `user_id = auth.uid()` (direct match since 00010). Self-hosted: backend auth identity. | One row per user (`UNIQUE (user_id)`). Workspace-level brand settings shared across all projects of that user. |
-| `brand_assets` | `00007_brand_assets.sql`, re-scoped to user in `00010_brand_to_user_level.sql` | Hosted: RLS `user_id = auth.uid()`. Self-hosted: backend auth identity. | Asset types: logo/icon/font/image (CHECK constraint). |
+| `brand_config` | `backend/supabase/migrations/00007_brand_assets.sql`, re-scoped to user in `00010_brand_to_user_level.sql`, then to workspace in `00024_workspace_brand_settings.sql` | Hosted: RLS `user_has_workspace_access(workspace_id, auth.uid())` for reads; `user_can_manage_workspace(...)` for writes. Self-hosted: backend workspace guard. | One row per workspace (`UNIQUE (workspace_id)`). |
+| `brand_assets` | `00007_brand_assets.sql`, re-scoped to user in `00010_brand_to_user_level.sql`, then to workspace in `00024_workspace_brand_settings.sql` | Hosted: same workspace membership/manager RLS as `brand_config`. Self-hosted: backend workspace guard. | Asset types: logo/icon/font/image (CHECK constraint). |
 
 ## Storage buckets owned by `brand/`
 
 | Bucket | Object path (runtime) | Serving route | Notes |
 |---|---|---|---|
-| `brand-assets` | `{user_id}/brand/{asset_id}/{filename}` | `GET /api/v1/brand/...` routes in `backend/app/api/brand/routes.py` stream bytes through `storage_service.download_brand_asset` | Runtime path and migration helper (`generate_brand_asset_path` in 00010) agree with the `auth.uid()::text == folder[1]` storage policy; `00021_storage_owner_paths.sql` removes the permissive self-hosted policy. |
+| `brand-assets` | `{workspace_id}/brand/{asset_id}/{filename}` for new uploads | `GET /api/v1/brand/...` routes in `backend/app/api/brand/routes.py` stream bytes through `storage_service.download_brand_asset_by_path` | Runtime path and migration helper (`generate_brand_asset_path` in 00024) agree with workspace-membership storage policies. Existing rows keep their stored `file_path` so already-uploaded objects remain readable. |
 
 Path builder: `backend/app/providers/supabase/storage.py::_build_brand_path`. Do not introduce new path builders for this bucket elsewhere.
 
@@ -36,16 +36,16 @@ Path builder: `backend/app/providers/supabase/storage.py::_build_brand_path`. Do
 
 ## Access guard of record
 
-- Entry guard: brand routes are user-scoped (not project-scoped). They rely on the authenticated identity set by the auth stack (`get_request_identity` in `backend/app/auth/identity.py`); the `@before_request` project-access guard does not apply because the URL prefix is `/api/v1/brand/...`, not `/api/v1/projects/{id}/...`. Any new brand route that takes a `{project_id}` must add the project guard.
-- RLS of record (hosted): `brand_assets` and `brand_config` policies in `00010_brand_to_user_level.sql` use `user_id = auth.uid()`.
-- Self-hosted mode has no RLS on these tables; the backend-authenticated user id is the only table barrier. Brand bucket storage policy still requires the first object segment to equal `auth.uid()` when clients access storage directly.
+- Entry guard: brand routes are workspace-scoped. They resolve the selected workspace with `resolve_workspace_context(...)`; read routes require workspace membership and write routes require workspace owner/admin.
+- RLS of record (hosted): `brand_assets` and `brand_config` policies in `00024_workspace_brand_settings.sql` use workspace membership for reads and workspace manager role for writes.
+- Self-hosted mode still enforces the same rule in backend route code. Brand bucket storage policy expects the first object segment to be the workspace id for new objects.
 
 ## Data-move pre-flight (NBB-209D)
 
-1. Preserve the `UNIQUE (user_id)` invariant on `brand_config` when moving the store.
-2. Preserve the object-path contract `{user_id}/brand/{asset_id}/{filename}` — it is the only one consistent across migrations, runtime, and storage policy.
-3. `delete_user_brand_assets` in `storage_service.py` iteratively scans folders; if the move replaces it, preserve the folder-scan semantics so partial deletions don't leak assets.
-4. Brand is workspace-level (per user). Do not reintroduce project-scoped paths without a ticket that amends the product decision from 00010.
+1. Preserve the `UNIQUE (workspace_id)` invariant on `brand_config`.
+2. New object paths must use `{workspace_id}/brand/{asset_id}/{filename}`. Existing rows should be read through their stored `file_path`.
+3. `delete_workspace_brand_assets` in `storage_service.py` iteratively scans folders; preserve the folder-scan semantics so partial deletions don't leak assets.
+4. Brand is workspace-level. Do not reintroduce user- or project-scoped brand state without a ticket that amends the product decision from NBB-010.
 
 ## Cross-reference
 

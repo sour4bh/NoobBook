@@ -1,9 +1,8 @@
 """
 Brand API Blueprint.
 
-Educational Note: Brand assets and configuration are workspace-level settings
-(per-user, not per-project). This provides consistent branding across all
-projects' studio-generated content.
+Educational Note: Brand assets and configuration are workspace-level settings.
+This provides consistent branding across all projects in a workspace.
 
 Assets (logos, icons, fonts, images):
 - GET    /brand/assets           - List all assets
@@ -23,7 +22,8 @@ Configuration (colors, typography, guidelines):
 from flask import Blueprint
 
 # Create blueprint for brand operations
-# Auth is handled by the global api_bp.before_request hook (sets g.user_id)
+# Auth is handled by the global api_bp.before_request hook; routes resolve the
+# selected workspace before reading or mutating brand state.
 brand_bp = Blueprint('brand', __name__)
 
 # Import routes to register them with the blueprint

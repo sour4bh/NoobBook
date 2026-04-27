@@ -137,7 +137,7 @@ class ImageService:
             # Load configurations using centralized loaders
             prompt_config = prompt_loader.get_prompt_config("image_extraction")
             tool_def = self._load_tool_definition()
-            tier_config = get_anthropic_config()
+            tier_config = get_anthropic_config(project_id=project_id)
 
             model = prompt_config.get("model", "claude-haiku-4-5-20251001")
             system_prompt = prompt_config.get("system_prompt", "")
@@ -263,7 +263,7 @@ class ImageService:
             # Load configurations using centralized loaders
             prompt_config = prompt_loader.get_prompt_config("image_extraction")
             tool_def = self._load_tool_definition()
-            tier_config = get_anthropic_config()
+            tier_config = get_anthropic_config(project_id=project_id)
 
             model = prompt_config.get("model", "claude-haiku-4-5-20251001")
             system_prompt = prompt_config.get("system_prompt", "")

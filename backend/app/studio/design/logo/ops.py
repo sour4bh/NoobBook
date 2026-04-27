@@ -10,8 +10,6 @@ SVG logos are automatically converted to PNG since Gemini cannot process SVG inp
 import logging
 from typing import Optional, Tuple
 
-from flask import g
-
 from app.providers.supabase import storage_service
 
 logger = logging.getLogger(__name__)
@@ -49,30 +47,31 @@ def _ensure_png(image_bytes: bytes, mime_type: str) -> Tuple[Optional[bytes], st
     return image_bytes, mime_type
 
 
-def resolve_brand_logo() -> Tuple[Optional[bytes], str]:
+def resolve_brand_logo(project_id: str) -> Tuple[Optional[bytes], str]:
     """
-    Fetch brand icon (or logo fallback) for the current user.
+    Fetch brand icon (or logo fallback) for the selected workspace.
 
     Checks for a primary icon first, then falls back to primary logo.
-    Requires Flask request context (uses g.user_id).
     SVG logos are automatically converted to PNG.
 
     Returns:
         Tuple of (image_bytes, mime_type). Bytes is None if not found.
     """
     from app.brand.asset.store import brand_asset_service
+    from app.projects.store import project_service
 
     try:
-        user_id = g.user_id
+        project = project_service.get_project(project_id)
+        workspace_id = project.get("workspace_id") if project else None
+        if not workspace_id:
+            return None, "image/png"
         # Prefer primary icon, fall back to primary logo
-        icon = brand_asset_service.get_primary_asset(user_id, 'icon')
+        icon = brand_asset_service.get_primary_asset(workspace_id, 'icon')
         if not icon:
-            icon = brand_asset_service.get_primary_asset(user_id, 'logo')
+            icon = brand_asset_service.get_primary_asset(workspace_id, 'logo')
 
         if icon:
-            image_bytes = storage_service.download_brand_asset(
-                user_id, icon['id'], icon['file_name']
-            )
+            image_bytes = storage_service.download_brand_asset_by_path(icon['file_path'])
             mime_type = icon.get('mime_type', 'image/png')
             if image_bytes:
                 # Convert SVG to PNG since Gemini can't process SVG
@@ -141,7 +140,7 @@ def resolve_logo(data: dict, project_id: str) -> Tuple[Optional[bytes], str]:
     logo_source = data.get('logo_source', 'auto')
 
     if logo_source in ('brand_icon', 'auto'):
-        return resolve_brand_logo()
+        return resolve_brand_logo(project_id)
 
     if logo_source == 'source' and data.get('logo_source_id'):
         return resolve_source_logo(project_id, data['logo_source_id'])

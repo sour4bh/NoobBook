@@ -139,7 +139,8 @@ class WebsiteDispatcher:
             image_result = imagen_service.generate_image_bytes(
                 prompt=image_prompt,
                 filename_prefix=filename_prefix,
-                aspect_ratio=aspect_ratio
+                aspect_ratio=aspect_ratio,
+                project_id=project_id
             )
 
             if not image_result.get("success"):

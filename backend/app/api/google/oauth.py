@@ -33,7 +33,10 @@ from flask.typing import ResponseReturnValue
 from app.api.google import google_bp
 from app.auth.guards import require_permission
 from app.auth.identity import get_request_identity
+from app.projects.store import DEFAULT_USER_ID
 from app.providers.google.auth import google_auth_service
+from app.workspaces.settings import workspace_settings_store
+from app.workspaces.store import workspace_store
 
 
 _GENERIC_OAUTH_ERROR = "Google authentication failed"
@@ -67,6 +70,29 @@ def _get_current_user_id() -> str:
     return identity.user_id
 
 
+def _requested_workspace_id() -> str | None:
+    header_value = (request.headers.get("X-NoobBook-Workspace-Id") or "").strip()
+    if header_value:
+        return header_value
+    query_value = (request.args.get("workspace_id") or "").strip()
+    return query_value or None
+
+
+def _current_workspace_id() -> str:
+    identity = get_request_identity()
+    try:
+        workspace_id = workspace_settings_store.resolve_workspace_id(
+            user_id=identity.user_id,
+            email=identity.email,
+            requested_workspace_id=_requested_workspace_id(),
+        )
+    except ValueError:
+        return DEFAULT_USER_ID
+    if not workspace_store.has_workspace_access(workspace_id, identity.user_id):
+        raise PermissionError("Workspace access required")
+    return workspace_id
+
+
 @google_bp.route('/google/status', methods=['GET'])
 @require_permission("document_sources", "google_drive")
 def google_status():
@@ -74,7 +100,7 @@ def google_status():
     Check Google Drive configuration and connection status.
 
     Educational Note: This endpoint checks two things:
-    1. Is Google OAuth configured? (client ID + secret set in .env)
+    1. Is Google OAuth configured? (workspace client ID + secret or env fallback)
     2. Is user connected? (valid tokens stored in Supabase users.google_tokens)
 
     Returns:
@@ -87,8 +113,12 @@ def google_status():
     """
     try:
         user_id = _get_current_user_id()
-        is_configured = google_auth_service.is_configured()
-        is_connected, email = google_auth_service.is_connected(user_id=user_id)
+        workspace_id = _current_workspace_id()
+        is_configured = google_auth_service.is_configured(workspace_id=workspace_id)
+        is_connected, email = google_auth_service.is_connected(
+            user_id=user_id,
+            workspace_id=workspace_id,
+        )
 
         return jsonify({
             'success': True,
@@ -97,6 +127,11 @@ def google_status():
             'email': email
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error checking Google status: {e}")
         return jsonify({
@@ -125,21 +160,24 @@ def google_auth():
         { "success": true, "auth_url": "https://accounts.google.com/..." }
     """
     try:
-        if not google_auth_service.is_configured():
+        workspace_id = _current_workspace_id()
+        if not google_auth_service.is_configured(workspace_id=workspace_id):
             return jsonify({
                 'success': False,
-                'error': 'Google OAuth not configured. Please add Client ID and Secret in Admin Settings.'
+                'error': 'Google OAuth not configured. Please add Client ID and Secret in Workspace Settings.'
             }), 400
 
         user_id = _get_current_user_id()
         state = google_auth_service.build_state(
             user_id=user_id,
             secret_key=current_app.config["SECRET_KEY"],
+            workspace_id=workspace_id,
         )
         auth_url = google_auth_service.get_auth_url(
             user_id=user_id,
             state=state,
             redirect_uri=current_app.config["GOOGLE_OAUTH_REDIRECT_URI"],
+            workspace_id=workspace_id,
         )
         if not auth_url:
             return jsonify({
@@ -152,6 +190,11 @@ def google_auth():
             'auth_url': auth_url
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error generating auth URL: {e}")
         return jsonify({
@@ -198,19 +241,25 @@ def google_callback():
             return _oauth_error_redirect()
 
         state = request.args.get('state', '')
-        user_id = google_auth_service.parse_state(
+        state_context = google_auth_service.parse_state_context(
             state=state,
             secret_key=current_app.config["SECRET_KEY"],
         )
-        if not user_id:
+        if not state_context:
             current_app.logger.warning("Google OAuth callback rejected invalid or replayed state")
             return _oauth_error_redirect()
+        user_id = state_context["user_id"]
 
         # Exchange code for tokens, passing user_id for storage
+        handle_kwargs = {
+            "user_id": user_id,
+            "redirect_uri": current_app.config["GOOGLE_OAUTH_REDIRECT_URI"],
+        }
+        if state_context.get("workspace_id"):
+            handle_kwargs["workspace_id"] = state_context["workspace_id"]
         success, message = google_auth_service.handle_callback(
             code,
-            user_id=user_id,
-            redirect_uri=current_app.config["GOOGLE_OAUTH_REDIRECT_URI"],
+            **handle_kwargs,
         )
 
         if success:

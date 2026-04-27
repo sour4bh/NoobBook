@@ -102,7 +102,8 @@ class VideoGenerator:
             aspect_ratio=aspect_ratio,
             duration_seconds=duration_seconds,
             number_of_videos=number_of_videos,
-            on_progress=on_progress
+            on_progress=on_progress,
+            project_id=project_id
         )
 
         if not result["success"]:

@@ -109,7 +109,7 @@ class BlogWriter:
 
         # Load brand context if configured for blog feature
         brand_context = brand_context_loader.load_brand_context(
-            project_id, "blog", user_id=user_id
+            project_id, "blog"
         )
         system_prompt = config["system_prompt"]
         if brand_context:

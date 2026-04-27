@@ -303,7 +303,7 @@ class PDFService:
             prompt_config = prompt_loader.get_prompt_config("pdf_extraction")
             tool_def = self._load_tool_definition()
             model = prompt_config.get("model", "claude-haiku-4-5-20251001")
-            tier_config = get_anthropic_config()
+            tier_config = get_anthropic_config(project_id=project_id)
             max_workers = tier_config["max_workers"]
             # For batched approach, rate limit is per batch (API call), not per page
             # Divide pages_per_minute by batch size to get batches_per_minute

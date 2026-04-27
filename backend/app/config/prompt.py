@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 class PromptConfig(dict):
     """
-    Dict subclass whose "model" key is resolved dynamically on every access.
+    Dict subclass whose "model" key carries prompt identity and resolves the
+    local/bootstrap env fallback dynamically.
 
     Services in this codebase often cache the result of
     prompt_loader.get_prompt_config(...) in self._prompt_config and reuse it
@@ -43,10 +44,9 @@ class PromptConfig(dict):
     load time, an admin changing the model override later would not take
     effect until restart.
 
-    By overriding __getitem__ and get for the "model" key, every lookup re-reads
-    the env-var-backed override. Services can keep caching the PromptConfig
-    instance (everything else is static) while still picking up admin changes
-    immediately.
+    Workspace overrides are resolved later at the Claude call boundary, where
+    the project_id is known. The value returned here is still a normal string
+    subclass, so existing Anthropic SDK calls continue to accept it.
     """
 
     def __init__(self, data: Dict[str, Any], prompt_name: Optional[str] = None):
@@ -67,15 +67,26 @@ class PromptConfig(dict):
         if key == "model":
             override = self._resolved_model()
             if override:
-                return override
+                return self._model_value(override)
+            return self._model_value(super().__getitem__(key))
         return super().__getitem__(key)
 
     def get(self, key, default=None):
         if key == "model":
             override = self._resolved_model()
             if override:
-                return override
+                return self._model_value(override)
+            value = super().get(key, default)
+            return self._model_value(value) if value is not None else value
         return super().get(key, default)
+
+    def _model_value(self, value: Any) -> Any:
+        from app.config.model import PromptModel
+
+        if not isinstance(value, str):
+            return value
+        prompt_name = object.__getattribute__(self, "_prompt_name")
+        return PromptModel(value, prompt_name=prompt_name)
 
     def raw_model(self) -> Optional[str]:
         """

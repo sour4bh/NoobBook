@@ -157,7 +157,8 @@ class DeepResearchAgent:
                     result_message, is_termination = deep_research_executor.research(
                         tool_name=tool_name,
                         tool_input=tool_input,
-                        output_path=output_path
+                        output_path=output_path,
+                        project_id=project_id,
                     )
 
                     tool_results.append({

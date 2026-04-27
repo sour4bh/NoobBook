@@ -32,7 +32,8 @@ class WebAgentExecutor:
     def dispatch(
         self,
         tool_name: str,
-        tool_input: Dict[str, Any]
+        tool_input: Dict[str, Any],
+        project_id: str = None
     ) -> Tuple[Dict[str, Any], bool]:
         """
         Dispatch a tool call and return the result.
@@ -53,7 +54,7 @@ class WebAgentExecutor:
 
         # Route to appropriate service
         if tool_name == "tavily_search":
-            result = self._execute_tavily_search(tool_input)
+            result = self._execute_tavily_search(tool_input, project_id=project_id)
             return result, False
 
         # Unknown tool
@@ -62,7 +63,7 @@ class WebAgentExecutor:
             "error": f"Unknown tool: {tool_name}"
         }, False
 
-    def _execute_tavily_search(self, tool_input: Dict[str, Any]) -> str:
+    def _execute_tavily_search(self, tool_input: Dict[str, Any], project_id: str = None) -> str:
         """
         Execute Tavily search tool and format result as readable string.
 
@@ -75,7 +76,7 @@ class WebAgentExecutor:
         from app.providers.tavily import tavily_service
 
         query = tool_input.get("query", "")
-        result = tavily_service.search(query=query)
+        result = tavily_service.search(query=query, project_id=project_id)
 
         # Format the result as a clean readable string
         if not result.get("success"):

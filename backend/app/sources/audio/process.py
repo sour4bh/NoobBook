@@ -44,12 +44,12 @@ def process_audio(
     from app.providers.elevenlabs import audio_service
 
     # Check if ElevenLabs is configured
-    if not audio_service.is_configured():
+    if not audio_service.is_configured(project_id=project_id):
         source_service.update_source(
             project_id,
             source_id,
             status="error",
-            processing_info={"error": "ELEVENLABS_API_KEY not configured. Please add it in Admin Settings."}
+            processing_info={"error": "ELEVENLABS_API_KEY not configured. Please add it in Workspace Settings."}
         )
         return {"success": False, "error": "ELEVENLABS_API_KEY not configured"}
 

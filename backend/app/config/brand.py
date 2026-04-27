@@ -9,8 +9,8 @@ that can be injected into studio agent system prompts. The context includes:
 3. Brand Guidelines - Written guidelines and best practices
 4. Brand Voice - Tone, personality, and keywords
 
-Brand config is now user-level (workspace setting). Studio agents pass
-project_id, which is resolved to user_id here — so agents need zero changes.
+Brand config is workspace-level. Studio agents pass project_id, which is
+resolved to workspace_id here.
 """
 import logging
 from typing import Dict, Any, Optional
@@ -29,35 +29,34 @@ class BrandContextLoader:
     content generation. It checks if brand is enabled for the feature
     and builds formatted context for the AI to follow.
 
-    Studio agents pass project_id → we resolve to user_id internally,
-    since brand config is now a workspace-level (per-user) setting.
+    Studio agents pass project_id → we resolve to workspace_id internally.
     """
 
-    def _resolve_user_id(self, project_id: str) -> Optional[str]:
+    def _resolve_workspace_id(self, project_id: str) -> Optional[str]:
         """
-        Resolve project_id to user_id via the projects table.
+        Resolve project_id to workspace_id via the projects table.
 
-        Educational Note: Brand moved from project-level to user-level,
-        but studio agents still pass project_id. This bridge method
-        ensures backward compatibility with zero changes to agents.
+        Educational Note: Brand is workspace-level, but studio agents still
+        pass project_id. This keeps the studio call contract stable while
+        resolving to the correct ownership boundary.
 
         Args:
             project_id: The project UUID
 
         Returns:
-            The user_id who owns the project, or None if not found
+            The workspace_id that owns the project, or None if not found
         """
         from app.projects.store import project_service
         project = project_service.get_project(project_id)
         if not project:
             return None
-        return project.get("user_id")
+        return project.get("workspace_id")
 
     def load_brand_context(
         self,
         project_id: str,
         feature_name: str,
-        user_id: str = None
+        workspace_id: str = None
     ) -> str:
         """
         Load brand context for injection into a studio agent prompt.
@@ -68,27 +67,26 @@ class BrandContextLoader:
         presentations and blogs follow brand guidelines.
 
         Args:
-            project_id: The project UUID (used as fallback to resolve user_id)
+            project_id: The project UUID (used as fallback to resolve workspace_id)
             feature_name: The studio feature name (e.g., 'blog', 'presentation')
-            user_id: Optional user UUID — skips project lookup when provided
+            workspace_id: Optional workspace UUID — skips project lookup when provided
 
         Returns:
             Formatted brand context string, or empty string if brand disabled
         """
-        # Use provided user_id, or resolve from project_id (brand is user-level)
-        if not user_id:
-            user_id = self._resolve_user_id(project_id)
-        if not user_id:
-            logger.warning("Brand context skipped: could not resolve user_id (project=%s)", project_id[:8])
+        if not workspace_id:
+            workspace_id = self._resolve_workspace_id(project_id)
+        if not workspace_id:
+            logger.warning("Brand context skipped: could not resolve workspace_id (project=%s)", project_id[:8])
             return ""
 
         # Check if brand is enabled for this feature
-        if not brand_config_service.is_feature_enabled(user_id, feature_name):
-            logger.info("Brand context skipped: feature '%s' disabled (user=%s)", feature_name, user_id[:8])
+        if not brand_config_service.is_feature_enabled(workspace_id, feature_name):
+            logger.info("Brand context skipped: feature '%s' disabled (workspace=%s)", feature_name, workspace_id[:8])
             return ""
 
         # Get brand config
-        config = brand_config_service.get_config(user_id)
+        config = brand_config_service.get_config(workspace_id)
 
         # Build context sections, tracking which parts are present
         sections = []
@@ -110,7 +108,7 @@ class BrandContextLoader:
             included_parts.append("typography")
 
         # Add brand assets info
-        assets_context = self._build_assets_context(user_id)
+        assets_context = self._build_assets_context(workspace_id)
         if assets_context:
             sections.append(assets_context)
             included_parts.append("assets")
@@ -134,15 +132,15 @@ class BrandContextLoader:
             included_parts.append("practices")
 
         if len(sections) <= 2:  # Only header and empty line
-            logger.info("Brand context empty: no sections have content (user=%s, feature=%s)", user_id[:8], feature_name)
+            logger.info("Brand context empty: no sections have content (workspace=%s, feature=%s)", workspace_id[:8], feature_name)
             return ""
 
         sections.append("**MANDATORY**: All generated content MUST use these exact brand colors, fonts, voice, and logo. Do NOT substitute with defaults or generic values.")
         sections.append("")
 
         context = "\n".join(sections)
-        logger.info("Brand context loaded: feature=%s, user=%s, sections=[%s], length=%d chars",
-                     feature_name, user_id[:8], ", ".join(included_parts), len(context))
+        logger.info("Brand context loaded: feature=%s, workspace=%s, sections=[%s], length=%d chars",
+                     feature_name, workspace_id[:8], ", ".join(included_parts), len(context))
         return context
 
     def _build_color_context(self, config: Dict[str, Any]) -> str:
@@ -234,9 +232,9 @@ class BrandContextLoader:
         lines.append("")
         return "\n".join(lines)
 
-    def _build_assets_context(self, user_id: str) -> str:
+    def _build_assets_context(self, workspace_id: str) -> str:
         """Build brand assets context section."""
-        assets = brand_asset_service.list_assets(user_id)
+        assets = brand_asset_service.list_assets(workspace_id)
 
         if not assets:
             return ""
@@ -344,18 +342,18 @@ class BrandContextLoader:
 
         return "\n".join(lines)
 
-    def get_brand_summary(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get_brand_summary(self, workspace_id: str) -> Optional[Dict[str, Any]]:
         """
         Get a summary of brand configuration for display purposes.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
 
         Returns:
             Summary dict with key brand elements, or None if no config
         """
-        config = brand_config_service.get_config(user_id)
-        assets = brand_asset_service.list_assets(user_id)
+        config = brand_config_service.get_config(workspace_id)
+        assets = brand_asset_service.list_assets(workspace_id)
 
         # Get primary logo
         primary_logo = next(
@@ -385,20 +383,19 @@ class BrandContextLoader:
 brand_context_loader = BrandContextLoader()
 
 
-def load_brand_context(project_id: str, feature_name: str, user_id: str = None) -> str:
+def load_brand_context(project_id: str, feature_name: str, workspace_id: str = None) -> str:
     """
     Convenience function for loading brand context.
 
     Educational Note: Studio agents call this with project_id. The loader
-    resolves project_id → user_id internally since brand is now user-level.
-    When user_id is provided directly, the project lookup is skipped.
+    resolves project_id → workspace_id internally.
 
     Args:
         project_id: The project UUID
         feature_name: The studio feature name
-        user_id: Optional user UUID — skips project lookup when provided
+        workspace_id: Optional workspace UUID — skips project lookup when provided
 
     Returns:
         Formatted brand context string
     """
-    return brand_context_loader.load_brand_context(project_id, feature_name, user_id=user_id)
+    return brand_context_loader.load_brand_context(project_id, feature_name, workspace_id=workspace_id)

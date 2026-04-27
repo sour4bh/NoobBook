@@ -2,7 +2,7 @@
 Brand Asset Service - Business logic for brand asset management.
 
 Educational Note: Brand assets (logos, icons, fonts, images) are stored
-at the workspace (user) level and used by studio agents to maintain
+at the workspace level and used by studio agents to maintain
 consistent branding across all projects' generated content.
 """
 import uuid
@@ -31,12 +31,12 @@ class BrandAssetStore:
         self.supabase = get_supabase()
         self.table = "brand_assets"
 
-    def list_assets(self, user_id: str) -> List[Dict[str, Any]]:
+    def list_assets(self, workspace_id: str) -> List[Dict[str, Any]]:
         """
-        List all brand assets for a user.
+        List all brand assets for a workspace.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
 
         Returns:
             List of brand assets sorted by asset_type and name
@@ -44,7 +44,7 @@ class BrandAssetStore:
         response = (
             self.supabase.table(self.table)
             .select("*")
-            .eq("user_id", user_id)
+            .eq("workspace_id", workspace_id)
             .order("asset_type")
             .order("is_primary", desc=True)
             .order("name")
@@ -54,14 +54,14 @@ class BrandAssetStore:
 
     def list_assets_by_type(
         self,
-        user_id: str,
+        workspace_id: str,
         asset_type: str
     ) -> List[Dict[str, Any]]:
         """
-        List brand assets of a specific type for a user.
+        List brand assets of a specific type for a workspace.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_type: The asset type (logo, icon, font, image)
 
         Returns:
@@ -70,7 +70,7 @@ class BrandAssetStore:
         response = (
             self.supabase.table(self.table)
             .select("*")
-            .eq("user_id", user_id)
+            .eq("workspace_id", workspace_id)
             .eq("asset_type", asset_type)
             .order("is_primary", desc=True)
             .order("name")
@@ -80,14 +80,14 @@ class BrandAssetStore:
 
     def get_asset(
         self,
-        user_id: str,
+        workspace_id: str,
         asset_id: str
     ) -> Optional[Dict[str, Any]]:
         """
         Get a single brand asset by ID.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_id: The brand asset UUID
 
         Returns:
@@ -97,7 +97,7 @@ class BrandAssetStore:
             self.supabase.table(self.table)
             .select("*")
             .eq("id", asset_id)
-            .eq("user_id", user_id)
+            .eq("workspace_id", workspace_id)
             .execute()
         )
 
@@ -108,14 +108,14 @@ class BrandAssetStore:
 
     def get_primary_asset(
         self,
-        user_id: str,
+        workspace_id: str,
         asset_type: str
     ) -> Optional[Dict[str, Any]]:
         """
-        Get the primary asset of a specific type for a user.
+        Get the primary asset of a specific type for a workspace.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_type: The asset type (logo, icon, font, image)
 
         Returns:
@@ -124,7 +124,7 @@ class BrandAssetStore:
         response = (
             self.supabase.table(self.table)
             .select("*")
-            .eq("user_id", user_id)
+            .eq("workspace_id", workspace_id)
             .eq("asset_type", asset_type)
             .eq("is_primary", True)
             .execute()
@@ -137,7 +137,7 @@ class BrandAssetStore:
 
     def create_asset(
         self,
-        user_id: str,
+        workspace_id: str,
         name: str,
         asset_type: str,
         file_name: str,
@@ -151,7 +151,7 @@ class BrandAssetStore:
         Create a new brand asset with file upload.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             name: Display name for the asset
             asset_type: Type of asset (logo, icon, font, image)
             file_name: Original filename
@@ -172,7 +172,7 @@ class BrandAssetStore:
 
         # Upload file to storage
         file_path = storage_service.upload_brand_asset(
-            user_id=user_id,
+            workspace_id=workspace_id,
             asset_id=asset_id,
             filename=file_name,
             file_data=file_data,
@@ -184,12 +184,12 @@ class BrandAssetStore:
 
         # If this is set as primary, unset other primary assets of this type
         if is_primary:
-            self._unset_primary_for_type(user_id, asset_type)
+            self._unset_primary_for_type(workspace_id, asset_type)
 
         # Create database record
         asset_data = {
             "id": asset_id,
-            "user_id": user_id,
+            "workspace_id": workspace_id,
             "name": name,
             "description": description,
             "asset_type": asset_type,
@@ -209,14 +209,14 @@ class BrandAssetStore:
 
         if not response.data:
             # Cleanup uploaded file on failure
-            storage_service.delete_brand_asset(user_id, asset_id, file_name)
+            storage_service.delete_brand_asset_by_path(file_path)
             raise RuntimeError("Failed to create brand asset record")
 
         return response.data[0]
 
     def update_asset(
         self,
-        user_id: str,
+        workspace_id: str,
         asset_id: str,
         name: Optional[str] = None,
         description: Optional[str] = None,
@@ -227,7 +227,7 @@ class BrandAssetStore:
         Update a brand asset's metadata.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_id: The brand asset UUID
             name: New name (optional)
             description: New description (optional)
@@ -238,7 +238,7 @@ class BrandAssetStore:
             Updated brand asset or None if not found
         """
         # Check if asset exists
-        existing = self.get_asset(user_id, asset_id)
+        existing = self.get_asset(workspace_id, asset_id)
         if not existing:
             return None
 
@@ -254,7 +254,7 @@ class BrandAssetStore:
             update_data["is_primary"] = is_primary
             if is_primary:
                 # Unset other primary assets of this type
-                self._unset_primary_for_type(user_id, existing["asset_type"])
+                self._unset_primary_for_type(workspace_id, existing["asset_type"])
 
         if not update_data:
             return existing
@@ -264,7 +264,7 @@ class BrandAssetStore:
             self.supabase.table(self.table)
             .update(update_data)
             .eq("id", asset_id)
-            .eq("user_id", user_id)
+            .eq("workspace_id", workspace_id)
             .execute()
         )
 
@@ -273,37 +273,33 @@ class BrandAssetStore:
 
         return None
 
-    def delete_asset(self, user_id: str, asset_id: str) -> bool:
+    def delete_asset(self, workspace_id: str, asset_id: str) -> bool:
         """
         Delete a brand asset and its file.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_id: The brand asset UUID
 
         Returns:
             True if deleted, False if not found
         """
         # Get asset to find file info
-        asset = self.get_asset(user_id, asset_id)
+        asset = self.get_asset(workspace_id, asset_id)
         if not asset:
             return False
 
         # Delete file from storage
-        storage_service.delete_brand_asset(
-            user_id=user_id,
-            asset_id=asset_id,
-            filename=asset["file_name"]
-        )
+        storage_service.delete_brand_asset_by_path(asset["file_path"])
 
         # Delete database record
-        self.supabase.table(self.table).delete().eq("id", asset_id).eq("user_id", user_id).execute()
+        self.supabase.table(self.table).delete().eq("id", asset_id).eq("workspace_id", workspace_id).execute()
 
         return True
 
     def set_primary(
         self,
-        user_id: str,
+        workspace_id: str,
         asset_id: str,
         asset_type: str
     ) -> bool:
@@ -311,7 +307,7 @@ class BrandAssetStore:
         Set a brand asset as the primary for its type.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_id: The brand asset UUID
             asset_type: The asset type
 
@@ -319,23 +315,23 @@ class BrandAssetStore:
             True if successful, False if asset not found
         """
         # Check if asset exists
-        asset = self.get_asset(user_id, asset_id)
+        asset = self.get_asset(workspace_id, asset_id)
         if not asset or asset["asset_type"] != asset_type:
             return False
 
         # Unset other primary assets of this type
-        self._unset_primary_for_type(user_id, asset_type)
+        self._unset_primary_for_type(workspace_id, asset_type)
 
         # Set this asset as primary
         self.supabase.table(self.table).update({
             "is_primary": True
-        }).eq("id", asset_id).eq("user_id", user_id).execute()
+        }).eq("id", asset_id).eq("workspace_id", workspace_id).execute()
 
         return True
 
     def get_asset_url(
         self,
-        user_id: str,
+        workspace_id: str,
         asset_id: str,
         expires_in: int = 3600
     ) -> Optional[str]:
@@ -343,35 +339,33 @@ class BrandAssetStore:
         Get a signed URL for downloading a brand asset.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_id: The brand asset UUID
             expires_in: URL expiration time in seconds
 
         Returns:
             Signed URL or None if asset not found
         """
-        asset = self.get_asset(user_id, asset_id)
+        asset = self.get_asset(workspace_id, asset_id)
         if not asset:
             return None
 
-        return storage_service.get_brand_asset_url(
-            user_id=user_id,
-            asset_id=asset_id,
-            filename=asset["file_name"],
-            expires_in=expires_in
+        return storage_service.get_brand_asset_url_by_path(
+            asset["file_path"],
+            expires_in=expires_in,
         )
 
-    def _unset_primary_for_type(self, user_id: str, asset_type: str) -> None:
+    def _unset_primary_for_type(self, workspace_id: str, asset_type: str) -> None:
         """
         Unset primary flag for all assets of a given type.
 
         Args:
-            user_id: The user UUID
+            workspace_id: The workspace UUID
             asset_type: The asset type to update
         """
         self.supabase.table(self.table).update({
             "is_primary": False
-        }).eq("user_id", user_id).eq("asset_type", asset_type).execute()
+        }).eq("workspace_id", workspace_id).eq("asset_type", asset_type).execute()
 
 
 # Singleton instance

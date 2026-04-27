@@ -2,7 +2,7 @@
 Brand API endpoints.
 
 Educational Note: These endpoints manage brand assets and configuration
-at the workspace (user) level. Brand settings are used by studio agents
+at the workspace level. Brand settings are used by studio agents
 to maintain consistent branding across all projects' generated content.
 
 Asset Types:
@@ -21,7 +21,8 @@ Configuration Sections:
 """
 import io
 import logging
-from flask import request, jsonify, g, send_file
+from flask import request, jsonify, send_file
+from app.api.settings.workspace import resolve_workspace_context
 from app.api.brand import brand_bp
 from app.providers.supabase import storage_service
 from app.brand.asset.store import brand_asset_service
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 @brand_bp.route('/brand/assets', methods=['GET'])
 def list_assets():
     """
-    List all brand assets for the authenticated user.
+    List all brand assets for the selected workspace.
 
     Optional Query Parameters:
         type: Filter by asset type (logo, icon, font, image)
@@ -50,13 +51,13 @@ def list_assets():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=False)
         asset_type = request.args.get('type')
 
         if asset_type:
-            assets = brand_asset_service.list_assets_by_type(user_id, asset_type)
+            assets = brand_asset_service.list_assets_by_type(workspace_id, asset_type)
         else:
-            assets = brand_asset_service.list_assets(user_id)
+            assets = brand_asset_service.list_assets(workspace_id)
 
         return jsonify({
             "success": True,
@@ -64,6 +65,11 @@ def list_assets():
             "count": len(assets)
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -94,7 +100,7 @@ def upload_asset():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
 
         # Check for file
         if 'file' not in request.files:
@@ -104,7 +110,8 @@ def upload_asset():
             }), 400
 
         file = request.files['file']
-        if file.filename == '':
+        file_name = file.filename or ""
+        if file_name == '':
             return jsonify({
                 "success": False,
                 "error": "No file selected"
@@ -132,12 +139,11 @@ def upload_asset():
 
         # Read file data
         file_data = file.read()
-        file_name = file.filename
         mime_type = file.content_type or 'application/octet-stream'
 
         # Create the asset
         asset = brand_asset_service.create_asset(
-            user_id=user_id,
+            workspace_id=workspace_id,
             name=name,
             asset_type=asset_type,
             file_name=file_name,
@@ -153,6 +159,11 @@ def upload_asset():
             "message": "Brand asset uploaded successfully"
         }), 201
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except RuntimeError as e:
         return jsonify({
             "success": False,
@@ -177,8 +188,8 @@ def get_asset(asset_id: str):
         }
     """
     try:
-        user_id = g.user_id
-        asset = brand_asset_service.get_asset(user_id, asset_id)
+        _identity, workspace_id = resolve_workspace_context(require_manager=False)
+        asset = brand_asset_service.get_asset(workspace_id, asset_id)
 
         if not asset:
             return jsonify({
@@ -191,6 +202,11 @@ def get_asset(asset_id: str):
             "asset": asset
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -218,7 +234,7 @@ def update_asset(asset_id: str):
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
 
         if not data:
@@ -228,7 +244,7 @@ def update_asset(asset_id: str):
             }), 400
 
         updated_asset = brand_asset_service.update_asset(
-            user_id=user_id,
+            workspace_id=workspace_id,
             asset_id=asset_id,
             name=data.get('name'),
             description=data.get('description'),
@@ -248,6 +264,11 @@ def update_asset(asset_id: str):
             "message": "Brand asset updated successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -267,8 +288,8 @@ def delete_asset(asset_id: str):
         }
     """
     try:
-        user_id = g.user_id
-        success = brand_asset_service.delete_asset(user_id, asset_id)
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
+        success = brand_asset_service.delete_asset(workspace_id, asset_id)
 
         if not success:
             return jsonify({
@@ -281,6 +302,11 @@ def delete_asset(asset_id: str):
             "message": "Brand asset deleted successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -299,8 +325,8 @@ def download_asset(asset_id: str):
     and stream it to the browser — same pattern used by studio endpoints.
     """
     try:
-        user_id = g.user_id
-        asset = brand_asset_service.get_asset(user_id, asset_id)
+        _identity, workspace_id = resolve_workspace_context(require_manager=False)
+        asset = brand_asset_service.get_asset(workspace_id, asset_id)
 
         if not asset:
             return jsonify({
@@ -308,11 +334,7 @@ def download_asset(asset_id: str):
                 "error": "Brand asset not found"
             }), 404
 
-        data = storage_service.download_brand_asset(
-            user_id=user_id,
-            asset_id=asset_id,
-            filename=asset["file_name"]
-        )
+        data = storage_service.download_brand_asset_by_path(asset["file_path"])
 
         if not data:
             return jsonify({
@@ -323,6 +345,11 @@ def download_asset(asset_id: str):
         mimetype = asset.get("mime_type", "application/octet-stream")
         return send_file(io.BytesIO(data), mimetype=mimetype, as_attachment=False)
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         logger.exception("Failed to download brand asset %s", asset_id)
         return jsonify({
@@ -343,10 +370,10 @@ def set_asset_primary(asset_id: str):
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
 
         # Get asset to find its type
-        asset = brand_asset_service.get_asset(user_id, asset_id)
+        asset = brand_asset_service.get_asset(workspace_id, asset_id)
         if not asset:
             return jsonify({
                 "success": False,
@@ -354,7 +381,7 @@ def set_asset_primary(asset_id: str):
             }), 404
 
         success = brand_asset_service.set_primary(
-            user_id, asset_id, asset['asset_type']
+            workspace_id, asset_id, asset['asset_type']
         )
 
         if not success:
@@ -368,6 +395,11 @@ def set_asset_primary(asset_id: str):
             "message": f"Asset set as primary {asset['asset_type']}"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -382,7 +414,7 @@ def set_asset_primary(asset_id: str):
 @brand_bp.route('/brand/config', methods=['GET'])
 def get_config():
     """
-    Get the brand configuration for the authenticated user.
+    Get the brand configuration for the selected workspace.
 
     Educational Note: Creates default config if none exists. This ensures
     there's always a valid config to display.
@@ -401,14 +433,19 @@ def get_config():
         }
     """
     try:
-        user_id = g.user_id
-        config = brand_config_service.get_config(user_id)
+        _identity, workspace_id = resolve_workspace_context(require_manager=False)
+        config = brand_config_service.get_config(workspace_id)
 
         return jsonify({
             "success": True,
             "config": config
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -440,7 +477,7 @@ def update_config():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
 
         if not data:
@@ -450,7 +487,7 @@ def update_config():
             }), 400
 
         updated_config = brand_config_service.update_config(
-            user_id=user_id,
+            workspace_id=workspace_id,
             colors=data.get('colors'),
             typography=data.get('typography'),
             spacing=data.get('spacing'),
@@ -466,6 +503,11 @@ def update_config():
             "message": "Brand config updated successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -493,7 +535,7 @@ def update_colors():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
 
         if not data or 'colors' not in data:
@@ -503,7 +545,7 @@ def update_colors():
             }), 400
 
         updated_config = brand_config_service.update_colors(
-            user_id, data['colors']
+            workspace_id, data['colors']
         )
 
         return jsonify({
@@ -512,6 +554,11 @@ def update_colors():
             "message": "Brand colors updated successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -536,7 +583,7 @@ def update_typography():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
 
         if not data or 'typography' not in data:
@@ -546,7 +593,7 @@ def update_typography():
             }), 400
 
         updated_config = brand_config_service.update_typography(
-            user_id, data['typography']
+            workspace_id, data['typography']
         )
 
         return jsonify({
@@ -555,6 +602,11 @@ def update_typography():
             "message": "Brand typography updated successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -573,7 +625,7 @@ def update_guidelines():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
 
         if not data or 'guidelines' not in data:
@@ -583,7 +635,7 @@ def update_guidelines():
             }), 400
 
         updated_config = brand_config_service.update_guidelines(
-            user_id, data['guidelines']
+            workspace_id, data['guidelines']
         )
 
         return jsonify({
@@ -592,6 +644,11 @@ def update_guidelines():
             "message": "Brand guidelines updated successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -614,7 +671,7 @@ def update_voice():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
 
         if not data or 'voice' not in data:
@@ -624,7 +681,7 @@ def update_voice():
             }), 400
 
         updated_config = brand_config_service.update_voice(
-            user_id, data['voice']
+            workspace_id, data['voice']
         )
 
         return jsonify({
@@ -633,6 +690,11 @@ def update_voice():
             "message": "Brand voice updated successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,
@@ -661,7 +723,7 @@ def update_feature_settings():
         }
     """
     try:
-        user_id = g.user_id
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
 
         if not data or 'feature_settings' not in data:
@@ -671,7 +733,7 @@ def update_feature_settings():
             }), 400
 
         updated_config = brand_config_service.update_feature_settings(
-            user_id, data['feature_settings']
+            workspace_id, data['feature_settings']
         )
 
         return jsonify({
@@ -680,6 +742,11 @@ def update_feature_settings():
             "message": "Feature settings updated successfully"
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 403
     except Exception as e:
         return jsonify({
             "success": False,

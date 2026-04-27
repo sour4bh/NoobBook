@@ -35,7 +35,7 @@ def build_system_prompt(
     if full_context:
         parts.append(full_context)
 
-    brand_context = brand_context_loader.load_brand_context(project_id, "chat", user_id=user_id)
+    brand_context = brand_context_loader.load_brand_context(project_id, "chat")
     if brand_context:
         parts.append(brand_context)
 

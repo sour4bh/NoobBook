@@ -155,7 +155,7 @@ class InfographicCreator:
 
             # Load brand context — only use logo if brand is enabled
             brand_context = brand_context_loader.load_brand_context(
-                project_id, "infographic", user_id=user_id
+                project_id, "infographic"
             )
             effective_logo = logo_image_bytes if brand_context else None
 
@@ -196,13 +196,15 @@ class InfographicCreator:
                     reference_image_bytes=effective_logo,
                     reference_mime_type=logo_mime_type,
                     filename_prefix=f"infographic_{job_id[:8]}_{timestamp}",
-                    aspect_ratio=INFOGRAPHIC_ASPECT_RATIO
+                    aspect_ratio=INFOGRAPHIC_ASPECT_RATIO,
+                    project_id=project_id
                 )
             else:
                 image_result = imagen_service.generate_image_bytes(
                     prompt=image_prompt,
                     filename_prefix=f"infographic_{job_id[:8]}_{timestamp}",
-                    aspect_ratio=INFOGRAPHIC_ASPECT_RATIO
+                    aspect_ratio=INFOGRAPHIC_ASPECT_RATIO,
+                    project_id=project_id
                 )
 
             if not image_result.get("success"):
@@ -342,7 +344,7 @@ class InfographicCreator:
 
         # Load brand context so Claude knows brand colors, voice, etc.
         brand_context = brand_context_loader.load_brand_context(
-            project_id, "infographic", user_id=user_id
+            project_id, "infographic"
         )
         system_prompt = config["system_prompt"]
         if brand_context:

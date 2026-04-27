@@ -220,6 +220,7 @@ if [ ! -f "$NOOBBOOK_ENV" ]; then
     replace_env_var "$NOOBBOOK_ENV" "SUPABASE_SERVICE_KEY" "$SERVICE_ROLE_KEY"
     replace_env_var "$NOOBBOOK_ENV" "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
     replace_env_var "$NOOBBOOK_ENV" "SECRET_KEY" "$(generate_password)"
+    replace_env_var "$NOOBBOOK_ENV" "NOOBBOOK_WORKSPACE_SECRET_KEY" "$(generate_password)"
 
     success "NoobBook .env created"
 
@@ -238,6 +239,9 @@ else
     replace_env_var "$NOOBBOOK_ENV" "SUPABASE_ANON_KEY" "$ANON_KEY"
     replace_env_var "$NOOBBOOK_ENV" "SUPABASE_SERVICE_KEY" "$SERVICE_ROLE_KEY"
     replace_env_var "$NOOBBOOK_ENV" "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
+    if ! grep -q '^NOOBBOOK_WORKSPACE_SECRET_KEY=' "$NOOBBOOK_ENV"; then
+        printf '\nNOOBBOOK_WORKSPACE_SECRET_KEY=%s\n' "$(generate_password)" >> "$NOOBBOOK_ENV"
+    fi
     success "Supabase keys synced from supabase/.env"
 fi
 

@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+from app.config.secret import get_project_secret
+
 logger = logging.getLogger(__name__)
 
 # Supported language codes for ElevenLabs Speech-to-Text
@@ -75,7 +77,7 @@ class AudioService:
         """Initialize the audio service."""
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self, project_id: Optional[str] = None):
         """
         Get or create the ElevenLabs client.
 
@@ -88,12 +90,20 @@ class AudioService:
         Raises:
             ValueError: If ELEVENLABS_API_KEY is not configured
         """
+        workspace_api_key = get_project_secret(
+            project_id,
+            'ELEVENLABS_API_KEY',
+        )
+        if workspace_api_key:
+            from elevenlabs.client import ElevenLabs
+            return ElevenLabs(api_key=workspace_api_key)
+
         if self._client is None:
             api_key = os.getenv('ELEVENLABS_API_KEY')
             if not api_key:
                 raise ValueError(
                     "ELEVENLABS_API_KEY not found in environment. "
-                    "Please configure it in Admin Settings."
+                    "Please configure it in Workspace Settings."
                 )
 
             from elevenlabs.client import ElevenLabs
@@ -140,7 +150,7 @@ class AudioService:
             }
 
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
 
             logger.info("Transcribing audio: %s", audio_path.name)
 
@@ -300,14 +310,20 @@ class AudioService:
 
         return "\n".join(lines) if lines else None
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """
         Check if ElevenLabs API key is configured for transcription.
 
         Returns:
             True if API key is set, False otherwise
         """
-        return bool(os.getenv('ELEVENLABS_API_KEY'))
+        return bool(
+            get_project_secret(
+                project_id,
+                'ELEVENLABS_API_KEY',
+            )
+            or os.getenv('ELEVENLABS_API_KEY')
+        )
 
 
 # Singleton instance

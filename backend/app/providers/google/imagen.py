@@ -15,8 +15,10 @@ import io
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
+
+from app.config.secret import get_project_secret
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ class ImagenService:
         """Initialize the Imagen service."""
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self, project_id: Optional[str] = None):
         """
         Get or create the Google GenAI client.
 
@@ -52,12 +54,20 @@ class ImagenService:
         Raises:
             ValueError: If GEMINI_API_KEY is not configured
         """
+        workspace_api_key = get_project_secret(
+            project_id,
+            'NANO_BANANA_API_KEY',
+        )
+        if workspace_api_key:
+            from google import genai
+            return genai.Client(api_key=workspace_api_key)
+
         if self._client is None:
             api_key = os.getenv('NANO_BANANA_API_KEY')
             if not api_key:
                 raise ValueError(
                     "NANO_BANANA_API_KEY not found in environment. "
-                    "Please configure it in Admin Settings."
+                    "Please configure it in Workspace Settings."
                 )
 
             from google import genai
@@ -110,7 +120,8 @@ class ImagenService:
         num_images: int = 3,
         filename_prefix: str = "creative",
         aspect_ratio: str = None,
-        resolution: str = None
+        resolution: str = None,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate images from a text prompt.
@@ -144,7 +155,7 @@ class ImagenService:
         resolution = resolution or self.DEFAULT_RESOLUTION
 
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
             types = self._get_types()
 
             logger.info("Generating %s images (%s, %s)", num_images, aspect_ratio, resolution)
@@ -224,7 +235,8 @@ class ImagenService:
         prompt: str,
         filename_prefix: str = "image",
         aspect_ratio: str = None,
-        resolution: str = None
+        resolution: str = None,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate a single image and return as bytes (for Supabase upload).
@@ -258,7 +270,7 @@ class ImagenService:
         resolution = resolution or self.DEFAULT_RESOLUTION
 
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
             types = self._get_types()
 
             logger.info("Generating single image (%s, %s)", aspect_ratio, resolution)
@@ -325,7 +337,8 @@ class ImagenService:
         reference_mime_type: str = "image/png",
         filename_prefix: str = "image",
         aspect_ratio: str = None,
-        resolution: str = None
+        resolution: str = None,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate an image using a text prompt + reference image (e.g. a brand logo).
@@ -356,7 +369,7 @@ class ImagenService:
         resolution = resolution or self.DEFAULT_RESOLUTION
 
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
             types = self._get_types()
 
             logger.info(
@@ -420,14 +433,20 @@ class ImagenService:
             logger.exception("Error generating image with reference")
             return {"success": False, "error": f"Image generation failed: {str(e)}"}
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """
         Check if Gemini API key is configured.
 
         Returns:
             True if API key is set, False otherwise
         """
-        return bool(os.getenv('NANO_BANANA_API_KEY'))
+        return bool(
+            get_project_secret(
+                project_id,
+                'NANO_BANANA_API_KEY',
+            )
+            or os.getenv('NANO_BANANA_API_KEY')
+        )
 
 
 # Singleton instance

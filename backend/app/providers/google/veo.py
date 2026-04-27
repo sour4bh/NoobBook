@@ -10,6 +10,8 @@ import time
 import tempfile
 from typing import Dict, Any, Optional
 
+from app.config.secret import get_project_secret
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,8 +30,25 @@ class GoogleVideoService:
         self.api_key = os.getenv("VEO_API_KEY")
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self, project_id: Optional[str] = None):
         """Lazy load the Google GenAI client."""
+        workspace_api_key = get_project_secret(
+            project_id,
+            "VEO_API_KEY",
+        )
+        if workspace_api_key:
+            try:
+                from google import genai
+                return genai.Client(
+                    http_options={"api_version": "v1beta"},
+                    api_key=workspace_api_key,
+                )
+            except ImportError:
+                raise ImportError(
+                    "google-genai package not installed. "
+                    "Install with: pip install google-genai"
+                )
+
         if self._client is None:
             try:
                 from google import genai
@@ -44,9 +63,16 @@ class GoogleVideoService:
                 )
         return self._client
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """Check if VEO_API_KEY is set."""
-        return bool(self.api_key)
+        return bool(
+            get_project_secret(
+                project_id,
+                "VEO_API_KEY",
+            )
+            or self.api_key
+            or os.getenv("VEO_API_KEY")
+        )
 
     def generate_video_bytes(
         self,
@@ -55,7 +81,8 @@ class GoogleVideoService:
         duration_seconds: int = 8,
         number_of_videos: int = 1,
         person_generation: str = "ALLOW_ALL",
-        on_progress: Optional[callable] = None
+        on_progress: Optional[callable] = None,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate video(s) and return as bytes (for Supabase upload).
@@ -78,13 +105,13 @@ class GoogleVideoService:
                 "videos": [{"filename": str, "video_bytes": bytes, "uri": str, "index": int}]
             }
         """
-        if not self.is_configured():
-            return {"success": False, "error": "VEO_API_KEY not configured"}
+        if not self.is_configured(project_id=project_id):
+            return {"success": False, "error": "VEO_API_KEY not configured in Workspace Settings"}
 
         try:
             from google.genai import types
 
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
 
             video_config = types.GenerateVideosConfig(
                 aspect_ratio=aspect_ratio,

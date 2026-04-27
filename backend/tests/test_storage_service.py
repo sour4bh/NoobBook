@@ -2,7 +2,7 @@
 Tests for Supabase storage_service.
 
 Covers:
-- Bug 1 regression: delete_user_brand_assets folder detection (id=None → folder)
+- Bug 1 regression: delete_workspace_brand_assets folder detection (id=None → folder)
 - Bug 2 regression: .list() calls pass limit > 100
 - Recursive delete and list operations
 - Chunk listing and parsing
@@ -59,10 +59,10 @@ class TestOwnedStoragePaths:
 
 
 # ===========================================================================
-# Bug 1: delete_user_brand_assets — folder detection
+# Bug 1: delete_workspace_brand_assets — folder detection
 # ===========================================================================
 
-class TestDeleteUserBrandAssets:
+class TestDeleteWorkspaceBrandAssets:
     """Regression tests for inverted folder detection (Bug 1)."""
 
     def test_recurses_into_folders(self, patch_storage_client):
@@ -76,14 +76,14 @@ class TestDeleteUserBrandAssets:
             [_file_entry("logo.svg"), _file_entry("icon.png")],
         ]
 
-        result = storage_service.delete_user_brand_assets("user-1")
+        result = storage_service.delete_workspace_brand_assets("workspace-1")
 
         assert result is True
         mock_bucket.remove.assert_called_once()
         removed = mock_bucket.remove.call_args[0][0]
-        assert "user-1/brand/loose.png" in removed
-        assert "user-1/brand/asset1/logo.svg" in removed
-        assert "user-1/brand/asset1/icon.png" in removed
+        assert "workspace-1/brand/loose.png" in removed
+        assert "workspace-1/brand/asset1/logo.svg" in removed
+        assert "workspace-1/brand/asset1/icon.png" in removed
         assert len(removed) == 3
 
     def test_nested_folders(self, patch_storage_client):
@@ -99,12 +99,12 @@ class TestDeleteUserBrandAssets:
             [_file_entry("y.png")],
         ]
 
-        result = storage_service.delete_user_brand_assets("user-2")
+        result = storage_service.delete_workspace_brand_assets("workspace-2")
 
         assert result is True
         removed = mock_bucket.remove.call_args[0][0]
-        assert "user-2/brand/a/x.png" in removed
-        assert "user-2/brand/a/b/y.png" in removed
+        assert "workspace-2/brand/a/x.png" in removed
+        assert "workspace-2/brand/a/b/y.png" in removed
         assert len(removed) == 2
 
     def test_empty_brand_folder(self, patch_storage_client):
@@ -112,7 +112,7 @@ class TestDeleteUserBrandAssets:
         _, mock_bucket = patch_storage_client
         mock_bucket.list.return_value = []
 
-        result = storage_service.delete_user_brand_assets("user-3")
+        result = storage_service.delete_workspace_brand_assets("workspace-3")
 
         assert result is True
         mock_bucket.remove.assert_not_called()
@@ -125,7 +125,7 @@ class TestDeleteUserBrandAssets:
             _file_entry("b.jpg"),
         ]
 
-        result = storage_service.delete_user_brand_assets("user-4")
+        result = storage_service.delete_workspace_brand_assets("workspace-4")
 
         assert result is True
         removed = mock_bucket.remove.call_args[0][0]

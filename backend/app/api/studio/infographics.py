@@ -98,10 +98,10 @@ def generate_infographic(project_id: str):
                 source_id = parent_job.get("source_id", "")
 
         # Check if Gemini is configured
-        if not imagen_service.is_configured():
+        if not imagen_service.is_configured(project_id=project_id):
             return jsonify({
                 'success': False,
-                'error': 'Gemini API key not configured. Please add it in Admin Settings.'
+                'error': 'Gemini API key not configured. Please add it in Workspace Settings.'
             }), 400
 
         # Look up source if provided, otherwise use "Chat Context"

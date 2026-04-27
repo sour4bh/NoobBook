@@ -14,10 +14,11 @@ This module demonstrates several security patterns:
    - Each service has its own validation logic
    - Validation happens server-side (keys never leave backend)
 
-3. .env Storage:
-   - Keys stored in .env file (not database)
-   - .env is gitignored (never committed)
-   - Changes trigger environment reload
+3. Workspace Storage:
+   - In Supabase mode, keys are encrypted per workspace in
+     workspace_provider_secrets.
+   - .env keys remain a bootstrap/default fallback for local or global
+     deployments.
 
 4. Auto-Configuration:
    - Some keys trigger automatic setup (e.g., Pinecone creates index)
@@ -92,9 +93,8 @@ Validator-ownership rule (NBB-208A).
   is involved.
 
 App-factory touch points for this surface (see `backend/app/__init__.py`).
-- `@require_admin` on every endpoint in this module depends on
-  `app.auth.identity` bootstrapped in the factory; `NBB-107` owns the
-  auth test seam.
+- Every endpoint resolves selected workspace context and requires workspace
+  owner/admin role before exposing or mutating secrets.
 - `env_service.reload_env()` relies on `.env` living under
   `self.backend_dir = Path(__file__).parent.parent.parent` from
   `app.settings.env` (`backend/.env`); future moves must preserve this
@@ -107,9 +107,10 @@ docstring.
 """
 from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
+from app.api.settings.workspace import resolve_workspace_context
 from app.settings.env import EnvService
 from app.settings import validation
-from app.auth.guards import require_admin
+from app.workspaces.settings import workspace_settings_store
 
 # Initialize services
 env_service = EnvService()
@@ -284,7 +285,6 @@ API_KEYS_CONFIG = [
 
 
 @settings_bp.route('/settings/api-keys', methods=['GET'])
-@require_admin
 def get_api_keys():
     """
     Get all API keys (with values masked for security).
@@ -311,10 +311,18 @@ def get_api_keys():
         }
     """
     try:
+        _identity, workspace_id = resolve_workspace_context(require_manager=True)
         api_keys = []
         for key_config in API_KEYS_CONFIG:
-            value = env_service.get_key(key_config['id'])
+            value = (
+                workspace_settings_store.get_provider_secret(workspace_id, key_config['id'])
+                or env_service.get_key(key_config['id'])
+            )
             masked_value = env_service.mask_key(value) if value else ''
+            has_workspace_value = workspace_settings_store.has_provider_secret(
+                workspace_id,
+                key_config['id'],
+            )
 
             api_keys.append({
                 'id': key_config['id'],
@@ -323,7 +331,8 @@ def get_api_keys():
                 'category': key_config['category'],
                 'required': key_config.get('required', False),
                 'value': masked_value,
-                'is_set': bool(value)
+                'is_set': bool(value),
+                'source': 'workspace' if has_workspace_value else ('env_fallback' if value else None),
             })
 
         return jsonify({
@@ -331,6 +340,11 @@ def get_api_keys():
             'api_keys': api_keys
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error getting API keys: {e}")
         return jsonify({
@@ -340,14 +354,13 @@ def get_api_keys():
 
 
 @settings_bp.route('/settings/api-keys', methods=['POST'])
-@require_admin
 def update_api_keys():
     """
-    Update API keys in the .env file and trigger Flask reload.
+    Update API keys in the selected workspace and trigger config reloads.
 
     Educational Note: This endpoint demonstrates safe key update pattern:
     1. Skip masked values (haven't changed)
-    2. Save new values to .env file
+    2. Save new values to workspace secrets, or .env when Supabase is disabled
     3. Reload environment variables
     4. Verify keys were saved correctly
 
@@ -367,6 +380,7 @@ def update_api_keys():
         { "success": true, "message": "API keys updated successfully" }
     """
     try:
+        identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
         if not data or 'api_keys' not in data:
             return jsonify({
@@ -377,7 +391,7 @@ def update_api_keys():
         api_keys = data['api_keys']
         current_app.logger.info(f"Received {len(api_keys)} keys to update")
 
-        # Update each API key in .env
+        # Update each API key in the selected workspace, or .env in local mode.
         updated_count = 0
         for key_data in api_keys:
             key_id = key_data.get('id')
@@ -385,7 +399,15 @@ def update_api_keys():
 
             # Skip if value is masked (starts with asterisks)
             if value and not value.startswith('***'):
-                env_service.set_key(key_id, value)
+                if workspace_settings_store.supabase:
+                    workspace_settings_store.set_provider_secret(
+                        workspace_id,
+                        key_id,
+                        value,
+                        identity.user_id,
+                    )
+                else:
+                    env_service.set_key(key_id, value)
                 updated_count += 1
                 current_app.logger.info(f"Updated API key: {key_id}")
 
@@ -398,7 +420,11 @@ def update_api_keys():
             key_id = key_data.get('id')
             value = key_data.get('value', '')
             if value and not value.startswith('***'):
-                saved_value = env_service.get_key(key_id)
+                saved_value = (
+                    workspace_settings_store.get_provider_secret(workspace_id, key_id)
+                    if workspace_settings_store.supabase
+                    else env_service.get_key(key_id)
+                )
                 if not saved_value:
                     current_app.logger.error(f"Failed to verify {key_id} in environment!")
 
@@ -437,6 +463,11 @@ def update_api_keys():
             'message': 'API keys updated successfully'
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error updating API keys: {e}")
         return jsonify({
@@ -446,13 +477,12 @@ def update_api_keys():
 
 
 @settings_bp.route('/settings/api-keys/<key_id>', methods=['DELETE'])
-@require_admin
 def delete_api_key(key_id):
     """
-    Delete a specific API key from the .env file.
+    Delete a specific API key from the selected workspace.
 
-    Educational Note: This removes the key entirely from the .env file,
-    not just clearing its value. For some keys, we also clean up
+    Educational Note: This removes the workspace value entirely, not just
+    clearing its value. For some keys, we also clean up
     related configuration (e.g., Pinecone index name and region).
 
     URL Parameters:
@@ -462,14 +492,30 @@ def delete_api_key(key_id):
         { "success": true, "message": "API key ... deleted successfully" }
     """
     try:
+        identity, workspace_id = resolve_workspace_context(require_manager=True)
         # Delete the main key
-        env_service.delete_key(key_id)
+        if workspace_settings_store.supabase:
+            workspace_settings_store.delete_provider_secret(workspace_id, key_id, identity.user_id)
+        else:
+            env_service.delete_key(key_id)
 
         # If deleting Pinecone API key, also delete related config
         if key_id == 'PINECONE_API_KEY':
             current_app.logger.info("Deleting related Pinecone configuration...")
-            env_service.delete_key('PINECONE_INDEX_NAME')
-            env_service.delete_key('PINECONE_REGION')
+            if workspace_settings_store.supabase:
+                workspace_settings_store.delete_provider_secret(
+                    workspace_id,
+                    'PINECONE_INDEX_NAME',
+                    identity.user_id,
+                )
+                workspace_settings_store.delete_provider_secret(
+                    workspace_id,
+                    'PINECONE_REGION',
+                    identity.user_id,
+                )
+            else:
+                env_service.delete_key('PINECONE_INDEX_NAME')
+                env_service.delete_key('PINECONE_REGION')
 
         env_service.save()
         env_service.reload_env()
@@ -479,6 +525,11 @@ def delete_api_key(key_id):
             'message': f'API key {key_id} deleted successfully'
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error deleting API key {key_id}: {e}")
         return jsonify({
@@ -488,7 +539,6 @@ def delete_api_key(key_id):
 
 
 @settings_bp.route('/settings/api-keys/validate', methods=['POST'])
-@require_admin
 def validate_api_key():
     """
     Validate an API key by making a test request to the service.
@@ -506,7 +556,7 @@ def validate_api_key():
 
     For Pinecone specifically, successful validation automatically:
     1. Creates the "growthxlearn" index if it doesn't exist
-    2. Saves index name and region to .env
+    2. Saves index name and region to the selected workspace
 
     Request Body:
         { "key_id": "ANTHROPIC_API_KEY", "value": "sk-ant-..." }
@@ -519,6 +569,7 @@ def validate_api_key():
         }
     """
     try:
+        identity, workspace_id = resolve_workspace_context(require_manager=True)
         data = request.get_json()
         if not data or 'key_id' not in data or 'value' not in data:
             return jsonify({
@@ -538,7 +589,7 @@ def validate_api_key():
             }), 200
 
         # Validate based on key type
-        is_valid, message = _validate_key(key_id, value)
+        is_valid, message = _validate_key(key_id, value, workspace_id, identity.user_id)
 
         current_app.logger.info(f"Validation result for {key_id}: {is_valid} - {message}")
 
@@ -548,6 +599,11 @@ def validate_api_key():
             'message': message
         }), 200
 
+    except PermissionError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 403
     except Exception as e:
         current_app.logger.error(f"Error validating API key: {e}")
         return jsonify({
@@ -556,7 +612,16 @@ def validate_api_key():
         }), 500
 
 
-def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
+def _get_workspace_or_env(workspace_id: str, key: str) -> str | None:
+    return workspace_settings_store.get_provider_secret(workspace_id, key) or env_service.get_key(key)
+
+
+def _validate_key(
+    key_id: str,
+    value: str,
+    workspace_id: str,
+    requester_user_id: str,
+) -> tuple[bool, str]:
     """
     Validate a specific API key using the appropriate validator.
 
@@ -593,9 +658,23 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
         if is_valid and index_details:
             try:
                 current_app.logger.info(f"Saving Pinecone index details: {index_details}")
-                env_service.set_key('PINECONE_INDEX_NAME', index_details['index_name'])
-                env_service.set_key('PINECONE_REGION', index_details['region'])
-                env_service.save()
+                if workspace_settings_store.supabase:
+                    workspace_settings_store.set_provider_secret(
+                        workspace_id,
+                        'PINECONE_INDEX_NAME',
+                        index_details['index_name'],
+                        requester_user_id,
+                    )
+                    workspace_settings_store.set_provider_secret(
+                        workspace_id,
+                        'PINECONE_REGION',
+                        index_details['region'],
+                        requester_user_id,
+                    )
+                else:
+                    env_service.set_key('PINECONE_INDEX_NAME', index_details['index_name'])
+                    env_service.set_key('PINECONE_REGION', index_details['region'])
+                    env_service.save()
             except Exception as e:
                 current_app.logger.error(f"Failed to save Pinecone index details: {e}")
 
@@ -611,9 +690,9 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
         return validation.validate_notion_key(value)
 
     elif key_id == 'JIRA_API_KEY':
-        # Jira validation needs email + cloud_id from env (must be saved first)
-        jira_email = env_service.get_key('JIRA_EMAIL')
-        jira_cloud_id = env_service.get_key('JIRA_CLOUD_ID')
+        # Jira validation needs email + cloud_id from workspace settings.
+        jira_email = _get_workspace_or_env(workspace_id, 'JIRA_EMAIL')
+        jira_cloud_id = _get_workspace_or_env(workspace_id, 'JIRA_CLOUD_ID')
         return validation.validate_jira_key(value, jira_email, jira_cloud_id)
 
     elif key_id in ['JIRA_CLOUD_ID', 'JIRA_EMAIL']:
@@ -623,7 +702,7 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
         return is_valid, message
 
     elif key_id == 'FRESHDESK_API_KEY':
-        freshdesk_domain = env_service.get_key('FRESHDESK_DOMAIN')
+        freshdesk_domain = _get_workspace_or_env(workspace_id, 'FRESHDESK_DOMAIN')
         return validation.validate_freshdesk_key(value, freshdesk_domain)
 
     elif key_id == 'FRESHDESK_DOMAIN':
@@ -633,10 +712,13 @@ def _validate_key(key_id: str, value: str) -> tuple[bool, str]:
         return is_valid, message
 
     elif key_id == 'MIXPANEL_SERVICE_ACCOUNT_SECRET':
-        # Mixpanel validation needs username + project_id from env (must be saved first)
-        mixpanel_username = env_service.get_key('MIXPANEL_SERVICE_ACCOUNT_USERNAME')
-        mixpanel_project_id = env_service.get_key('MIXPANEL_PROJECT_ID')
-        mixpanel_region = env_service.get_key('MIXPANEL_REGION') or 'us'
+        # Mixpanel validation needs supporting fields from workspace settings.
+        mixpanel_username = _get_workspace_or_env(
+            workspace_id,
+            'MIXPANEL_SERVICE_ACCOUNT_USERNAME',
+        )
+        mixpanel_project_id = _get_workspace_or_env(workspace_id, 'MIXPANEL_PROJECT_ID')
+        mixpanel_region = _get_workspace_or_env(workspace_id, 'MIXPANEL_REGION') or 'us'
         return validation.validate_mixpanel_key(
             value, mixpanel_username, mixpanel_project_id, mixpanel_region
         )

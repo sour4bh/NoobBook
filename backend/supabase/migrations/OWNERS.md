@@ -43,6 +43,7 @@
 | `00021_storage_owner_paths.sql` | Owner-prefix storage path backfill, first-folder storage policies, updated path helper functions | Storage policies only | Yes (raw, processed, chunks, studio, brand buckets) | `backend/supabase/STORAGE_CONTRACTS.md`, `backend/app/sources/CHARTER.md`, `backend/app/studio/CHARTER.md`, `backend/app/brand/CHARTER.md` |
 | `00022_oauth_state_nonces.sql` | `oauth_states` one-time nonce table for provider OAuth callbacks | Yes (`oauth_states`) | No | `backend/app/providers/google/auth.py`, `backend/app/api/google/oauth.py` |
 | `00023_workspace_membership.sql` | `workspaces`, `workspace_members`, private `project_members` roles, `workspace_invites`, `workspace_provider_secrets`, `projects.workspace_id`, workspace-aware storage paths and helpers | Yes (workspace/project membership + project-owned tables) | Yes (raw, processed, chunks, studio buckets) | `docs/tickets/epics/NBB-010.md`, `backend/supabase/STORAGE_CONTRACTS.md`, `backend/app/projects/CHARTER.md` |
+| `00024_workspace_brand_settings.sql` | Moves `brand_assets`/`brand_config` from user-scoped to workspace-scoped; replaces RLS; updates `generate_brand_asset_path()` to `{workspace_id}/brand/{asset_id}/{filename}` | Yes (workspace brand tables + brand bucket policies) | Yes (brand bucket) | `backend/app/brand/CHARTER.md`, `backend/supabase/STORAGE_CONTRACTS.md` |
 
 ## Two deployment modes (important for validation)
 
@@ -69,8 +70,8 @@ For every project-owned table, "Enforced by" names the guard actually rejecting 
 | `studio_signals` | `studio/` (signal slice) | RLS (chat -> project ownership subquery) + backend guard | Backend guard | 00001, 00003 |
 | `studio_jobs` | `studio/` | **Backend guard only.** No RLS enabled by 00009. | Backend guard | 00009 |
 | `background_tasks` | `background/` | RLS (polymorphic target_type -> project ownership) + backend guard | Backend guard | 00001, 00003, 00012 |
-| `brand_assets` | `brand/` | RLS (`user_id = auth.uid()`; user-scoped after 00010) | Backend guard | 00007, 00010 |
-| `brand_config` | `brand/` | RLS (`user_id = auth.uid()`; user-scoped after 00010) | Backend guard | 00007, 00010 |
+| `brand_assets` | `brand/` | RLS (`user_has_workspace_access` read, `user_can_manage_workspace` write after 00024) | Backend workspace guard | 00007, 00010, 00024 |
+| `brand_config` | `brand/` | RLS (`user_has_workspace_access` read, `user_can_manage_workspace` write after 00024) | Backend workspace guard | 00007, 00010, 00024 |
 | `project_members` | `projects/` (membership) | RLS (project owner manages; project members can view) | Backend guard | 00006, 00023 |
 
 ## Workspace-scoped table access model

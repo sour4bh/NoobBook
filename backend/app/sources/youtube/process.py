@@ -57,7 +57,11 @@ def process_youtube(
 
     # Fetch transcript
     try:
-        result = youtube_service.get_transcript(url, include_timestamps=True)
+        result = youtube_service.get_transcript(
+            url,
+            include_timestamps=True,
+            project_id=project_id,
+        )
     except Exception as e:
         logger.exception("YouTube transcript fetch crashed for source %s: %s", source_id, e)
         source_service.update_source(

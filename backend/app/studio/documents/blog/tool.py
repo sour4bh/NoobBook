@@ -129,14 +129,16 @@ class BlogDispatcher:
                     reference_image_bytes=logo_image_bytes,
                     reference_mime_type=logo_mime_type,
                     filename_prefix=filename_prefix,
-                    aspect_ratio=aspect_ratio
+                    aspect_ratio=aspect_ratio,
+                    project_id=project_id
                 )
             else:
                 # Generate image and get bytes (not saved to disk)
                 image_result = imagen_service.generate_image_bytes(
                     prompt=image_prompt,
                     filename_prefix=filename_prefix,
-                    aspect_ratio=aspect_ratio
+                    aspect_ratio=aspect_ratio,
+                    project_id=project_id
                 )
 
             if not image_result.get("success"):

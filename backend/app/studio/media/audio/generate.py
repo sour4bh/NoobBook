@@ -183,7 +183,10 @@ class AudioGenerator:
             )
             return {"success": False, "error": "Script file not found in storage"}
 
-        audio_result = tts_service.generate_audio_bytes(text=script_text)
+        audio_result = tts_service.generate_audio_bytes(
+            text=script_text,
+            project_id=project_id,
+        )
 
         if not audio_result.get("success"):
             studio_index_service.update_audio_job(

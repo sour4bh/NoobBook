@@ -8,8 +8,9 @@ Security Note: We never expose the API key to the frontend. Instead, we
 generate a short-lived token that the frontend uses for WebSocket auth.
 """
 import logging
-import os
 import requests
+
+from app.config.secret import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class TranscriptionService:
         """Initialize the transcription service."""
         pass
 
-    def generate_scribe_token(self) -> str:
+    def generate_scribe_token(self, workspace_id: str | None = None) -> str:
         """
         Generate a single-use token for ElevenLabs realtime transcription.
 
@@ -50,7 +51,10 @@ class TranscriptionService:
             ValueError: If API key is not configured
             Exception: If token generation fails
         """
-        api_key = os.getenv('ELEVENLABS_API_KEY')
+        api_key = get_secret(
+            'ELEVENLABS_API_KEY',
+            workspace_id=workspace_id,
+        )
 
         if not api_key:
             logger.error("ELEVENLABS_API_KEY not found in environment")
@@ -70,7 +74,7 @@ class TranscriptionService:
         data = response.json()
         return data.get("token")
 
-    def get_elevenlabs_config(self) -> dict:
+    def get_elevenlabs_config(self, workspace_id: str | None = None) -> dict:
         """
         Get ElevenLabs configuration for frontend WebSocket connection.
 
@@ -82,7 +86,7 @@ class TranscriptionService:
             Dictionary with token and WebSocket configuration
         """
         # Generate a fresh single-use token
-        token = self.generate_scribe_token()
+        token = self.generate_scribe_token(workspace_id=workspace_id)
 
         # Build WebSocket URL with token and parameters
         # Educational Note: Using VAD (Voice Activity Detection) for automatic
@@ -104,11 +108,16 @@ class TranscriptionService:
             "encoding": self.ENCODING,
         }
 
-    def is_configured(self) -> bool:
+    def is_configured(self, workspace_id: str | None = None) -> bool:
         """
         Check if ElevenLabs API key is configured.
 
         Returns:
             True if API key is set, False otherwise
         """
-        return bool(os.getenv('ELEVENLABS_API_KEY'))
+        return bool(
+            get_secret(
+                'ELEVENLABS_API_KEY',
+                workspace_id=workspace_id,
+            )
+        )

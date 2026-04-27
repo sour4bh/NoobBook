@@ -24,6 +24,8 @@ import os
 from typing import Optional, Generator
 from datetime import datetime
 
+from app.config.secret import get_project_secret
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,7 +61,7 @@ class TTSService:
         """Initialize the TTS service."""
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self, project_id: Optional[str] = None):
         """
         Get or create the ElevenLabs client.
 
@@ -69,12 +71,20 @@ class TTSService:
         Raises:
             ValueError: If ELEVENLABS_API_KEY is not configured
         """
+        workspace_api_key = get_project_secret(
+            project_id,
+            'ELEVENLABS_API_KEY',
+        )
+        if workspace_api_key:
+            from elevenlabs.client import ElevenLabs
+            return ElevenLabs(api_key=workspace_api_key)
+
         if self._client is None:
             api_key = os.getenv('ELEVENLABS_API_KEY')
             if not api_key:
                 raise ValueError(
                     "ELEVENLABS_API_KEY not found in environment. "
-                    "Please configure it in Admin Settings."
+                    "Please configure it in Workspace Settings."
                 )
 
             from elevenlabs.client import ElevenLabs
@@ -133,7 +143,8 @@ class TTSService:
         text: str,
         voice_id: Optional[str] = None,
         model_id: Optional[str] = None,
-        output_format: Optional[str] = None
+        output_format: Optional[str] = None,
+        project_id: Optional[str] = None
     ) -> dict:
         """
         Generate audio from text and return bytes directly (no disk write).
@@ -146,6 +157,7 @@ class TTSService:
             voice_id: ElevenLabs voice ID (uses default if not specified)
             model_id: TTS model to use (uses multilingual_v2 by default)
             output_format: Audio format (uses mp3_44100_128 by default)
+            project_id: Optional project UUID for workspace-scoped API keys
 
         Returns:
             Dict with success status and audio bytes:
@@ -169,7 +181,7 @@ class TTSService:
             }
 
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
 
             logger.info("Generating TTS audio: %s chars", len(text))
 
@@ -295,14 +307,20 @@ class TTSService:
                 "voices": []
             }
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """
         Check if ElevenLabs API key is configured.
 
         Returns:
             True if API key is set, False otherwise
         """
-        return bool(os.getenv('ELEVENLABS_API_KEY'))
+        return bool(
+            get_project_secret(
+                project_id,
+                'ELEVENLABS_API_KEY',
+            )
+            or os.getenv('ELEVENLABS_API_KEY')
+        )
 
 
 # Singleton instance

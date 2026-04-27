@@ -38,7 +38,8 @@ class DeepResearchExecutor:
         self,
         tool_name: str,
         tool_input: Dict[str, Any],
-        output_path: str = None
+        output_path: str = None,
+        project_id: str = None
     ) -> Tuple[str, bool]:
         """
         Execute a tool and return the result.
@@ -58,7 +59,7 @@ class DeepResearchExecutor:
             return self._execute_write_research(tool_input, output_path)
 
         if tool_name == "tavily_search_advance":
-            result = self._execute_tavily_search(tool_input)
+            result = self._execute_tavily_search(tool_input, project_id=project_id)
             return result, False
 
         # Unknown tool
@@ -111,7 +112,7 @@ class DeepResearchExecutor:
             logger.exception("Error writing research segment %s", segment_number)
             return f"Error writing segment: {str(e)}", False
 
-    def _execute_tavily_search(self, tool_input: Dict[str, Any]) -> str:
+    def _execute_tavily_search(self, tool_input: Dict[str, Any], project_id: str = None) -> str:
         """
         Execute tavily_search_advance tool.
 
@@ -137,7 +138,8 @@ class DeepResearchExecutor:
             max_results=tool_input.get("max_results", 5),
             include_raw_content=tool_input.get("include_raw_content", True),
             chunks_per_source=tool_input.get("chunks_per_source", 3),
-            include_domains=tool_input.get("include_domains")
+            include_domains=tool_input.get("include_domains"),
+            project_id=project_id,
         )
 
         return json.dumps(result)

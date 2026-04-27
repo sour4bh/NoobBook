@@ -18,6 +18,8 @@ import os
 from typing import Dict, Any, List, Optional
 from tavily import TavilyClient
 
+from app.config.secret import get_project_secret
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +35,7 @@ class TavilyService:
         """Initialize the Tavily service."""
         self._client = None
 
-    def _get_client(self) -> TavilyClient:
+    def _get_client(self, project_id: Optional[str] = None) -> TavilyClient:
         """
         Get or create the Tavily client.
 
@@ -43,18 +45,25 @@ class TavilyService:
         Raises:
             ValueError: If TAVILY_API_KEY is not configured
         """
+        workspace_api_key = get_project_secret(
+            project_id,
+            'TAVILY_API_KEY',
+        )
+        if workspace_api_key:
+            return TavilyClient(api_key=workspace_api_key)
+
         if self._client is None:
             api_key = os.getenv('TAVILY_API_KEY')
             if not api_key:
                 raise ValueError(
                     "TAVILY_API_KEY not found in environment. "
-                    "Please configure it in Admin Settings."
+                    "Please configure it in Workspace Settings."
                 )
             self._client = TavilyClient(api_key=api_key)
 
         return self._client
 
-    def search(self, query: str) -> Dict[str, Any]:
+    def search(self, query: str, project_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Execute a web search using Tavily with optimized defaults.
 
@@ -70,7 +79,7 @@ class TavilyService:
             Dict with search results in standardized format
         """
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
 
 
             # Execute search with optimized fixed params
@@ -120,7 +129,8 @@ class TavilyService:
         max_results: int = 5,
         include_raw_content: bool = True,
         chunks_per_source: int = 3,
-        include_domains: Optional[List[str]] = None
+        include_domains: Optional[List[str]] = None,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Advanced Tavily operation - supports both search and extract.
@@ -146,7 +156,7 @@ class TavilyService:
             Dict with full results including URLs for citation
         """
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id)
 
             if operation_type == "extract":
                 return self._execute_extract(
@@ -276,14 +286,20 @@ class TavilyService:
             "failed_urls": failed_urls
         }
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """
         Check if Tavily API key is configured.
 
         Returns:
             True if API key is set, False otherwise
         """
-        return bool(os.getenv('TAVILY_API_KEY'))
+        return bool(
+            get_project_secret(
+                project_id,
+                'TAVILY_API_KEY',
+            )
+            or os.getenv('TAVILY_API_KEY')
+        )
 
 
 # Singleton instance

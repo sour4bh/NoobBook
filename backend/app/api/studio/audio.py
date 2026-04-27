@@ -72,10 +72,10 @@ def generate_audio_overview(project_id: str):
         direction = data.get('direction', 'Create an engaging audio overview of this content.')
 
         # Check if TTS is configured
-        if not tts_service.is_configured():
+        if not tts_service.is_configured(project_id=project_id):
             return jsonify({
                 'success': False,
-                'error': 'ElevenLabs API key not configured. Please add it in Admin Settings.'
+                'error': 'ElevenLabs API key not configured. Please add it in Workspace Settings.'
             }), 400
 
         # Edit mode: load parent job's script as context for refinement

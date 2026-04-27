@@ -223,6 +223,7 @@ Get these before running setup:
 
 | Key | Where to get it | Required? |
 |-----|-----------------|-----------|
+| `NOOBBOOK_WORKSPACE_SECRET_KEY` | Generate a long random server-side secret | Yes |
 | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) | Yes |
 | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/) | Yes |
 | `PINECONE_API_KEY` + `PINECONE_INDEX_NAME` | [pinecone.io](https://www.pinecone.io/) | Yes |
@@ -252,8 +253,9 @@ Edit `docker/.env` and add your API keys:
 nano docker/.env
 ```
 
-At minimum, fill in these four:
+At minimum, fill in these values:
 ```
+NOOBBOOK_WORKSPACE_SECRET_KEY=generate-a-long-random-secret
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
 PINECONE_API_KEY=...

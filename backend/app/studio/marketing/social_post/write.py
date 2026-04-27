@@ -173,13 +173,15 @@ class SocialPostWriter:
                     reference_image_bytes=logo_image_bytes,
                     reference_mime_type=logo_mime_type,
                     filename_prefix=f"social_{job_id[:8]}_{platform}",
-                    aspect_ratio=aspect_ratio
+                    aspect_ratio=aspect_ratio,
+                    project_id=project_id
                 )
             else:
                 result = imagen_service.generate_image_bytes(
                     prompt=image_prompt,
                     filename_prefix=f"social_{job_id[:8]}_{platform}",
-                    aspect_ratio=aspect_ratio
+                    aspect_ratio=aspect_ratio,
+                    project_id=project_id
                 )
 
             if result.get("success"):
@@ -342,7 +344,7 @@ class SocialPostWriter:
 
         # Load brand context so Claude knows brand name, colors, voice, etc.
         brand_context = brand_context_loader.load_brand_context(
-            project_id, "social_post", user_id=user_id
+            project_id, "social_post"
         )
         system_prompt = config["system_prompt"]
         if brand_context:

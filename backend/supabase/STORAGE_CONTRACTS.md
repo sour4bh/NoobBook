@@ -14,7 +14,7 @@
 | `processed-files` | false | 100 MB | `migrations/00002_storage_buckets.sql`; `00021_storage_owner_paths.sql`; `00023_workspace_membership.sql` | Same workspace/project shape as `raw-files` | Same workspace/project policy | `_build_source_path(project_id, source_id, filename)` | `sources/` |
 | `chunks` | false | 10 MB | `migrations/00002_storage_buckets.sql`; `00021_storage_owner_paths.sql`; `00023_workspace_membership.sql` | Same workspace/project shape | Same workspace/project policy | `_build_source_path(project_id, source_id, chunk_id)` (same helper, called with chunk filenames) | `sources/` (indexing slice) |
 | `studio-outputs` | false | 500 MB | `migrations/00002_storage_buckets.sql`; `00021_storage_owner_paths.sql`; `00023_workspace_membership.sql` | Same workspace/project shape | Same workspace/project policy | `_build_studio_path(project_id, job_type, job_id, filename)` and `_build_ai_image_path(project_id, filename)` | `studio/` |
-| `brand-assets` | false | n/a (no limit declared in migration; 00007 + 00010 own the table-side path) | `migrations/00007_brand_assets.sql` + path update in `00010_brand_to_user_level.sql`; permissive-policy removal in `00021_storage_owner_paths.sql` | Same `auth.uid()` first-folder rule | Same owner-prefix policy | `_build_brand_path(user_id, asset_id, filename)` | `brand/` |
+| `brand-assets` | false | n/a (no limit declared in migration; 00007 + 00010 own the table-side path; 00024 owns workspace scope) | `migrations/00007_brand_assets.sql` + path update in `00010_brand_to_user_level.sql`; permissive-policy removal in `00021_storage_owner_paths.sql`; workspace path in `00024_workspace_brand_settings.sql` | Workspace manager for writes; workspace member for reads | Same workspace policy in `init.sql` | `_build_brand_path(workspace_id, asset_id, filename)` | `brand/` |
 
 ## Object-path contracts
 
@@ -24,7 +24,7 @@
 | `processed-files` | `{workspace_id}/{project_id}/{source_id}/{source_id}.txt` | `generate_processed_file_path` in 00023 defines this shape | `_build_source_path(project_id, source_id, filename)` | Existing user-prefixed source metadata paths are backfilled by `00023_workspace_membership.sql`. |
 | `chunks` | `{workspace_id}/{project_id}/{source_id}/{chunk_id}.txt` | `generate_chunk_file_path` in 00023 defines this shape | `_build_source_path(project_id, source_id, chunk_id)` | Chunk id format itself remains unchanged. |
 | `studio-outputs` | `{workspace_id}/{project_id}/studio/{job_type}/{job_id}/{filename}` and `{workspace_id}/{project_id}/ai-images/{filename}` | `generate_studio_output_path` and `generate_ai_image_path` in 00023 define these shapes | `_build_studio_path(project_id, job_type, job_id, filename)` and `_build_ai_image_path(project_id, filename)` | Existing user-prefixed objects are backfilled by `00023_workspace_membership.sql`. |
-| `brand-assets` | `{user_id}/brand/{asset_id}/{filename}` | `generate_brand_asset_path(user_id, asset_id, filename)` in 00010 matches | `_build_brand_path(user_id, asset_id, filename)` | Consistent. |
+| `brand-assets` | `{workspace_id}/brand/{asset_id}/{filename}` for new uploads | `generate_brand_asset_path(workspace_id, asset_id, filename)` in 00024 matches | `_build_brand_path(workspace_id, asset_id, filename)` | Existing rows are read by stored `file_path`; new uploads use workspace prefix. |
 
 ## Serving-route and guard map
 
@@ -34,28 +34,28 @@
 | `processed-files` | Internal only (read during ingestion/search in `backend/app/sources/` and chat context loaders) | Ingestion pipeline writes via `storage_service.upload_processed_file` | Project guard + RLS on the `sources` row the path is derived from. |
 | `chunks` | Internal only (read by `source_search_executor` and the chunk citation route below) | Ingestion pipeline writes via `storage_service.upload_chunk` | Project guard + RLS on `chunks`. Citation lookup path: `GET /api/v1/projects/{project_id}/citations/{chunk_id}` (see `backend/app/api/sources/`). |
 | `studio-outputs` | `GET /api/v1/projects/{project_id}/studio/{category}/...` category routes in `backend/app/api/studio/` generate signed URLs via `storage_service.get_studio_signed_url`/`get_studio_public_url`, or stream bytes through backend routes | Studio generators write via `storage_service.upload_studio_file` / `upload_studio_binary`; CSV analysis writes generated images through `upload_ai_image` | Project guard plus workspace/project-prefixed storage keys. `studio_jobs` has no table RLS (see `migrations/OWNERS.md`), so route-level project guard remains required before signed URL issuance or byte streaming. |
-| `brand-assets` | `GET /api/v1/brand/...` routes in `backend/app/api/brand/routes.py` stream bytes through `storage_service.download_brand_asset` | `POST /api/v1/brand/...` upload surfaces | Brand routes are user-scoped through authenticated identity; storage RLS also requires first segment `user_id`. |
+| `brand-assets` | `GET /api/v1/brand/...` routes in `backend/app/api/brand/routes.py` stream bytes through `storage_service.download_brand_asset_by_path` | `POST /api/v1/brand/...` upload surfaces | Brand routes resolve the selected workspace; reads require workspace membership and writes require workspace owner/admin. |
 
 ## Owner-prefix reconciliation
 
 `NBB-914` resolved the prior mismatch between runtime object keys and storage
-RLS policy shape. Runtime storage builders now put `user_id` in the first
-object-key segment for source files, chunk files, studio outputs, generated
-analysis images, and brand assets. Migration `00021_storage_owner_paths.sql`
-backfills existing unprefixed `storage.objects.name` values and source metadata
-paths where the first segment was a project id.
+RLS policy shape by moving those buckets to owner-prefixed keys. Migration
+`00021_storage_owner_paths.sql` backfills existing unprefixed
+`storage.objects.name` values and source metadata paths where the first segment
+was a project id.
 
-`NBB-1002` supersedes that shape for project-owned buckets only. Source, chunk,
+`NBB-1002` supersedes that shape for project-owned buckets. Source, chunk,
 studio, and generated analysis object keys become
 `{workspace_id}/{project_id}/...`, and storage RLS checks explicit project
-membership against the second segment. Brand assets remain user-prefixed until
-the workspace settings/brand migration in `NBB-1006`.
+membership against the second segment. `NBB-1006` moves brand assets to
+`{workspace_id}/brand/...`; existing brand rows keep their stored `file_path`
+so already-uploaded objects remain readable.
 
 The backend still uses a service-role Supabase client when configured, so
 storage RLS is defence-in-depth rather than the only barrier. The guard of
 record for project-owned buckets remains `project_service.has_project_access`
-on `/api/v1/projects/{project_id}/...` routes. Brand routes are user-scoped and
-look up assets by authenticated `user_id`.
+on `/api/v1/projects/{project_id}/...` routes. Brand routes use selected
+workspace membership and manager checks.
 
 ## Pre-move checklist for data-store moves
 
@@ -71,6 +71,7 @@ Any ticket that moves a store or introduces a new storage call must run through 
 - `backend/supabase/migrations/00002_storage_buckets.sql`
 - `backend/supabase/migrations/00007_brand_assets.sql`
 - `backend/supabase/migrations/00010_brand_to_user_level.sql`
+- `backend/supabase/migrations/00024_workspace_brand_settings.sql`
 - `backend/supabase/init.sql` (self-hosted bootstrap)
 - `backend/app/providers/supabase/storage.py`
 - `backend/app/api/sources/routes.py` (`download_source`, `upload_source`)

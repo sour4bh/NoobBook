@@ -310,13 +310,14 @@ class SourceSearchExecutor:
         """
         try:
             # Check if Pinecone is configured
-            if not pinecone_service.is_configured():
+            if not pinecone_service.is_configured(project_id=project_id):
                 logger.warning("Pinecone not configured, skipping semantic search")
                 return []
 
             # Create query embedding
             query_vector = openai_embeddings.create_embedding(
-                clean_text_for_embedding(query)
+                clean_text_for_embedding(query),
+                project_id=project_id,
             )
 
             # Search Pinecone with source_id filter

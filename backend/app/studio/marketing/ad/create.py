@@ -143,12 +143,14 @@ class AdCreator:
                     prompt=enhanced_prompt,
                     reference_image_bytes=logo_image_bytes,
                     reference_mime_type=logo_mime_type,
-                    filename_prefix=f"ad_{job_id[:8]}_{prompt_type}_{timestamp}"
+                    filename_prefix=f"ad_{job_id[:8]}_{prompt_type}_{timestamp}",
+                    project_id=project_id
                 )
             else:
                 result = imagen_service.generate_image_bytes(
                     prompt=prompt_text,
-                    filename_prefix=f"ad_{job_id[:8]}_{prompt_type}_{timestamp}"
+                    filename_prefix=f"ad_{job_id[:8]}_{prompt_type}_{timestamp}",
+                    project_id=project_id
                 )
 
             if result.get("success"):
@@ -262,7 +264,7 @@ class AdCreator:
 
         # Load brand context so Claude knows brand name, colors, voice, etc.
         brand_context = brand_context_loader.load_brand_context(
-            project_id, "ads_creative", user_id=user_id
+            project_id, "ads_creative"
         )
         system_prompt = config["system_prompt"]
         if brand_context:

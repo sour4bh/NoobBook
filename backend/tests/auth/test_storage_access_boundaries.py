@@ -84,15 +84,18 @@ def test_studio_asset_token_denies_cross_user_before_storage(
     storage_service.download_studio_binary.assert_not_called()
 
 
-def test_brand_download_uses_authenticated_user_for_asset_lookup(
+def test_brand_download_uses_selected_workspace_for_asset_lookup(
     auth_client,
     auth_required_env,
 ):
     with _patch_bearer_user(), patch(
+        "app.api.brand.routes.resolve_workspace_context"
+    ) as resolve_workspace_context, patch(
         "app.api.brand.routes.brand_asset_service"
     ) as brand_asset_service, patch(
         "app.api.brand.routes.storage_service"
     ) as storage_service:
+        resolve_workspace_context.return_value = (MagicMock(user_id=USER_ID), "workspace-1")
         brand_asset_service.get_asset.return_value = None
 
         response = auth_client.get(
@@ -101,5 +104,5 @@ def test_brand_download_uses_authenticated_user_for_asset_lookup(
         )
 
     assert response.status_code == 404
-    brand_asset_service.get_asset.assert_called_once_with(USER_ID, "asset-2")
-    storage_service.download_brand_asset.assert_not_called()
+    brand_asset_service.get_asset.assert_called_once_with("workspace-1", "asset-2")
+    storage_service.download_brand_asset_by_path.assert_not_called()

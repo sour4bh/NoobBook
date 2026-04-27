@@ -25,14 +25,34 @@ export const errorEnvelopeSchema = z.object({
 const authUserSchema = z.object({
   id: z.string(),
   email: z.string().nullable().optional(),
+  global_role: z.enum(['admin', 'user']).nullable().optional(),
 }).strict();
 
 const userIdentitySchema = z.object({
   id: z.string(),
   email: z.string().nullable().optional(),
+  global_role: z.enum(['admin', 'user']),
+  is_global_admin: z.boolean(),
   role: z.enum(['admin', 'user']),
   is_admin: z.boolean(),
   is_authenticated: z.boolean(),
+}).strict();
+
+const workspaceSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.enum(['owner', 'admin', 'member']),
+  owner_user_id: z.string().nullable().optional(),
+  is_personal: z.boolean(),
+}).strict();
+
+const workspaceSessionContextSchema = z.object({
+  available_workspaces: z.array(workspaceSummarySchema),
+  selected_workspace: workspaceSummarySchema.nullable().optional(),
+  selected_workspace_id: z.string().nullable().optional(),
+  workspace_role: z.enum(['owner', 'admin', 'member']).nullable().optional(),
+  can_manage_workspace: z.boolean(),
+  can_create_project: z.boolean(),
 }).strict();
 
 const authSessionSchema = z.object({
@@ -47,6 +67,7 @@ export const meResponseSchema = z.object({
   auth_required: z.boolean(),
   asset_token: z.string().nullable().optional(),
   user: userIdentitySchema,
+  workspace: workspaceSessionContextSchema,
 }).strict();
 
 export const authSessionResponseSchema = z.object({
@@ -54,6 +75,7 @@ export const authSessionResponseSchema = z.object({
   user: authUserSchema.nullable().optional(),
   session: authSessionSchema.nullable().optional(),
   asset_token: z.string().nullable().optional(),
+  workspace: workspaceSessionContextSchema.nullable().optional(),
 }).strict();
 
 const tokenUsageSchema = z.object({
@@ -213,6 +235,7 @@ export const studioEventPayloadSchema = z.object({
 export type ErrorEnvelope = z.infer<typeof errorEnvelopeSchema>;
 export type MeResponse = z.infer<typeof meResponseSchema>;
 export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>;
+export type WorkspaceSessionContext = z.infer<typeof workspaceSessionContextSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type ChatMessageResponse = z.infer<typeof chatMessageResponseSchema>;
 export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>;

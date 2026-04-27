@@ -98,6 +98,61 @@ def test_auth_me_does_not_mint_asset_token_for_unauthenticated_fallback(auth_cli
     body = response.get_json()
     assert body["user"]["is_authenticated"] is False
     assert body["asset_token"] is None
+    assert body["user"]["global_role"] == "user"
+    assert body["user"]["is_global_admin"] is False
+    assert "workspace" in body
+
+
+def test_auth_me_returns_workspace_session_context(auth_client):
+    """The auth session contract carries selected workspace capabilities."""
+    workspace_context = {
+        "available_workspaces": [
+            {
+                "id": "workspace-1",
+                "name": "Personal Workspace",
+                "role": "owner",
+                "owner_user_id": "user-abc",
+                "is_personal": True,
+            }
+        ],
+        "selected_workspace": {
+            "id": "workspace-1",
+            "name": "Personal Workspace",
+            "role": "owner",
+            "owner_user_id": "user-abc",
+            "is_personal": True,
+        },
+        "selected_workspace_id": "workspace-1",
+        "workspace_role": "owner",
+        "can_manage_workspace": True,
+        "can_create_project": True,
+    }
+    with patch("app.api.auth.routes.get_request_identity") as identity, patch(
+        "app.api.auth.routes.workspace_store"
+    ) as store:
+        identity.return_value = MagicMock(
+            user_id="user-abc",
+            email="user@example.com",
+            role="user",
+            is_admin=False,
+            is_authenticated=True,
+        )
+        store.session_context.return_value = workspace_context
+
+        response = auth_client.get(
+            "/api/v1/auth/me",
+            headers={"X-NoobBook-Workspace-Id": "workspace-1"},
+        )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["workspace"] == workspace_context
+    assert body["user"]["global_role"] == "user"
+    store.session_context.assert_called_once_with(
+        user_id="user-abc",
+        email="user@example.com",
+        selected_workspace_id="workspace-1",
+    )
 
 
 def test_auth_signin_mints_scoped_asset_token(auth_client):

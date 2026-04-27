@@ -19,6 +19,27 @@ const message = {
   timestamp: '2026-04-27T00:00:00Z',
 };
 
+const workspace = {
+  available_workspaces: [{
+    id: 'workspace-1',
+    name: 'Personal Workspace',
+    role: 'owner' as const,
+    owner_user_id: 'user-1',
+    is_personal: true,
+  }],
+  selected_workspace: {
+    id: 'workspace-1',
+    name: 'Personal Workspace',
+    role: 'owner' as const,
+    owner_user_id: 'user-1',
+    is_personal: true,
+  },
+  selected_workspace_id: 'workspace-1',
+  workspace_role: 'owner' as const,
+  can_manage_workspace: true,
+  can_create_project: true,
+};
+
 describe('frontend API contract parsers', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -34,10 +55,13 @@ describe('frontend API contract parsers', () => {
       user: {
         id: 'user-1',
         email: 'user@example.com',
+        global_role: 'user',
+        is_global_admin: false,
         role: 'user',
         is_admin: false,
         is_authenticated: true,
       },
+      workspace,
     }).user.id).toBe('user-1');
 
     expect(parseProjectCostsResponse({
@@ -71,10 +95,13 @@ describe('frontend API contract parsers', () => {
       auth_required: true,
       user: {
         id: 'user-1',
+        global_role: 'user',
+        is_global_admin: false,
         role: 'owner',
         is_admin: false,
         is_authenticated: true,
       },
+      workspace,
     })).toThrow(ContractParseError);
 
     expect(() => parseChatStreamEvent('assistant_delta', {})).toThrow(ContractParseError);

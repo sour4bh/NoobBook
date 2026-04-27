@@ -25,9 +25,31 @@ describe('app shell smoke', () => {
       user: {
         id: 'dev-user',
         email: null,
+        global_role: 'admin',
+        is_global_admin: true,
         role: 'admin',
         is_admin: true,
         is_authenticated: false,
+      },
+      workspace: {
+        available_workspaces: [{
+          id: 'workspace-1',
+          name: 'Personal Workspace',
+          role: 'owner',
+          owner_user_id: 'dev-user',
+          is_personal: true,
+        }],
+        selected_workspace: {
+          id: 'workspace-1',
+          name: 'Personal Workspace',
+          role: 'owner',
+          owner_user_id: 'dev-user',
+          is_personal: true,
+        },
+        selected_workspace_id: 'workspace-1',
+        workspace_role: 'owner',
+        can_manage_workspace: true,
+        can_create_project: true,
       },
     });
     const projectsResponse: AxiosResponse<{ projects: [] }> = {

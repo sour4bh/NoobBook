@@ -26,7 +26,9 @@ interface AppSettingsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userEmail?: string | null;
-  userRole?: string;
+  globalRole?: string;
+  workspaceRole?: string | null;
+  canManageWorkspace?: boolean;
   userId?: string;
   onSignOut?: () => Promise<void>;
 }
@@ -35,18 +37,19 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
   open,
   onOpenChange,
   userEmail = null,
-  userRole = 'user',
+  globalRole = 'user',
+  workspaceRole = null,
+  canManageWorkspace = false,
   userId = '',
   onSignOut,
 }) => {
-  const isAdmin = userRole === 'admin';
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
 
   // Handle section change with admin check
   const handleSectionChange = (section: SettingsSection) => {
     const adminOnlySections: SettingsSection[] = ['team', 'api-keys', 'models', 'design', 'system'];
-    if (!isAdmin && adminOnlySections.includes(section)) {
-      return; // Prevent non-admins from switching to admin sections
+    if (!canManageWorkspace && adminOnlySections.includes(section)) {
+      return;
     }
     setActiveSection(section);
   };
@@ -62,19 +65,26 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
   const renderSection = () => {
     switch (activeSection) {
       case 'profile':
-        return <ProfileSection userEmail={userEmail} userRole={userRole} onSignOut={onSignOut} />;
+        return (
+          <ProfileSection
+            userEmail={userEmail}
+            globalRole={globalRole}
+            workspaceRole={workspaceRole}
+            onSignOut={onSignOut}
+          />
+        );
       case 'team':
-        return isAdmin ? <TeamSection currentUserId={userId} /> : null;
+        return canManageWorkspace ? <TeamSection currentUserId={userId} /> : null;
       case 'api-keys':
-        return isAdmin ? <ApiKeysSection /> : null;
+        return canManageWorkspace ? <ApiKeysSection /> : null;
       case 'models':
-        return isAdmin ? <ModelsSection /> : null;
+        return canManageWorkspace ? <ModelsSection /> : null;
       case 'integrations':
-        return <IntegrationsSection isAdmin={isAdmin} />;
+        return <IntegrationsSection isAdmin={canManageWorkspace} />;
       case 'design':
-        return isAdmin ? <DesignSection /> : null;
+        return canManageWorkspace ? <DesignSection /> : null;
       case 'system':
-        return isAdmin ? <SystemSection /> : null;
+        return canManageWorkspace ? <SystemSection /> : null;
       default:
         return null;
     }
@@ -94,7 +104,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
           <SettingsSidebar
             activeSection={activeSection}
             onSectionChange={handleSectionChange}
-            isAdmin={isAdmin}
+            canManageWorkspace={canManageWorkspace}
           />
 
           {/* Content area */}

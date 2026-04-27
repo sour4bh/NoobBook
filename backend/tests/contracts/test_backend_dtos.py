@@ -18,9 +18,19 @@ def test_auth_me_contract_rejects_unknown_role() -> None:
             user={
                 "id": "user-1",
                 "email": "user@example.com",
+                "global_role": "user",
+                "is_global_admin": False,
                 "role": "owner",
                 "is_admin": False,
                 "is_authenticated": True,
+            },
+            workspace={
+                "available_workspaces": [],
+                "selected_workspace": None,
+                "selected_workspace_id": None,
+                "workspace_role": None,
+                "can_manage_workspace": False,
+                "can_create_project": False,
             },
         )
 

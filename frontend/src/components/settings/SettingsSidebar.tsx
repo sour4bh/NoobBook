@@ -12,7 +12,7 @@ export type SettingsSection = 'profile' | 'team' | 'api-keys' | 'models' | 'inte
 interface SettingsSidebarProps {
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
-  isAdmin: boolean;
+  canManageWorkspace: boolean;
 }
 
 interface SidebarItem {
@@ -36,13 +36,13 @@ const sidebarItems: SidebarItem[] = [
 export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
   activeSection,
   onSectionChange,
-  isAdmin,
+  canManageWorkspace,
 }) => {
   const accountItems = sidebarItems.filter(item => item.category === 'account');
   const workspaceItems = sidebarItems.filter(item => item.category === 'workspace');
 
   const renderItem = (item: SidebarItem) => {
-    if (item.adminOnly && !isAdmin) return null;
+    if (item.adminOnly && !canManageWorkspace) return null;
 
     return (
       <button

@@ -24,7 +24,9 @@ import { getAccessToken, clearSession } from '@/lib/auth/session';
 interface AuthUser {
   id: string;
   email: string | null;
-  role: 'admin' | 'user';
+  globalRole: 'admin' | 'user';
+  workspaceRole: 'owner' | 'admin' | 'member' | null;
+  canManageWorkspace: boolean;
 }
 
 interface AuthContextType {
@@ -65,7 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser({
             id: response.user.id,
             email: response.user.email || null,
-            role: response.user.role === 'admin' ? 'admin' : 'user',
+            globalRole: response.user.global_role === 'admin' ? 'admin' : 'user',
+            workspaceRole: response.workspace.workspace_role || null,
+            canManageWorkspace: response.workspace.can_manage_workspace,
           });
         } else {
           clearSession();
@@ -91,8 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.user) {
         // Fetch /auth/me to get the user's role
         const meResponse = await authAPI.me();
-        const role: 'admin' | 'user' = meResponse.user?.role === 'admin' ? 'admin' : 'user';
-        setUser({ id: result.user.id, email: result.user.email || null, role });
+        const role: 'admin' | 'user' = meResponse.user?.global_role === 'admin' ? 'admin' : 'user';
+        setUser({
+          id: result.user.id,
+          email: result.user.email || null,
+          globalRole: role,
+          workspaceRole: meResponse.workspace.workspace_role || null,
+          canManageWorkspace: meResponse.workspace.can_manage_workspace,
+        });
         return { success: true as const, role };
       }
 
@@ -114,8 +124,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.user) {
         // Fetch /auth/me to get the user's role
         const meResponse = await authAPI.me();
-        const role: 'admin' | 'user' = meResponse.user?.role === 'admin' ? 'admin' : 'user';
-        setUser({ id: result.user.id, email: result.user.email || null, role });
+        const role: 'admin' | 'user' = meResponse.user?.global_role === 'admin' ? 'admin' : 'user';
+        setUser({
+          id: result.user.id,
+          email: result.user.email || null,
+          globalRole: role,
+          workspaceRole: meResponse.workspace.workspace_role || null,
+          canManageWorkspace: meResponse.workspace.can_manage_workspace,
+        });
         return { success: true as const, role };
       }
 

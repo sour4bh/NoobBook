@@ -113,13 +113,15 @@ const UsageCard: React.FC = () => {
 
 interface ProfileSectionProps {
   userEmail: string | null;
-  userRole: string;
+  globalRole: string;
+  workspaceRole: string | null;
   onSignOut?: () => Promise<void>;
 }
 
 export const ProfileSection: React.FC<ProfileSectionProps> = ({
   userEmail,
-  userRole,
+  globalRole,
+  workspaceRole,
   onSignOut,
 }) => {
   const [signOutOpen, setSignOutOpen] = useState(false);
@@ -142,14 +144,14 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <p className="text-sm font-medium text-stone-900 truncate">
             {userEmail || 'Not available'}
           </p>
-          {userRole === 'admin' ? (
+          {workspaceRole === 'owner' || workspaceRole === 'admin' ? (
             <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
               <Crown size={12} weight="fill" />
-              Admin
+              Workspace {workspaceRole}
             </span>
           ) : (
             <p className="text-xs text-muted-foreground capitalize mt-0.5">
-              {userRole}
+              {workspaceRole || globalRole}
             </p>
           )}
         </div>

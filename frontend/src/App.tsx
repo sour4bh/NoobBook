@@ -8,6 +8,7 @@ import { AuthPage } from './components/auth/AuthPage';
 import { authAPI } from './lib/api/auth';
 import { createLogger } from '@/lib/logger';
 import { PermissionsProvider } from './contexts/PermissionsContext';
+import type { WorkspaceSessionContext } from './lib/api/contracts';
 
 const log = createLogger('app');
 
@@ -37,12 +38,13 @@ interface AppContentProps {
   setShowCreateDialog: (show: boolean) => void;
   refreshTrigger: number;
   setRefreshTrigger: (fn: (prev: number) => number) => void;
-  isAdmin: boolean;
+  canManageWorkspace: boolean;
   isAuthenticated: boolean;
   onSignOut: () => Promise<void>;
   userId: string;
   userEmail: string | null;
-  userRole: string;
+  globalRole: string;
+  workspaceRole: string | null;
 }
 
 /**
@@ -55,12 +57,13 @@ function AppContent({
   setShowCreateDialog,
   refreshTrigger,
   setRefreshTrigger,
-  isAdmin,
+  canManageWorkspace,
   isAuthenticated,
   onSignOut,
   userId,
   userEmail,
-  userRole,
+  globalRole,
+  workspaceRole,
 }: AppContentProps) {
   const navigate = useNavigate();
 
@@ -81,12 +84,13 @@ function AppContent({
         onSelectProject={handleSelectProject}
         onCreateNewProject={() => setShowCreateDialog(true)}
         refreshTrigger={refreshTrigger}
-        isAdmin={isAdmin}
+        canManageWorkspace={canManageWorkspace}
         isAuthenticated={isAuthenticated}
         onSignOut={onSignOut}
         userId={userId}
         userEmail={userEmail}
-        userRole={userRole}
+        globalRole={globalRole}
+        workspaceRole={workspaceRole}
       />
 
       {showCreateDialog && (
@@ -184,28 +188,31 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
   const [authRequired, setAuthRequired] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canManageWorkspace, setCanManageWorkspace] = useState(false);
   const [userId, setUserId] = useState('');
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState('user');
+  const [globalRole, setGlobalRole] = useState('user');
+  const [workspace, setWorkspace] = useState<WorkspaceSessionContext | null>(null);
 
   const refreshAuth = async () => {
     try {
       const res = await authAPI.me();
       setAuthRequired(Boolean(res?.auth_required));
       setIsAuthenticated(Boolean(res?.user?.is_authenticated));
-      setIsAdmin(Boolean(res?.user?.is_admin));
+      setCanManageWorkspace(Boolean(res?.workspace?.can_manage_workspace));
       setUserId(res?.user?.id || '');
       setUserEmail(res?.user?.email || null);
-      setUserRole(res?.user?.role || 'user');
+      setGlobalRole(res?.user?.global_role || 'user');
+      setWorkspace(res?.workspace || null);
     } catch (err) {
       log.error({ err }, 'auth check failed');
       setAuthRequired(false);
       setIsAuthenticated(false);
-      setIsAdmin(false);
+      setCanManageWorkspace(false);
       setUserId('');
       setUserEmail(null);
-      setUserRole('user');
+      setGlobalRole('user');
+      setWorkspace(null);
     } finally {
       setAuthReady(true);
     }
@@ -214,10 +221,11 @@ function App() {
   const handleSignOut = async () => {
     await authAPI.signOut();
     setIsAuthenticated(false);
-    setIsAdmin(false);
+    setCanManageWorkspace(false);
     setUserId('');
     setUserEmail(null);
-    setUserRole('user');
+    setGlobalRole('user');
+    setWorkspace(null);
   };
 
   useEffect(() => {
@@ -261,12 +269,13 @@ function App() {
                 setShowCreateDialog={setShowCreateDialog}
                 refreshTrigger={refreshTrigger}
                 setRefreshTrigger={setRefreshTrigger}
-                isAdmin={isAdmin}
+                canManageWorkspace={canManageWorkspace}
                 isAuthenticated={isAuthenticated}
                 onSignOut={handleSignOut}
                 userId={userId}
                 userEmail={userEmail}
-                userRole={userRole}
+                globalRole={globalRole}
+                workspaceRole={workspace?.workspace_role || null}
               />
             }
           />

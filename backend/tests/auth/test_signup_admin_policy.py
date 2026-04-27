@@ -22,6 +22,7 @@ def test_public_signup_role_is_always_user(monkeypatch):
 def test_sign_up_creates_user_profile_with_user_role(monkeypatch):
     monkeypatch.setenv("NOOBBOOK_ADMIN_EMAILS", "founder@example.com")
     service = _auth_service()
+    service._ensure_personal_workspace = MagicMock()
     service.supabase.auth.sign_up.return_value = SimpleNamespace(
         user=SimpleNamespace(id="user-1", email="founder@example.com"),
         session=SimpleNamespace(
@@ -35,6 +36,8 @@ def test_sign_up_creates_user_profile_with_user_role(monkeypatch):
     result = service.sign_up("founder@example.com", "password")
 
     assert result["success"] is True
+    assert result["user"]["global_role"] == "user"
+    service._ensure_personal_workspace.assert_called_once_with("user-1", "founder@example.com")
     users_table = service.supabase.table.return_value
     users_table.select.assert_not_called()
     users_table.insert.assert_called_once_with(

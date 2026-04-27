@@ -19,6 +19,7 @@ from app.auth.contracts import AuthSessionResponse, MeResponse
 from app.auth.asset_tokens import build_asset_token
 from app.auth.identity import get_request_identity, is_auth_required
 from app.providers.supabase.auth import auth_service
+from app.workspaces.store import workspace_store
 
 
 def _get_user_id(result: dict[str, Any]) -> Optional[str]:
@@ -48,6 +49,30 @@ def _with_asset_token(result: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _selected_workspace_id() -> Optional[str]:
+    value = (
+        request.headers.get("X-NoobBook-Workspace-Id")
+        or request.args.get("workspace_id")
+        or (request.get_json(silent=True) or {}).get("workspace_id")
+        or ""
+    )
+    return str(value).strip() or None
+
+
+def _with_workspace_context(result: dict[str, Any]) -> dict[str, Any]:
+    user_id = _get_user_id(result)
+    if not user_id:
+        return result
+    user = result.get("user") if isinstance(result.get("user"), dict) else {}
+    result = dict(result)
+    result["workspace"] = workspace_store.session_context(
+        user_id=user_id,
+        email=user.get("email"),
+        selected_workspace_id=_selected_workspace_id(),
+    )
+    return result
+
+
 @auth_bp.route("/auth/me", methods=["GET"])
 def me():
     """Get current user identity with RBAC role info."""
@@ -66,10 +91,17 @@ def me():
         user={
             "id": identity.user_id,
             "email": identity.email,
+            "global_role": identity.role,
+            "is_global_admin": identity.is_admin,
             "role": identity.role,
             "is_admin": identity.is_admin,
             "is_authenticated": identity.is_authenticated,
         },
+        workspace=workspace_store.session_context(
+            user_id=identity.user_id,
+            email=identity.email,
+            selected_workspace_id=_selected_workspace_id(),
+        ),
     )
     return jsonify(body(response)), 200
 
@@ -91,7 +123,7 @@ def signup():
     if not result.get("success"):
         return jsonify(body(ErrorEnvelope(error=result.get("error", "Sign up failed")))), 400
 
-    return jsonify(body(AuthSessionResponse.model_validate(_with_asset_token(result)))), 200
+    return jsonify(body(AuthSessionResponse.model_validate(_with_workspace_context(_with_asset_token(result))))), 200
 
 
 @auth_bp.route("/auth/signin", methods=["POST"])
@@ -110,7 +142,7 @@ def signin():
     if not result.get("success"):
         return jsonify(body(ErrorEnvelope(error=result.get("error", "Sign in failed")))), 400
 
-    return jsonify(body(AuthSessionResponse.model_validate(_with_asset_token(result)))), 200
+    return jsonify(body(AuthSessionResponse.model_validate(_with_workspace_context(_with_asset_token(result))))), 200
 
 
 @auth_bp.route("/auth/signout", methods=["POST"])
@@ -143,4 +175,4 @@ def refresh():
     result = auth_service.refresh_with_token(refresh_token)
     if not result.get("success"):
         return jsonify(result), 401
-    return jsonify(body(AuthSessionResponse.model_validate(_with_asset_token(result)))), 200
+    return jsonify(body(AuthSessionResponse.model_validate(_with_workspace_context(_with_asset_token(result))))), 200

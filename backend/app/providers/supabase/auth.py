@@ -51,13 +51,15 @@ class AuthService:
             )
 
             # Create corresponding user record in public.users table
+            signup_role = None
             if response.user:
-                role = self._resolve_signup_role(email)
-                self._create_user_profile(response.user.id, email, role=role)
+                signup_role = self._resolve_signup_role(email)
+                self._create_user_profile(response.user.id, email, role=signup_role)
+                self._ensure_personal_workspace(response.user.id, email)
 
             return {
                 "success": True,
-                "user": self._serialize_user(response.user),
+                "user": self._serialize_user(response.user, default_role=signup_role),
                 "session": self._serialize_session(response.session),
             }
         except Exception as e:
@@ -282,8 +284,18 @@ class AuthService:
                 self.supabase.table("users").update({"email": email, "role": role}).eq("id", user_id).execute()
             else:
                 self._create_user_profile(user_id, email, role=role)
+            self._ensure_personal_workspace(user_id, email)
         except Exception as e:
             logger.warning("Failed to ensure user profile: %s", e)
+
+    def _ensure_personal_workspace(self, user_id: str, email: str) -> None:
+        """Ensure every signed-up or bootstrapped user owns a personal workspace."""
+        try:
+            from app.workspaces.store import workspace_store
+
+            workspace_store.ensure_personal_workspace(user_id, email)
+        except Exception as e:
+            logger.warning("Failed to ensure personal workspace: %s", e)
 
     def _find_user_by_email(self, email: str):
         try:
@@ -309,14 +321,35 @@ class AuthService:
         """
         return "user"
 
-    @staticmethod
-    def _serialize_user(user: Any) -> Optional[Dict[str, Any]]:
+    def _serialize_user(self, user: Any, default_role: Optional[str] = None) -> Optional[Dict[str, Any]]:
         if not user:
             return None
         # supabase-py returns User object or dict
         if isinstance(user, dict):
-            return {"id": user.get("id"), "email": user.get("email")}
-        return {"id": getattr(user, "id", None), "email": getattr(user, "email", None)}
+            user_id = user.get("id")
+            return {
+                "id": user_id,
+                "email": user.get("email"),
+                "global_role": default_role or self._load_global_role(user_id),
+            }
+        user_id = getattr(user, "id", None)
+        return {
+            "id": user_id,
+            "email": getattr(user, "email", None),
+            "global_role": default_role or self._load_global_role(user_id),
+        }
+
+    def _load_global_role(self, user_id: Optional[str]) -> str:
+        if not user_id:
+            return "user"
+        try:
+            response = self.supabase.table("users").select("role").eq("id", user_id).limit(1).execute()
+            if response.data:
+                role = (response.data[0].get("role") or "").strip().lower()
+                return role if role in {"admin", "user"} else "user"
+        except Exception:
+            pass
+        return "user"
 
     @staticmethod
     def _serialize_session(session: Any) -> Optional[Dict[str, Any]]:

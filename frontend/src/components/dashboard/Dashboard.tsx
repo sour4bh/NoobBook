@@ -36,24 +36,26 @@ interface DashboardProps {
   onSelectProject: (project: Project) => void;
   onCreateNewProject: () => void;
   refreshTrigger?: number;
-  isAdmin: boolean;
+  canManageWorkspace: boolean;
   isAuthenticated: boolean;
   onSignOut: () => Promise<void>;
   userId: string;
   userEmail: string | null;
-  userRole: string;
+  globalRole: string;
+  workspaceRole: string | null;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   onSelectProject,
   onCreateNewProject,
   refreshTrigger = 0,
-  isAdmin,
+  canManageWorkspace,
   isAuthenticated,
   onSignOut,
   userId,
   userEmail,
-  userRole,
+  globalRole,
+  workspaceRole,
 }) => {
   const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
@@ -92,7 +94,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 className="gap-2"
               >
                 <Gear size={16} />
-                {isAdmin ? 'Admin Settings' : 'Settings'}
+                {canManageWorkspace ? 'Workspace Settings' : 'Settings'}
               </Button>
             ) : null}
           </div>
@@ -114,7 +116,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onOpenChange={setAppSettingsOpen}
         userId={userId}
         userEmail={userEmail}
-        userRole={userRole}
+        globalRole={globalRole}
+        workspaceRole={workspaceRole}
+        canManageWorkspace={canManageWorkspace}
         onSignOut={onSignOut}
       />
 

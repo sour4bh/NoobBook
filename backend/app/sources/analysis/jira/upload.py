@@ -44,10 +44,10 @@ def add_jira_source(
     Raises:
         ValueError: If Jira is not configured
     """
-    if not jira_service.is_configured():
+    if not jira_service.is_configured(project_id=project_id):
         raise ValueError(
             "Jira not configured. Please add JIRA_EMAIL, JIRA_API_KEY, and "
-            "either JIRA_CLOUD_ID or JIRA_DOMAIN to your .env file."
+            "either JIRA_CLOUD_ID or JIRA_DOMAIN in Workspace Settings."
         )
 
     source_id = str(uuid.uuid4())

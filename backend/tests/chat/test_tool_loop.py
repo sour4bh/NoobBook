@@ -411,15 +411,15 @@ def test_select_tools_exposes_search_only_when_active_sources_present(
     # KB / MCP layers are out of scope for this assertion; return empty.
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_jira_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_mixpanel_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_available_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.mcp_tool_service, "get_available_tools",
@@ -463,15 +463,15 @@ def test_select_tools_exposes_csv_analyzer_only_for_csv_sources(
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_jira_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_mixpanel_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_available_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.mcp_tool_service, "get_available_tools",
@@ -518,15 +518,15 @@ def test_select_tools_respects_capability_policy_deny(
     monkeypatch.setattr(tool_capability_policy, "is_exposable_for", gate)
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_jira_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_mixpanel_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_available_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.mcp_tool_service, "get_available_tools",
@@ -554,15 +554,15 @@ def test_select_tools_skips_unclassified_tools(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_jira_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_mixpanel_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_available_tools",
-        lambda: [
+        lambda **_kwargs: [
             {"name": "totally_unclassified_tool", "description": "x",
              "input_schema": {"type": "object", "properties": {}}}
         ],
@@ -603,15 +603,15 @@ def test_select_tools_synthesizes_mcp_capability_before_exposing(
 
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_jira_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_mixpanel_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
     monkeypatch.setattr(
         chat_tool_policy_mod.knowledge_base_service, "get_available_tools",
-        lambda: [],
+        lambda **_kwargs: [],
     )
 
     dynamic_tool = {

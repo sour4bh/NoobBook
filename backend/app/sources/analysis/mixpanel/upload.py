@@ -39,10 +39,10 @@ def add_mixpanel_source(
     Raises:
         ValueError: If Mixpanel is not configured
     """
-    if not mixpanel_service.is_configured():
+    if not mixpanel_service.is_configured(project_id=project_id):
         raise ValueError(
             "Mixpanel not configured. Please add MIXPANEL_SERVICE_ACCOUNT_USERNAME, "
-            "MIXPANEL_SERVICE_ACCOUNT_SECRET, and MIXPANEL_PROJECT_ID to your .env file."
+            "MIXPANEL_SERVICE_ACCOUNT_SECRET, and MIXPANEL_PROJECT_ID in Workspace Settings."
         )
 
     source_id = str(uuid.uuid4())

@@ -2,14 +2,15 @@
 Jira Integration Service - Jira API integration for NoobBook.
 
 Educational Note: This service provides methods to query Jira projects and issues
-using the Jira REST API v3. It follows NoobBook's service pattern with lazy-loaded
-client initialization and environment-based configuration.
+using the Jira REST API v3. Credentials resolve through the owning
+project/workspace with environment variables only as bootstrap fallback.
 """
 import logging
-import os
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 import requests
 from requests.auth import HTTPBasicAuth
+
+from app.config.secret import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -18,19 +19,19 @@ class JiraService:
     """
     Jira API integration service.
 
-    Educational Note: Singleton pattern with lazy client initialization.
-    Configuration is read from environment variables on first use.
+    Educational Note: Singleton pattern for behavior only. Credentials are
+    resolved per call so workspaces can use different Jira accounts.
     """
 
     def __init__(self):
-        """Initialize the Jira service with lazy-loaded configuration."""
-        self._auth = None
-        self._base_url = None
-        self._configured = None  # Cache configuration check
+        """Initialize the Jira service."""
 
-    def _load_config(self) -> None:
+    def _resolve_config(
+        self,
+        project_id: Optional[str] = None,
+    ) -> Tuple[Optional[str], Optional[HTTPBasicAuth], Optional[str]]:
         """
-        Lazy-load Jira configuration from environment variables.
+        Resolve Jira configuration for a project/workspace.
 
         Educational Note: Supports both old and new Jira API formats:
         - Old: https://your-company.atlassian.net/rest/api/3
@@ -39,54 +40,45 @@ class JiraService:
         If JIRA_CLOUD_ID is provided, uses the new centralized gateway format.
         Otherwise, falls back to the legacy direct domain format.
         """
-        if self._configured is not None:
-            return  # Already loaded
-
-        # Read configuration
-        jira_domain = os.getenv('JIRA_DOMAIN', '').rstrip('/')
-        jira_email = os.getenv('JIRA_EMAIL')
-        jira_api_key = os.getenv('JIRA_API_KEY', '').strip('"')
-        jira_cloud_id = os.getenv('JIRA_CLOUD_ID', '').strip()
+        jira_domain = (get_secret('JIRA_DOMAIN', project_id=project_id) or '').rstrip('/')
+        jira_email = get_secret('JIRA_EMAIL', project_id=project_id)
+        jira_api_key = (get_secret('JIRA_API_KEY', project_id=project_id) or '').strip('"')
+        jira_cloud_id = (get_secret('JIRA_CLOUD_ID', project_id=project_id) or '').strip()
 
         # Determine base URL format
         if jira_cloud_id:
             # New centralized gateway format (API tokens with scopes)
-            self._base_url = f"https://api.atlassian.com/ex/jira/{jira_cloud_id}/rest/api/3"
+            base_url = f"https://api.atlassian.com/ex/jira/{jira_cloud_id}/rest/api/3"
             config_label = f"Atlassian API Gateway (Cloud ID: {jira_cloud_id[:8]}...)"
         elif jira_domain:
             # Legacy direct domain format (old API tokens)
             if not jira_domain.startswith('http'):
                 jira_domain = f"https://{jira_domain}"
-            self._base_url = f"{jira_domain}/rest/api/3"
+            base_url = f"{jira_domain}/rest/api/3"
             config_label = jira_domain
         else:
-            self._base_url = None
+            base_url = None
             config_label = None
 
         # Auth remains the same for both formats (Basic Auth with email + token)
-        self._auth = HTTPBasicAuth(jira_email, jira_api_key) if jira_email and jira_api_key else None
-
-        # Set configured flag
-        self._configured = bool(self._base_url and self._auth)
-
-        if self._configured:
-            logger.info("Jira service configured: %s", config_label)
+        auth = HTTPBasicAuth(jira_email, jira_api_key) if jira_email and jira_api_key else None
+        return base_url, auth, config_label
 
     def reload_config(self) -> None:
-        """Reset cached config so next call re-reads from environment."""
-        self._configured = None
+        """Compatibility hook; credentials are resolved per request."""
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """Check if Jira credentials are configured."""
-        self._load_config()
-        return self._configured
+        base_url, auth, _label = self._resolve_config(project_id=project_id)
+        return bool(base_url and auth)
 
     def _make_request(
         self,
         endpoint: str,
         method: str = 'GET',
         params: Optional[Dict] = None,
-        json_data: Optional[Dict] = None
+        json_data: Optional[Dict] = None,
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Make a request to the Jira API.
@@ -100,23 +92,23 @@ class JiraService:
         Returns:
             Dict with 'success' flag and either 'data' or 'error'
         """
-        self._load_config()
-
-        if not self.is_configured():
+        base_url, auth, config_label = self._resolve_config(project_id=project_id)
+        if not base_url or not auth:
             return {
                 "success": False,
-                "error": "Jira not configured. Please add JIRA_EMAIL, JIRA_API_KEY, and either JIRA_CLOUD_ID (new) or JIRA_DOMAIN (legacy) to .env"
+                "error": "Jira not configured. Please add JIRA_EMAIL, JIRA_API_KEY, and either JIRA_CLOUD_ID or JIRA_DOMAIN in Workspace Settings."
             }
+        logger.debug("Jira request using configuration: %s", config_label)
 
         try:
-            url = f"{self._base_url}/{endpoint}"
+            url = f"{base_url}/{endpoint}"
             headers = {'Accept': 'application/json'}
 
             if method == 'GET':
-                response = requests.get(url, auth=self._auth, headers=headers, params=params, timeout=30)
+                response = requests.get(url, auth=auth, headers=headers, params=params, timeout=30)
             elif method == 'POST':
                 headers['Content-Type'] = 'application/json'
-                response = requests.post(url, auth=self._auth, headers=headers, json=json_data, timeout=30)
+                response = requests.post(url, auth=auth, headers=headers, json=json_data, timeout=30)
             else:
                 return {"success": False, "error": f"Unsupported HTTP method: {method}"}
 
@@ -144,7 +136,12 @@ class JiraService:
         except Exception as e:
             return {"success": False, "error": f"Request failed: {str(e)}"}
 
-    def list_projects(self, search_query: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
+    def list_projects(
+        self,
+        search_query: Optional[str] = None,
+        limit: int = 50,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         List Jira projects.
 
@@ -159,7 +156,8 @@ class JiraService:
             # Use project search endpoint
             result = self._make_request(
                 'project/search',
-                params={'query': search_query, 'maxResults': limit}
+                params={'query': search_query, 'maxResults': limit},
+                project_id=project_id,
             )
             if not result['success']:
                 return result
@@ -167,7 +165,11 @@ class JiraService:
             projects = result['data'].get('values', [])
         else:
             # Get all projects
-            result = self._make_request('project', params={'maxResults': limit})
+            result = self._make_request(
+                'project',
+                params={'maxResults': limit},
+                project_id=project_id,
+            )
             if not result['success']:
                 return result
 
@@ -191,7 +193,11 @@ class JiraService:
             "total": len(formatted_projects)
         }
 
-    def get_project(self, project_key: str) -> Dict[str, Any]:
+    def get_project(
+        self,
+        project_key: str,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get detailed information about a specific project.
 
@@ -204,7 +210,7 @@ class JiraService:
         if not project_key:
             return {"success": False, "error": "project_key is required"}
 
-        result = self._make_request(f'project/{project_key}')
+        result = self._make_request(f'project/{project_key}', project_id=project_id)
         if not result['success']:
             return result
 
@@ -230,7 +236,8 @@ class JiraService:
         status: Optional[str] = None,
         assignee: Optional[str] = None,
         issue_type: Optional[str] = None,
-        max_results: int = 50
+        max_results: int = 50,
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Search for Jira issues using JQL or filters.
@@ -283,7 +290,12 @@ class JiraService:
 
 
         # Use enhanced JQL endpoint
-        result = self._make_request('search/jql', method='POST', json_data=payload)
+        result = self._make_request(
+            'search/jql',
+            method='POST',
+            json_data=payload,
+            project_id=project_id,
+        )
         if not result['success']:
             return result
 
@@ -312,7 +324,12 @@ class JiraService:
             "jql": jql
         }
 
-    def get_issue(self, issue_key: str, include_comments: bool = True) -> Dict[str, Any]:
+    def get_issue(
+        self,
+        issue_key: str,
+        include_comments: bool = True,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get detailed information about a specific issue.
 
@@ -327,7 +344,7 @@ class JiraService:
             return {"success": False, "error": "issue_key is required"}
 
         # Get issue details
-        result = self._make_request(f'issue/{issue_key}')
+        result = self._make_request(f'issue/{issue_key}', project_id=project_id)
         if not result['success']:
             return result
 
@@ -368,7 +385,10 @@ class JiraService:
 
         # Get comments if requested
         if include_comments:
-            comments_result = self._make_request(f'issue/{issue_key}/comment')
+            comments_result = self._make_request(
+                f'issue/{issue_key}/comment',
+                project_id=project_id,
+            )
 
             if comments_result['success']:
                 comments = comments_result['data'].get('comments', [])[:10]  # Limit to 10 comments

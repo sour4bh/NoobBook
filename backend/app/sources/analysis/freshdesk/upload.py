@@ -42,10 +42,10 @@ def add_freshdesk_source(
     Raises:
         ValueError: If Freshdesk is not configured
     """
-    if not freshdesk_service.is_configured():
+    if not freshdesk_service.is_configured(project_id=project_id):
         raise ValueError(
             "Freshdesk not configured. Please add FRESHDESK_API_KEY and "
-            "FRESHDESK_DOMAIN to your .env file."
+            "FRESHDESK_DOMAIN in Workspace Settings."
         )
 
     source_id = str(uuid.uuid4())

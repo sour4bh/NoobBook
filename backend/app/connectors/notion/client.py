@@ -2,13 +2,14 @@
 Notion Integration Service - Notion API integration for NoobBook.
 
 Educational Note: This service provides methods to query Notion pages and databases
-using the Notion API. It follows NoobBook's service pattern with lazy-loaded
-client initialization and environment-based configuration.
+using the Notion API. Credentials resolve through the owning project/workspace
+with environment variables only as a bootstrap fallback.
 """
 import logging
-import os
 from typing import Dict, Any, Optional, List
 import requests
+
+from app.config.secret import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,8 @@ class NotionService:
     """
     Notion API integration service.
 
-    Educational Note: Singleton pattern with lazy client initialization.
-    Configuration is read from environment variables on first use.
+    Educational Note: Singleton pattern for behavior only. Credentials are
+    resolved per call so different workspaces can use different integrations.
     """
 
     # Notion API base URL
@@ -26,38 +27,26 @@ class NotionService:
     API_VERSION = "2022-06-28"
 
     def __init__(self):
-        """Initialize the Notion service with lazy-loaded configuration."""
-        self._api_key = None
-        self._configured = None  # Cache configuration check
+        """Initialize the Notion service."""
 
-    def _load_config(self) -> None:
-        """Lazy-load Notion configuration from environment variables."""
-        if self._configured is not None:
-            return  # Already loaded
-
-        # Read configuration
-        self._api_key = os.getenv('NOTION_API_KEY', '').strip()
-
-        # Set configured flag
-        self._configured = bool(self._api_key)
-
-        if self._configured:
-            logger.info("Notion service configured")
+    def _api_key_for(self, project_id: Optional[str] = None) -> Optional[str]:
+        """Resolve the Notion API key for a project/workspace."""
+        api_key = get_secret("NOTION_API_KEY", project_id=project_id)
+        return api_key.strip() if api_key else None
 
     def reload_config(self) -> None:
-        """Reset cached config so next call re-reads from environment."""
-        self._configured = None
+        """Compatibility hook; credentials are resolved per request."""
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """Check if Notion credentials are configured."""
-        self._load_config()
-        return self._configured
+        return bool(self._api_key_for(project_id=project_id))
 
     def _make_request(
         self,
         endpoint: str,
         method: str = 'GET',
-        json_data: Optional[Dict] = None
+        json_data: Optional[Dict] = None,
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Make a request to the Notion API.
@@ -70,18 +59,17 @@ class NotionService:
         Returns:
             Dict with 'success' flag and either 'data' or 'error'
         """
-        self._load_config()
-
-        if not self.is_configured():
+        api_key = self._api_key_for(project_id=project_id)
+        if not api_key:
             return {
                 "success": False,
-                "error": "Notion not configured. Please add NOTION_API_KEY to .env"
+                "error": "Notion not configured. Please add NOTION_API_KEY in Workspace Settings."
             }
 
         try:
             url = f"{self.API_BASE}/{endpoint}"
             headers = {
-                'Authorization': f'Bearer {self._api_key}',
+                'Authorization': f'Bearer {api_key}',
                 'Notion-Version': self.API_VERSION,
                 'Content-Type': 'application/json'
             }
@@ -117,7 +105,13 @@ class NotionService:
         except Exception as e:
             return {"success": False, "error": f"Request failed: {str(e)}"}
 
-    def search(self, query: Optional[str] = None, filter_type: Optional[str] = None, limit: int = 20) -> Dict[str, Any]:
+    def search(
+        self,
+        query: Optional[str] = None,
+        filter_type: Optional[str] = None,
+        limit: int = 20,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Search Notion pages and databases.
 
@@ -144,7 +138,12 @@ class NotionService:
             }
 
         # TODO: Add pagination support (has_more / start_cursor) for large workspaces
-        result = self._make_request('search', method='POST', json_data=payload)
+        result = self._make_request(
+            'search',
+            method='POST',
+            json_data=payload,
+            project_id=project_id,
+        )
 
         if not result['success']:
             return result
@@ -183,7 +182,7 @@ class NotionService:
             "has_more": data.get('has_more', False)
         }
 
-    def get_page(self, page_id: str) -> Dict[str, Any]:
+    def get_page(self, page_id: str, project_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Get page content including properties and blocks.
 
@@ -197,7 +196,7 @@ class NotionService:
             return {"success": False, "error": "page_id is required"}
 
         # Get page metadata
-        page_result = self._make_request(f'pages/{page_id}')
+        page_result = self._make_request(f'pages/{page_id}', project_id=project_id)
         if not page_result['success']:
             return page_result
 
@@ -207,7 +206,7 @@ class NotionService:
         # Limitation: Only fetches top-level blocks. Nested children (e.g. items
         # inside toggles, columns, or synced blocks) are not recursively fetched.
         # TODO: Add pagination support (has_more / next_cursor) for pages with 100+ blocks
-        blocks_result = self._make_request(f'blocks/{page_id}/children')
+        blocks_result = self._make_request(f'blocks/{page_id}/children', project_id=project_id)
         if not blocks_result['success']:
             return blocks_result
 
@@ -235,7 +234,11 @@ class NotionService:
             }
         }
 
-    def get_database(self, database_id: str) -> Dict[str, Any]:
+    def get_database(
+        self,
+        database_id: str,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get database schema and properties.
 
@@ -248,7 +251,7 @@ class NotionService:
         if not database_id:
             return {"success": False, "error": "database_id is required"}
 
-        result = self._make_request(f'databases/{database_id}')
+        result = self._make_request(f'databases/{database_id}', project_id=project_id)
         if not result['success']:
             return result
 
@@ -279,7 +282,8 @@ class NotionService:
         self,
         database_id: str,
         filter_conditions: Optional[Dict] = None,
-        limit: int = 20
+        limit: int = 20,
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Query database with optional filters.
@@ -303,7 +307,12 @@ class NotionService:
         if filter_conditions:
             payload["filter"] = filter_conditions
 
-        result = self._make_request(f'databases/{database_id}/query', method='POST', json_data=payload)
+        result = self._make_request(
+            f'databases/{database_id}/query',
+            method='POST',
+            json_data=payload,
+            project_id=project_id,
+        )
 
         if not result['success']:
             return result

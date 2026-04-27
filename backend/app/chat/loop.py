@@ -186,6 +186,7 @@ class ChatLoop:
             has_jira_sources=bool(jira_sources),
             has_mixpanel_sources=bool(mixpanel_sources),
             user_id=resolved_user_id,
+            project_id=project_id,
         )
 
         accumulated_text_parts: List[str] = []

@@ -3,18 +3,19 @@ Freshdesk Integration Service - Freshdesk API client for NoobBook.
 
 Educational Note: This service provides methods to query Freshdesk tickets
 using the Freshdesk REST API v2. It follows NoobBook's service pattern with
-lazy-loaded client initialization and environment-based configuration.
+lazy-loaded client initialization and project/workspace-scoped configuration.
 
 Freshdesk uses Basic Auth with the API key as username and 'X' as password.
 Rate limiting is handled by checking the X-RateLimit-Remaining response header.
 """
 import logging
-import os
 import time
 from typing import Dict, Any, Optional, List
 
 import requests
 from requests.auth import HTTPBasicAuth
+
+from app.config.secret import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class FreshdeskService:
     Freshdesk API integration service.
 
     Educational Note: Singleton pattern with lazy client initialization.
-    Configuration is read from environment variables on first use.
+    Configuration resolves per project/workspace with env as bootstrap fallback.
     Freshdesk API uses Basic Auth: (api_key, 'X').
     """
 
@@ -63,24 +64,37 @@ class FreshdeskService:
         self._domain: Optional[str] = None
         self._base_url: Optional[str] = None
         self._configured: Optional[bool] = None
+        self._config_project_id: Optional[str] = None
 
         # Caches for name resolution (populated by populate_caches)
         self._agents_cache: Dict[int, Dict[str, str]] = {}
         self._groups_cache: Dict[int, str] = {}
         self._products_cache: Dict[int, str] = {}
 
-    def _load_config(self) -> None:
+    def _load_config(self, project_id: Optional[str] = None) -> None:
         """
-        Lazy-load Freshdesk configuration from environment variables.
+        Lazy-load Freshdesk configuration for a project/workspace.
 
         Educational Note: Freshdesk API base URL is:
         https://{domain}.freshdesk.com/api/v2
         """
-        if self._configured is not None:
+        if self._configured is not None and self._config_project_id == project_id:
             return  # Already loaded
 
-        self._api_key = os.getenv("FRESHDESK_API_KEY", "").strip()
-        self._domain = os.getenv("FRESHDESK_DOMAIN", "").strip()
+        if self._config_project_id != project_id:
+            self._agents_cache.clear()
+            self._groups_cache.clear()
+            self._products_cache.clear()
+
+        self._api_key = (
+            get_secret("FRESHDESK_API_KEY", project_id=project_id)
+            or ""
+        ).strip()
+        self._domain = (
+            get_secret("FRESHDESK_DOMAIN", project_id=project_id)
+            or ""
+        ).strip()
+        self._config_project_id = project_id
 
         if self._api_key and self._domain:
             # Strip protocol and trailing slashes if user accidentally included them
@@ -95,22 +109,24 @@ class FreshdeskService:
             self._configured = False
 
     def reload_config(self) -> None:
-        """Reset cached config so next call re-reads from environment."""
+        """Reset cached config so next call re-reads workspace/env secrets."""
         self._configured = None
+        self._config_project_id = None
         self._agents_cache.clear()
         self._groups_cache.clear()
         self._products_cache.clear()
 
-    def is_configured(self) -> bool:
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
         """Check if Freshdesk credentials are configured."""
-        self._load_config()
-        return self._configured
+        self._load_config(project_id=project_id)
+        return bool(self._configured)
 
     def _make_request(
         self,
         endpoint: str,
         params: Optional[Dict] = None,
         _retry_count: int = 0,
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Make a GET request to the Freshdesk API with automatic rate-limit retry.
@@ -120,12 +136,12 @@ class FreshdeskService:
         X-RateLimit-Remaining header. On 429 responses, we sleep and retry
         automatically (up to 3 times) instead of failing.
         """
-        self._load_config()
+        self._load_config(project_id=project_id)
 
         if not self._configured:
             return {
                 "success": False,
-                "error": "Freshdesk not configured. Please add FRESHDESK_API_KEY and FRESHDESK_DOMAIN to .env",
+                "error": "Freshdesk not configured. Please add FRESHDESK_API_KEY and FRESHDESK_DOMAIN in Workspace Settings.",
             }
 
         max_retries = 3
@@ -179,7 +195,12 @@ class FreshdeskService:
                         retry_after, _retry_count + 1, max_retries,
                     )
                     time.sleep(retry_after)
-                    return self._make_request(endpoint, params, _retry_count=_retry_count + 1)
+                    return self._make_request(
+                        endpoint,
+                        params,
+                        _retry_count=_retry_count + 1,
+                        project_id=project_id,
+                    )
                 return {"success": False, "error": "Rate limited after max retries."}
             elif response.status_code == 401:
                 return {"success": False, "error": "Authentication failed. Check your FRESHDESK_API_KEY."}
@@ -202,6 +223,7 @@ class FreshdeskService:
         updated_since: Optional[str] = None,
         page: int = 1,
         per_page: int = 100,
+        project_id: Optional[str] = None,
     ) -> List[Dict]:
         """
         List tickets with pagination.
@@ -230,7 +252,11 @@ class FreshdeskService:
         if updated_since:
             params["updated_since"] = updated_since
 
-        result = self._make_request("tickets", params=params)
+        result = self._make_request(
+            "tickets",
+            params=params,
+            project_id=project_id,
+        )
         if not result["success"]:
             logger.error("Failed to list tickets (page %d): %s", page, result.get("error"))
             return [], {}
@@ -246,6 +272,7 @@ class FreshdeskService:
         updated_since: Optional[str] = None,
         cancel_check: Optional[Any] = None,
         on_progress: Optional[Any] = None,
+        project_id: Optional[str] = None,
     ) -> List[Dict]:
         """
         Fetch all tickets across all pages with progress + cancellation support.
@@ -264,6 +291,7 @@ class FreshdeskService:
                 updated_since=updated_since,
                 page=page,
                 per_page=per_page,
+                project_id=project_id,
             )
 
             if not tickets:
@@ -296,6 +324,7 @@ class FreshdeskService:
         batch_days: int = 5,
         cancel_check: Optional[Any] = None,
         on_progress: Optional[Any] = None,
+        project_id: Optional[str] = None,
     ) -> List[Dict]:
         """
         Smart fetch: try a single fetch first, only use date-range batching
@@ -316,6 +345,7 @@ class FreshdeskService:
             updated_since=since,
             cancel_check=cancel_check,
             on_progress=on_progress,
+            project_id=project_id,
         )
 
         # If we didn't hit the 300-page limit, we got everything
@@ -347,6 +377,7 @@ class FreshdeskService:
                 on_progress=lambda total, rate: on_progress(
                     len(all_tickets) + total, rate
                 ) if on_progress else None,
+                project_id=project_id,
             )
 
             # Deduplicate: only add tickets we haven't seen
@@ -363,7 +394,7 @@ class FreshdeskService:
 
         return all_tickets
 
-    def populate_caches(self) -> None:
+    def populate_caches(self, project_id: Optional[str] = None) -> None:
         """
         Populate internal caches for agents, groups, and products.
 
@@ -375,7 +406,11 @@ class FreshdeskService:
         self._agents_cache.clear()
         page = 1
         while True:
-            result = self._make_request("agents", params={"page": page, "per_page": 100})
+            result = self._make_request(
+                "agents",
+                params={"page": page, "per_page": 100},
+                project_id=project_id,
+            )
             if not result["success"]:
                 logger.warning("Failed to fetch agents page %d: %s", page, result.get("error"))
                 break
@@ -395,14 +430,14 @@ class FreshdeskService:
 
         # Fetch groups
         self._groups_cache.clear()
-        result = self._make_request("groups")
+        result = self._make_request("groups", project_id=project_id)
         if result["success"]:
             for group in result.get("data", []):
                 self._groups_cache[group.get("id")] = group.get("name", "Unknown Group")
 
         # Fetch products
         self._products_cache.clear()
-        result = self._make_request("products")
+        result = self._make_request("products", project_id=project_id)
         if result["success"]:
             for product in result.get("data", []):
                 self._products_cache[product.get("id")] = product.get("name", "Unknown Product")

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from app.config.secret import get_project_secret
+from app.config.secret import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,24 @@ class ImagenService:
         """Initialize the Imagen service."""
         self._client = None
 
-    def _get_client(self, project_id: Optional[str] = None):
+    def _api_key_for(
+        self,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Resolve a Google image-generation key through project/workspace settings."""
+        api_key = get_secret(
+            'NANO_BANANA_API_KEY',
+            project_id=project_id,
+            workspace_id=workspace_id,
+        )
+        return api_key.strip() if api_key else None
+
+    def _get_client(
+        self,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ):
         """
         Get or create the Google GenAI client.
 
@@ -54,22 +71,17 @@ class ImagenService:
         Raises:
             ValueError: If GEMINI_API_KEY is not configured
         """
-        workspace_api_key = get_project_secret(
-            project_id,
-            'NANO_BANANA_API_KEY',
-        )
-        if workspace_api_key:
+        api_key = self._api_key_for(project_id=project_id, workspace_id=workspace_id)
+        if not api_key:
+            raise ValueError(
+                "NANO_BANANA_API_KEY not found. Please configure it in Workspace Settings."
+            )
+
+        if project_id or workspace_id:
             from google import genai
-            return genai.Client(api_key=workspace_api_key)
+            return genai.Client(api_key=api_key)
 
         if self._client is None:
-            api_key = os.getenv('NANO_BANANA_API_KEY')
-            if not api_key:
-                raise ValueError(
-                    "NANO_BANANA_API_KEY not found in environment. "
-                    "Please configure it in Workspace Settings."
-                )
-
             from google import genai
             self._client = genai.Client(api_key=api_key)
 
@@ -433,20 +445,18 @@ class ImagenService:
             logger.exception("Error generating image with reference")
             return {"success": False, "error": f"Image generation failed: {str(e)}"}
 
-    def is_configured(self, project_id: Optional[str] = None) -> bool:
+    def is_configured(
+        self,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> bool:
         """
         Check if Gemini API key is configured.
 
         Returns:
             True if API key is set, False otherwise
         """
-        return bool(
-            get_project_secret(
-                project_id,
-                'NANO_BANANA_API_KEY',
-            )
-            or os.getenv('NANO_BANANA_API_KEY')
-        )
+        return bool(self._api_key_for(project_id=project_id, workspace_id=workspace_id))
 
 
 # Singleton instance

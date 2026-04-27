@@ -37,6 +37,16 @@ from app.providers.supabase import storage_service  # For downloading previous s
 from app.background.tasks import task_service
 from app.auth.guards import require_permission
 from app.sources import index
+from app.api.settings.workspace import resolve_workspace_context
+
+
+def _workspace_id_for_status() -> str | None:
+    """Resolve selected workspace when status routes are called inside the app."""
+    try:
+        _identity, workspace_id = resolve_workspace_context(require_manager=False)
+        return workspace_id
+    except Exception:
+        return None
 
 
 @studio_bp.route('/projects/<project_id>/studio/audio-overview', methods=['POST'])
@@ -295,9 +305,10 @@ def get_tts_status():
         - configured: Boolean indicating if ElevenLabs API key is set
     """
     try:
+        workspace_id = _workspace_id_for_status()
         return jsonify({
             'success': True,
-            'configured': tts_service.is_configured()
+            'configured': tts_service.is_configured(workspace_id=workspace_id)
         }), 200
 
     except Exception as e:
@@ -321,13 +332,14 @@ def list_tts_voices():
         - voices: List of voice info (id, name, category, preview_url)
     """
     try:
-        if not tts_service.is_configured():
+        workspace_id = _workspace_id_for_status()
+        if not tts_service.is_configured(workspace_id=workspace_id):
             return jsonify({
                 'success': False,
                 'error': 'ElevenLabs API key not configured'
             }), 400
 
-        result = tts_service.list_voices()
+        result = tts_service.list_voices(workspace_id=workspace_id)
         return jsonify(result), 200 if result.get('success') else 400
 
     except Exception as e:

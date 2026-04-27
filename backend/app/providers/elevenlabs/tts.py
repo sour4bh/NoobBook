@@ -20,11 +20,10 @@ Output Formats:
 - pcm_16000: Raw PCM for processing
 """
 import logging
-import os
 from typing import Optional, Generator
 from datetime import datetime
 
-from app.config.secret import get_project_secret
+from app.config.secret import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,24 @@ class TTSService:
         """Initialize the TTS service."""
         self._client = None
 
-    def _get_client(self, project_id: Optional[str] = None):
+    def _api_key_for(
+        self,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Resolve an ElevenLabs key through project/workspace settings."""
+        api_key = get_secret(
+            'ELEVENLABS_API_KEY',
+            project_id=project_id,
+            workspace_id=workspace_id,
+        )
+        return api_key.strip() if api_key else None
+
+    def _get_client(
+        self,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ):
         """
         Get or create the ElevenLabs client.
 
@@ -71,22 +87,17 @@ class TTSService:
         Raises:
             ValueError: If ELEVENLABS_API_KEY is not configured
         """
-        workspace_api_key = get_project_secret(
-            project_id,
-            'ELEVENLABS_API_KEY',
-        )
-        if workspace_api_key:
+        api_key = self._api_key_for(project_id=project_id, workspace_id=workspace_id)
+        if not api_key:
+            raise ValueError(
+                "ELEVENLABS_API_KEY not found. Please configure it in Workspace Settings."
+            )
+
+        if project_id or workspace_id:
             from elevenlabs.client import ElevenLabs
-            return ElevenLabs(api_key=workspace_api_key)
+            return ElevenLabs(api_key=api_key)
 
         if self._client is None:
-            api_key = os.getenv('ELEVENLABS_API_KEY')
-            if not api_key:
-                raise ValueError(
-                    "ELEVENLABS_API_KEY not found in environment. "
-                    "Please configure it in Workspace Settings."
-                )
-
             from elevenlabs.client import ElevenLabs
             self._client = ElevenLabs(api_key=api_key)
 
@@ -237,7 +248,9 @@ class TTSService:
         self,
         text: str,
         voice_id: Optional[str] = None,
-        model_id: Optional[str] = None
+        model_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Generator[bytes, None, None]:
         """
         Generate audio stream from text.
@@ -254,7 +267,7 @@ class TTSService:
         Yields:
             Audio bytes chunks
         """
-        client = self._get_client()
+        client = self._get_client(project_id=project_id, workspace_id=workspace_id)
 
         voice = voice_id or self.DEFAULT_VOICE_ID
         model = model_id or self.DEFAULT_MODEL
@@ -269,7 +282,11 @@ class TTSService:
         for chunk in audio_stream:
             yield chunk
 
-    def list_voices(self) -> dict:
+    def list_voices(
+        self,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> dict:
         """
         List available voices from ElevenLabs.
 
@@ -280,7 +297,7 @@ class TTSService:
             Dict with success status and list of voices
         """
         try:
-            client = self._get_client()
+            client = self._get_client(project_id=project_id, workspace_id=workspace_id)
 
             response = client.voices.get_all()
 
@@ -307,20 +324,18 @@ class TTSService:
                 "voices": []
             }
 
-    def is_configured(self, project_id: Optional[str] = None) -> bool:
+    def is_configured(
+        self,
+        project_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> bool:
         """
         Check if ElevenLabs API key is configured.
 
         Returns:
             True if API key is set, False otherwise
         """
-        return bool(
-            get_project_secret(
-                project_id,
-                'ELEVENLABS_API_KEY',
-            )
-            or os.getenv('ELEVENLABS_API_KEY')
-        )
+        return bool(self._api_key_for(project_id=project_id, workspace_id=workspace_id))
 
 
 # Singleton instance

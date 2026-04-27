@@ -50,7 +50,7 @@ class FreshdeskSyncService:
 
         Supports caller-provided cancellation and progress callbacks.
         """
-        if not freshdesk_service.is_configured():
+        if not freshdesk_service.is_configured(project_id=project_id):
             return {
                 "tickets_fetched": 0, "tickets_created": 0,
                 "tickets_updated": 0, "errors": 1,
@@ -95,7 +95,7 @@ class FreshdeskSyncService:
                 pass  # Non-critical
 
         try:
-            freshdesk_service.populate_caches()
+            freshdesk_service.populate_caches(project_id=project_id)
 
             # Use batched fetch for backfill (handles 50k+ tickets via date-range windows)
             # Use single fetch for incremental (typically small number of recent tickets)
@@ -105,6 +105,7 @@ class FreshdeskSyncService:
                     batch_days=5,
                     cancel_check=_is_cancelled,
                     on_progress=_on_progress,
+                    project_id=project_id,
                 )
             else:
                 updated_since = self._get_updated_since(source_id, mode, days_back)
@@ -112,6 +113,7 @@ class FreshdeskSyncService:
                     updated_since=updated_since,
                     cancel_check=_is_cancelled,
                     on_progress=_on_progress,
+                    project_id=project_id,
                 )
 
             stats["tickets_fetched"] = len(raw_tickets)

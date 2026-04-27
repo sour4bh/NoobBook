@@ -84,7 +84,7 @@ def process_jira(
 
     # Step 1: Verify connection and get project list
     try:
-        result = jira_service.list_projects()
+        result = jira_service.list_projects(project_id=project_id)
     except Exception as e:
         source_service.update_source(
             project_id, source_id, status="error",

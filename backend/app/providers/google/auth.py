@@ -406,7 +406,10 @@ class GoogleAuthService:
             Valid Credentials object or None
         """
         effective_user_id = user_id or self._get_default_user_id()
-        creds = self._load_credentials(effective_user_id, workspace_id=workspace_id)
+        creds, token_workspace_id = self._load_credentials_with_workspace(
+            effective_user_id,
+            workspace_id=workspace_id,
+        )
         if not creds:
             return None
 
@@ -414,7 +417,11 @@ class GoogleAuthService:
         if creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
-                self._save_credentials(creds, effective_user_id)
+                self._save_credentials(
+                    creds,
+                    effective_user_id,
+                    workspace_id=token_workspace_id,
+                )
             except Exception as e:
                 logger.warning("Failed to refresh Google credentials: %s", e)
                 return None
@@ -426,34 +433,45 @@ class GoogleAuthService:
         user_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
     ) -> Optional[Credentials]:
+        credentials, _token_workspace_id = self._load_credentials_with_workspace(
+            user_id,
+            workspace_id=workspace_id,
+        )
+        return credentials
+
+    def _load_credentials_with_workspace(
+        self,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Tuple[Optional[Credentials], Optional[str]]:
         """
-        Load credentials from Supabase for a user.
+        Load credentials plus the workspace that owns their OAuth client.
 
         Args:
             user_id: User ID to load credentials for
 
         Returns:
-            Credentials object or None if not found/invalid
+            (Credentials object or None, token workspace id or fallback)
         """
         if not user_id:
-            return None
+            return None, None
 
         try:
             result = self.supabase.table("users").select("google_tokens").eq("id", user_id).execute()
 
             if not result.data or len(result.data) == 0:
-                return None
+                return None, None
 
             token_data = result.data[0].get("google_tokens")
             if not token_data:
-                return None
+                return None, None
 
             # Use the workspace that initiated OAuth when present. App client
             # credentials are encrypted workspace secrets with .env fallback.
             token_workspace_id = token_data.get("workspace_id") or workspace_id
             client_config = self._get_client_config(workspace_id=token_workspace_id)
             if not client_config:
-                return None
+                return None, token_workspace_id
             web_config = client_config['web']
 
             return Credentials(
@@ -463,10 +481,10 @@ class GoogleAuthService:
                 client_id=web_config['client_id'],
                 client_secret=web_config['client_secret'],
                 scopes=token_data.get('scopes')
-            )
+            ), token_workspace_id
         except Exception as e:
             logger.error("Error loading Google credentials: %s", e)
-            return None
+            return None, None
 
     def _save_credentials(
         self,

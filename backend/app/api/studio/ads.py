@@ -37,6 +37,16 @@ from app.providers.google.imagen import imagen_service
 from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.auth.guards import require_permission
+from app.api.settings.workspace import resolve_workspace_context
+
+
+def _workspace_id_for_status() -> str | None:
+    """Resolve selected workspace when status routes are called inside the app."""
+    try:
+        _identity, workspace_id = resolve_workspace_context(require_manager=False)
+        return workspace_id
+    except Exception:
+        return None
 
 
 @studio_bp.route('/projects/<project_id>/studio/ad-creative', methods=['POST'])
@@ -236,9 +246,10 @@ def get_gemini_status():
         - configured: Boolean indicating if Gemini API key is set
     """
     try:
+        workspace_id = _workspace_id_for_status()
         return jsonify({
             'success': True,
-            'configured': imagen_service.is_configured()
+            'configured': imagen_service.is_configured(workspace_id=workspace_id)
         }), 200
 
     except Exception as e:

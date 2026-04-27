@@ -78,7 +78,7 @@ def process_mixpanel(
     embedding_info = source.get("embedding_info", {}) or {}
 
     try:
-        result = mixpanel_service.list_events(limit=100)
+        result = mixpanel_service.list_events(limit=100, project_id=project_id)
     except Exception as e:
         source_service.update_source(
             project_id, source_id, status="error",

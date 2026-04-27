@@ -424,7 +424,7 @@ def sync_freshdesk_source(project_id: str, source_id: str):
     """Trigger an incremental sync as a background task (shows progress in ActiveTasksBar)."""
     try:
         from app.connectors.freshdesk.client import freshdesk_service
-        if not freshdesk_service.is_configured():
+        if not freshdesk_service.is_configured(project_id=project_id):
             return jsonify({'success': False, 'error': 'Freshdesk not configured. Add API key and domain in Settings.'}), 400
 
         from app.background.tasks import task_service
@@ -455,7 +455,7 @@ def backfill_freshdesk_source(project_id: str, source_id: str):
     """Clear all tickets and re-fetch last 30 days as a background task."""
     try:
         from app.connectors.freshdesk.client import freshdesk_service
-        if not freshdesk_service.is_configured():
+        if not freshdesk_service.is_configured(project_id=project_id):
             return jsonify({'success': False, 'error': 'Freshdesk not configured. Add API key and domain in Settings.'}), 400
 
         from app.background.tasks import task_service

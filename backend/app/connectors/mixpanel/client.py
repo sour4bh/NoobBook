@@ -2,19 +2,20 @@
 Mixpanel Integration Service - Query API access for NoobBook chat.
 
 Educational Note: Uses Mixpanel's Service Account auth (HTTP Basic) against
-the Query API (https://mixpanel.com/api/query/). No OAuth — admin configures
-one service account globally; all users in the app share access to that
-Mixpanel project.
+the Query API (https://mixpanel.com/api/query/). Credentials resolve through
+the owning project/workspace with environment variables only as bootstrap
+fallback.
 
 Lazy singleton pattern mirroring jira_service.
 """
 import json
 import logging
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from requests.auth import HTTPBasicAuth
+
+from app.config.secret import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class MixpanelService:
     """
     Mixpanel Query API service.
 
-    Config (env vars):
+    Config keys:
         MIXPANEL_SERVICE_ACCOUNT_USERNAME
         MIXPANEL_SERVICE_ACCOUNT_SECRET
         MIXPANEL_PROJECT_ID
@@ -37,42 +38,47 @@ class MixpanelService:
     }
 
     def __init__(self):
-        self._auth: Optional[HTTPBasicAuth] = None
-        self._project_id: Optional[str] = None
-        self._base_url: Optional[str] = None
-        self._configured: Optional[bool] = None
+        """Initialize the Mixpanel service."""
 
-    def _load_config(self) -> None:
-        if self._configured is not None:
-            return
-
-        username = os.getenv("MIXPANEL_SERVICE_ACCOUNT_USERNAME", "").strip().strip('"')
-        secret = os.getenv("MIXPANEL_SERVICE_ACCOUNT_SECRET", "").strip().strip('"')
-        project_id = os.getenv("MIXPANEL_PROJECT_ID", "").strip().strip('"')
-        region = os.getenv("MIXPANEL_REGION", "us").strip().lower() or "us"
+    def _resolve_config(
+        self,
+        project_id: Optional[str] = None,
+    ) -> Tuple[Optional[str], Optional[HTTPBasicAuth], Optional[str]]:
+        username = (
+            get_secret("MIXPANEL_SERVICE_ACCOUNT_USERNAME", project_id=project_id)
+            or ""
+        ).strip().strip('"')
+        secret = (
+            get_secret("MIXPANEL_SERVICE_ACCOUNT_SECRET", project_id=project_id)
+            or ""
+        ).strip().strip('"')
+        mixpanel_project_id = (
+            get_secret("MIXPANEL_PROJECT_ID", project_id=project_id)
+            or ""
+        ).strip().strip('"')
+        region = (
+            get_secret("MIXPANEL_REGION", project_id=project_id)
+            or "us"
+        ).strip().lower() or "us"
 
         host = self.REGION_HOSTS.get(region, self.REGION_HOSTS["us"])
-        self._base_url = f"{host}/api/query"
-        self._auth = HTTPBasicAuth(username, secret) if username and secret else None
-        self._project_id = project_id or None
-        self._configured = bool(self._auth and self._project_id)
-
-        if self._configured:
-            logger.info("Mixpanel service configured: project_id=%s region=%s", project_id, region)
+        base_url = f"{host}/api/query"
+        auth = HTTPBasicAuth(username, secret) if username and secret else None
+        return base_url, auth, mixpanel_project_id or None
 
     def reload_config(self) -> None:
-        """Reset cached config so next call re-reads env vars."""
-        self._configured = None
+        """Compatibility hook; credentials are resolved per request."""
 
-    def is_configured(self) -> bool:
-        self._load_config()
-        return bool(self._configured)
+    def is_configured(self, project_id: Optional[str] = None) -> bool:
+        _base_url, auth, mixpanel_project_id = self._resolve_config(project_id=project_id)
+        return bool(auth and mixpanel_project_id)
 
     def _make_request(
         self,
         endpoint: str,
         params: Optional[Dict[str, Any]] = None,
         method: str = "GET",
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Call the Mixpanel Query API.
@@ -80,32 +86,32 @@ class MixpanelService:
         Educational Note: Mixpanel's Query API returns either JSON objects or
         NDJSON (for /export). The endpoints we use here all return JSON.
         """
-        self._load_config()
-        if not self._configured:
+        base_url, auth, mixpanel_project_id = self._resolve_config(project_id=project_id)
+        if not auth or not mixpanel_project_id:
             return {
                 "success": False,
                 "error": (
                     "Mixpanel not configured. Please add MIXPANEL_SERVICE_ACCOUNT_USERNAME, "
-                    "MIXPANEL_SERVICE_ACCOUNT_SECRET, and MIXPANEL_PROJECT_ID to your .env."
+                    "MIXPANEL_SERVICE_ACCOUNT_SECRET, and MIXPANEL_PROJECT_ID in Workspace Settings."
                 ),
             }
 
         # project_id is required on every Query API call
-        merged_params = {"project_id": self._project_id}
+        merged_params = {"project_id": mixpanel_project_id}
         if params:
             merged_params.update({k: v for k, v in params.items() if v is not None})
 
-        url = f"{self._base_url}/{endpoint.lstrip('/')}"
+        url = f"{base_url}/{endpoint.lstrip('/')}"
         headers = {"Accept": "application/json"}
 
         try:
             if method == "GET":
                 response = requests.get(
-                    url, auth=self._auth, headers=headers, params=merged_params, timeout=30
+                    url, auth=auth, headers=headers, params=merged_params, timeout=30
                 )
             elif method == "POST":
                 response = requests.post(
-                    url, auth=self._auth, headers=headers, data=merged_params, timeout=30
+                    url, auth=auth, headers=headers, data=merged_params, timeout=30
                 )
             else:
                 return {"success": False, "error": f"Unsupported HTTP method: {method}"}
@@ -154,7 +160,11 @@ class MixpanelService:
 
     # --- Tool methods ---
 
-    def list_events(self, limit: int = 100) -> Dict[str, Any]:
+    def list_events(
+        self,
+        limit: int = 100,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         List event names tracked in the project.
 
@@ -163,6 +173,7 @@ class MixpanelService:
         result = self._make_request(
             "events/names",
             params={"type": "general", "limit": min(max(limit, 1), 255)},
+            project_id=project_id,
         )
         if not result["success"]:
             return result
@@ -180,6 +191,7 @@ class MixpanelService:
         to_date: str,
         unit: str = "day",
         event_type: str = "general",
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Get event counts over time.
@@ -200,6 +212,7 @@ class MixpanelService:
                 "unit": unit,
                 "type": event_type,
             },
+            project_id=project_id,
         )
 
     def segmentation(
@@ -211,6 +224,7 @@ class MixpanelService:
         where: Optional[str] = None,
         unit: str = "day",
         segmentation_type: str = "general",
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Segment a single event by a property.
@@ -234,11 +248,15 @@ class MixpanelService:
         if where:
             params["where"] = where
 
-        return self._make_request("segmentation", params=params)
+        return self._make_request(
+            "segmentation",
+            params=params,
+            project_id=project_id,
+        )
 
-    def list_funnels(self) -> Dict[str, Any]:
+    def list_funnels(self, project_id: Optional[str] = None) -> Dict[str, Any]:
         """List funnels configured in the project. Endpoint: GET /funnels/list"""
-        result = self._make_request("funnels/list")
+        result = self._make_request("funnels/list", project_id=project_id)
         if not result["success"]:
             return result
 
@@ -258,6 +276,7 @@ class MixpanelService:
         from_date: str,
         to_date: str,
         unit: str = "day",
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Query funnel conversion over time.
@@ -277,6 +296,7 @@ class MixpanelService:
                 "to_date": to_date,
                 "unit": unit,
             },
+            project_id=project_id,
         )
 
     def retention(
@@ -287,6 +307,7 @@ class MixpanelService:
         to_date: str,
         retention_type: str = "birth",
         unit: str = "day",
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Retention analysis.
@@ -308,9 +329,17 @@ class MixpanelService:
         if event:
             params["event"] = event
 
-        return self._make_request("retention", params=params)
+        return self._make_request(
+            "retention",
+            params=params,
+            project_id=project_id,
+        )
 
-    def jql(self, script: str) -> Dict[str, Any]:
+    def jql(
+        self,
+        script: str,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Run a JQL script.
 
@@ -322,7 +351,12 @@ class MixpanelService:
         if not script or not script.strip():
             return {"success": False, "error": "script is required (JavaScript JQL code)."}
 
-        return self._make_request("jql", params={"script": script}, method="POST")
+        return self._make_request(
+            "jql",
+            params={"script": script},
+            method="POST",
+            project_id=project_id,
+        )
 
 
 # Singleton instance

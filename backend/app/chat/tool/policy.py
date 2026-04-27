@@ -82,6 +82,7 @@ class ChatToolPolicy:
         has_jira_sources: bool = False,
         has_mixpanel_sources: bool = False,
         user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], Dict]:
         """Return (tools_list, mcp_registry) for one Claude API call."""
         # Capability-aware tool selection. Every Claude-visible tool
@@ -121,18 +122,19 @@ class ChatToolPolicy:
         # Each tool is filtered through the policy individually so a stale
         # KnowledgeBaseService cache cannot expose a tool the policy denies.
         if has_jira_sources:
-            for jira_tool in knowledge_base_service.get_jira_tools():
+            for jira_tool in knowledge_base_service.get_jira_tools(project_id=project_id):
                 if _exposable(jira_tool["name"]):
                     tools.append(jira_tool)
 
         # Add Mixpanel tools only when the project has a .mixpanel source (project-scoped)
         if has_mixpanel_sources:
-            for mp_tool in knowledge_base_service.get_mixpanel_tools():
+            for mp_tool in knowledge_base_service.get_mixpanel_tools(project_id=project_id):
                 if _exposable(mp_tool["name"]):
                     tools.append(mp_tool)
 
-        # Non-Jira knowledge base tools (Notion, GitHub, etc.) — always global
-        for kb_tool in knowledge_base_service.get_available_tools():
+        # Non-Jira knowledge base tools (Notion, GitHub, etc.) resolve through
+        # the same project/workspace secret surface as project-scoped tools.
+        for kb_tool in knowledge_base_service.get_available_tools(project_id=project_id):
             if _exposable(kb_tool["name"]):
                 tools.append(kb_tool)
 

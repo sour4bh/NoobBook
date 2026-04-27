@@ -710,6 +710,30 @@ def test_google_auth_url_returns_none_when_oauth_credentials_missing(monkeypatch
     ) is None
 
 
+def test_google_refresh_preserves_workspace_binding():
+    """Refreshed tokens keep the workspace that owns the OAuth client secret."""
+    from app.providers.google.auth import GoogleAuthService
+
+    service = GoogleAuthService()
+    credentials = MagicMock()
+    credentials.expired = True
+    credentials.refresh_token = "refresh-token"
+    credentials.valid = True
+
+    saved = {}
+    with patch.object(
+        service,
+        "_load_credentials_with_workspace",
+        return_value=(credentials, "workspace-1"),
+    ), patch.object(service, "_save_credentials") as save_credentials:
+        assert service.get_credentials(user_id="user-1") is credentials
+
+    credentials.refresh.assert_called_once()
+    save_credentials.assert_called_once()
+    saved["workspace_id"] = save_credentials.call_args.kwargs["workspace_id"]
+    assert saved["workspace_id"] == "workspace-1"
+
+
 # ---------------------------------------------------------------------------
 # Admin gate on a real admin-only route (settings/users)
 # ---------------------------------------------------------------------------

@@ -17,6 +17,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.auth.asset_tokens import build_asset_token, parse_asset_token
+
 
 PROJECT_ID = "00000000-0000-0000-0000-000000000000"
 
@@ -88,6 +90,45 @@ def test_auth_signin_route_skips_jwt_guard(auth_client):
     assert response.status_code != 404
 
 
+def test_auth_me_does_not_mint_asset_token_for_unauthenticated_fallback(auth_client):
+    """Auth-required /auth/me may describe fallback identity but not asset-auth it."""
+    response = auth_client.get("/api/v1/auth/me")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["user"]["is_authenticated"] is False
+    assert body["asset_token"] is None
+
+
+def test_auth_signin_mints_scoped_asset_token(auth_client):
+    """Sign-in returns a separate asset token for browser-loaded media URLs."""
+    with patch("app.api.auth.routes.auth_service") as service:
+        service.sign_in.return_value = {
+            "success": True,
+            "user": {"id": "user-abc", "email": "user@example.com"},
+            "session": {
+                "access_token": "primary-jwt",
+                "refresh_token": "refresh",
+                "expires_in": 3600,
+                "token_type": "bearer",
+            },
+        }
+
+        response = auth_client.post(
+            "/api/v1/auth/signin",
+            json={"email": "user@example.com", "password": "password"},
+        )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["session"]["access_token"] == "primary-jwt"
+    assert body["asset_token"] != "primary-jwt"
+    assert parse_asset_token(
+        body["asset_token"],
+        auth_client.application.config["SECRET_KEY"],
+    ) == "user-abc"
+
+
 def test_dev_mode_api_routes_use_fallback_identity(auth_client, auth_optional_env):
     """NBB-903: API middleware honors dev/single-user mode instead of
     requiring a bearer token after the domain identity resolver falls back."""
@@ -104,17 +145,15 @@ def test_dev_mode_api_routes_use_fallback_identity(auth_client, auth_optional_en
 
 
 # ---------------------------------------------------------------------------
-# Query-parameter token policy (NBB-201)
+# Browser asset-token policy (NBB-911)
 #
-# `?token=` is honored only for browser-loaded media/file/embed routes that
-# cannot attach `Authorization` headers. JSON/CRUD routes must send
-# `Authorization: Bearer` and 401 on `?token=` alone.
+# Primary JWTs travel through `Authorization: Bearer` only. Browser-loaded
+# media/file/embed routes that cannot attach headers use scoped `asset_token`
+# query parameters. JSON/CRUD routes reject all query credentials.
 # ---------------------------------------------------------------------------
 
-def test_query_param_token_rejected_on_json_route(auth_client):
-    """JSON listing endpoints reject `?token=` with 401 under NBB-201's
-    allowlist. Before NBB-201 the middleware accepted the query token on
-    any GET; the new policy narrows it to browser-asset paths only."""
+def test_primary_query_token_rejected_on_json_route(auth_client):
+    """JSON listing endpoints reject legacy primary-JWT query tokens."""
     with patch(
         "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
@@ -137,10 +176,8 @@ def test_query_param_token_rejected_on_json_route(auth_client):
     assert supabase.auth.get_user.called is False
 
 
-def test_query_param_token_accepted_on_allowlisted_media_path(auth_client):
-    """Browser-loaded media/file/embed routes (e.g. source download) still
-    accept `?token=` so <img>/<video>/<iframe>/<audio> can authenticate
-    without setting headers."""
+def test_primary_query_token_rejected_on_allowlisted_media_path(auth_client):
+    """Asset routes no longer accept the primary JWT in `?token=`."""
     with patch(
         "app.api.auth.middleware.get_supabase"
     ) as mock_get_supabase:
@@ -154,9 +191,60 @@ def test_query_param_token_accepted_on_allowlisted_media_path(auth_client):
             "/api/v1/projects/proj-1/sources/src-1/download?token=valid-looking-jwt",
         )
 
-    # Guard passes; the downstream route may 404/500 on mocked project
+    assert response.status_code == 401
+    assert supabase.auth.get_user.called is False
+
+
+def test_asset_token_rejected_on_json_route(auth_client):
+    """Scoped asset tokens are not general API credentials."""
+    token = build_asset_token(
+        "user-abc",
+        auth_client.application.config["SECRET_KEY"],
+    )
+
+    response = auth_client.get(f"/api/v1/projects?asset_token={quote(token)}")
+
+    assert response.status_code == 401
+    assert response.get_json() == {"success": False, "error": "Authentication required"}
+
+
+def test_asset_token_accepted_on_allowlisted_media_path(auth_client):
+    """Browser-loaded media/file/embed routes accept scoped asset tokens."""
+    token = build_asset_token(
+        "user-abc",
+        auth_client.application.config["SECRET_KEY"],
+    )
+
+    with patch("app.api.auth.middleware.get_supabase") as mock_get_supabase:
+        response = auth_client.get(
+            f"/api/v1/projects/proj-1/ai-images/chart.png?asset_token={quote(token)}",
+        )
+
+    # Guard passes; the downstream route may 404/500 on mocked storage/catalog
     # access, but it must not be stopped by the 401 guard.
     assert response.status_code != 401
+    mock_get_supabase.assert_not_called()
+
+
+def test_asset_token_rejected_as_bearer(auth_client):
+    """Scoped asset tokens cannot be reused as Authorization bearer tokens."""
+    token = build_asset_token(
+        "user-abc",
+        auth_client.application.config["SECRET_KEY"],
+    )
+    with patch(
+        "app.api.auth.middleware.get_supabase"
+    ) as mock_get_supabase:
+        supabase = MagicMock()
+        supabase.auth.get_user.side_effect = Exception("not a supabase jwt")
+        mock_get_supabase.return_value = supabase
+
+        response = auth_client.get(
+            "/api/v1/projects",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------

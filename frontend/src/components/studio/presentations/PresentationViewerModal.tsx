@@ -104,7 +104,7 @@ export const PresentationViewerModal: React.FC<PresentationViewerModalProps> = (
       onDownloadPptx(viewingPresentationJob.id);
     } else {
       const link = document.createElement('a');
-      // API_BASE_URL already includes /api/v1 path, getAuthUrl adds JWT for browser element auth
+      // API_BASE_URL already includes /api/v1 path; getAuthUrl adds browser asset auth.
       link.href = getAuthUrl(presentationsAPI.getDownloadUrl(
         projectId,
         viewingPresentationJob.id,

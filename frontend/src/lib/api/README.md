@@ -15,7 +15,7 @@ That document is the source of truth for:
 - citation marker and chunk-id format (`[[cite:{source_id}_page_{n}_chunk_{m}]]`)
 - chat tool invocation / result block union (`text | tool_use | tool_result | server_tool_use | web_search_tool_result | web_fetch_tool_result`)
 - auth identity (`GET /auth/me`) and session (`POST /auth/signin|signup|refresh`) shapes
-- authenticated media and query-token (`?token=<jwt>`) asset access rules
+- authenticated media and scoped asset-token (`?asset_token=<token>`) access rules
 - `studio_signals` row and tool-input shapes
 - `projects.costs` and `chats.costs` JSONB shape
 - `messages.content` JSONB block array shape

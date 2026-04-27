@@ -12,21 +12,19 @@ many concurrent requests (e.g., loading multiple images) overwhelm the Auth
 server. JWTs are already self-validating (signed + expiry), so a short cache
 window is safe — even if a token is revoked, the cache expires quickly.
 
-Query-token policy (NBB-201): `?token=<jwt>` is honored ONLY for GET
-requests whose path matches the browser-asset allowlist (see
-`_query_token_allowed`). Every other request — JSON listings, CRUD
-POST/PUT/DELETE, chat/message/costs — must send `Authorization: Bearer`.
-Browser elements like <img>, <video>, <audio>, <iframe> that cannot set
-headers use the allowlisted GET paths (download/preview/assets/etc.).
+Asset-token policy (NBB-911): primary Supabase JWTs are accepted only from
+`Authorization: Bearer`. Browser-loaded assets that cannot attach headers use
+short-lived `?asset_token=` values, and only on the allowlisted GET paths below.
 """
 import functools
 import logging
 import re
-import time
 import threading
+import time
 from typing import Optional, Dict, Tuple
 
-from flask import request, jsonify, g
+from flask import current_app, request, jsonify, g
+from app.auth.asset_tokens import parse_asset_token
 from app.providers.supabase import get_supabase
 from app.auth.access import (  # noqa: F401 — re-export for before_request hooks
     get_current_user_id,
@@ -36,12 +34,13 @@ from app.auth.access import (  # noqa: F401 — re-export for before_request hoo
 logger = logging.getLogger(__name__)
 
 
-# ─── Query-Token Allowlist ──────────────────────────────────────────────────
+# ─── Asset-Token Allowlist ──────────────────────────────────────────────────
 # Browser-loaded media/file/embed routes that cannot attach headers. Every
-# entry is a GET-only path pattern; JSON/CRUD endpoints must use Bearer.
+# entry is a GET-only path pattern; JSON/CRUD endpoints must use Bearer JWTs.
 #
 # Patterns match on `request.path` (no query string). Concrete allowlisted
 # shapes today:
+#   /api/v1/projects/<id>/ai-images/<filename>
 #   /api/v1/projects/<id>/sources/<source_id>/download
 #   /api/v1/projects/<id>/brand/assets/<asset_id>/download
 #   /api/v1/projects/<id>/studio/<category>/<job_id>/<filename>
@@ -53,7 +52,8 @@ logger = logging.getLogger(__name__)
 # The patterns stay loose enough to cover new studio categories without
 # code changes, but strict enough that no JSON listing (e.g.
 # `/studio/<cat>-jobs`, `/studio/<cat>-jobs/<id>`) slips through.
-_QUERY_TOKEN_ALLOWED_PATTERNS: Tuple[re.Pattern[str], ...] = (
+_ASSET_TOKEN_ALLOWED_PATTERNS: Tuple[re.Pattern[str], ...] = (
+    re.compile(r"^/api/v1/projects/[^/]+/ai-images/[^/]+$"),
     re.compile(r"^/api/v1/projects/[^/]+/sources/[^/]+/download$"),
     re.compile(r"^/api/v1/projects/[^/]+/brand/assets/[^/]+/download$"),
     re.compile(
@@ -64,17 +64,17 @@ _QUERY_TOKEN_ALLOWED_PATTERNS: Tuple[re.Pattern[str], ...] = (
 )
 
 
-def _query_token_allowed() -> bool:
-    """Return True if the current request may read its JWT from `?token=`.
+def _asset_token_allowed() -> bool:
+    """Return True if the current request may read `?asset_token=`.
 
     Only GET requests qualify, and only those whose path matches the
-    browser-asset allowlist. POST/PUT/DELETE and JSON listings must use
-    `Authorization: Bearer`.
+    browser-asset allowlist. POST/PUT/DELETE and JSON listings must use a
+    primary JWT in `Authorization: Bearer`.
     """
     if request.method != "GET":
         return False
     path = request.path or ""
-    return any(pat.match(path) for pat in _QUERY_TOKEN_ALLOWED_PATTERNS)
+    return any(pat.match(path) for pat in _ASSET_TOKEN_ALLOWED_PATTERNS)
 
 # ─── Token Validation Cache ─────────────────────────────────────────────────
 # Educational Note: Without caching, every API request triggers an HTTP call
@@ -111,42 +111,16 @@ def _cache_token(token: str, user_id: str) -> None:
                 del _token_cache[k]
 
 
-def validate_token() -> Optional[str]:
+def _validate_bearer_token(token: str) -> Optional[str]:
     """
-    Validate the JWT from the Authorization header (or allowlisted `?token=`
-    query param) and return the user_id.
-
-    Returns:
-        User ID string on success, None on failure
+    Validate the Supabase JWT from the Authorization header and return user_id.
 
     Educational Note: We call supabase.auth.get_user(jwt) which contacts
     the Supabase Auth server to verify the token signature and expiration.
     The SERVICE_KEY client has permission to validate any user's token.
 
-    Performance: Results are cached for 60 seconds to avoid redundant Auth
-    server calls when multiple browser elements (images, videos) load
-    simultaneously with the same token.
-
-    Query-token policy (NBB-201): `?token=` is read only when the current
-    request matches the browser-asset allowlist (see
-    `_query_token_allowed`). JSON listings, CRUD calls, and chat/message
-    endpoints must send `Authorization: Bearer` and will 401 otherwise.
+    Results are cached for 60 seconds to avoid redundant Auth server calls.
     """
-    auth_header = request.headers.get('Authorization', '')
-
-    if auth_header.startswith('Bearer '):
-        token = auth_header[7:]  # Strip "Bearer "
-    elif _query_token_allowed():
-        # Narrow fallback: browser media/embed routes only. See the
-        # `_QUERY_TOKEN_ALLOWED_PATTERNS` regex list above.
-        token = request.args.get('token', '')
-    else:
-        token = ''
-
-    if not token:
-        logger.warning("No auth token found (header=%s, query=%s)", bool(auth_header), bool(request.args.get('token')))
-        return None
-
     # Check cache first — avoids redundant Supabase Auth calls
     cached_user_id = _get_cached_user_id(token)
     if cached_user_id:
@@ -166,6 +140,35 @@ def validate_token() -> Optional[str]:
     except Exception as e:
         logger.warning("Token validation failed: %s: %s", type(e).__name__, e)
         return None
+
+
+def validate_token() -> Optional[str]:
+    """
+    Validate request credentials and return the user_id.
+
+    Primary JWTs are accepted from `Authorization: Bearer` only. Allowlisted
+    browser asset GETs may instead pass a scoped `?asset_token=` value.
+    """
+    auth_header = request.headers.get('Authorization', '')
+
+    if auth_header.startswith('Bearer '):
+        return _validate_bearer_token(auth_header[7:])
+
+    if _asset_token_allowed():
+        user_id = parse_asset_token(
+            token=request.args.get('asset_token', ''),
+            secret_key=str(current_app.config["SECRET_KEY"]),
+        )
+        if user_id:
+            return user_id
+
+    logger.warning(
+        "No valid auth token found (header=%s, asset_query=%s, legacy_query=%s)",
+        bool(auth_header),
+        bool(request.args.get('asset_token')),
+        bool(request.args.get('token')),
+    )
+    return None
 
 
 def require_auth(f):

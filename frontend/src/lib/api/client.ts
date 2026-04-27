@@ -7,7 +7,7 @@
 
 import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { getAccessToken, getRefreshToken, setSession, clearSession } from '../auth/session';
+import { getAccessToken, getRefreshToken, getAssetToken, setSession, clearSession } from '../auth/session';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api-client');
@@ -70,7 +70,7 @@ async function tryRefreshToken(): Promise<boolean> {
       refresh_token: refreshToken,
     });
     if (data?.success && data.session?.access_token) {
-      setSession(data.session.access_token, data.session.refresh_token);
+      setSession(data.session.access_token, data.session.refresh_token, data.asset_token);
       return true;
     }
   } catch (err) {
@@ -125,22 +125,22 @@ axios.interceptors.response.use(
 );
 
 /**
- * Build an authenticated URL for browser elements that can't send Authorization headers.
+ * Build an asset-scoped URL for browser elements that can't send Authorization headers.
  *
  * Educational Note: Elements like <img>, <video>, <audio>, and <iframe> make their own
- * HTTP requests without axios interceptors. We append the JWT as a query parameter
- * so the backend auth middleware can validate it. The backend checks ?token= as a
- * fallback when no Authorization header is present.
+ * HTTP requests without axios interceptors. We append a short-lived asset token
+ * so the backend auth middleware can validate the asset route without exposing
+ * the primary Supabase JWT in a browser-visible URL.
  *
  * @param url - Absolute URL or path starting with /api/. If it's a full URL (starts with http),
  *              the token is appended directly. If it's a path, API_HOST is prepended first.
  */
 export function getAuthUrl(url: string): string {
-  const token = getAccessToken();
+  const token = getAssetToken();
   const fullUrl = url.startsWith('http') ? url : `${API_HOST}${url}`;
   if (!token) return fullUrl;
   const separator = fullUrl.includes('?') ? '&' : '?';
-  return `${fullUrl}${separator}token=${token}`;
+  return `${fullUrl}${separator}asset_token=${encodeURIComponent(token)}`;
 }
 
 export { API_BASE_URL };

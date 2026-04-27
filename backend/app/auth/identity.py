@@ -7,9 +7,7 @@ with the admin/auth/permission decorators; those decorators now live in
 `app/auth/guards.py`.
 
 Identity resolution priority:
-1. Supabase Auth JWT in `Authorization: Bearer <jwt>` (or `?token=<jwt>`
-   for browser media/embed routes — see `app/api/auth/middleware.py` for
-   the query-token allowlist).
+1. Supabase Auth JWT in `Authorization: Bearer <jwt>`.
 2. Dev headers `X-NoobBook-User-Id` / `X-NoobBook-Role`.
 3. Single-user fallback to `DEFAULT_USER_ID` — gated on
    `NOOBBOOK_AUTH_REQUIRED=false`, which promotes the fallback identity to
@@ -60,16 +58,13 @@ def is_auth_required() -> bool:
 def _get_bearer_token() -> Optional[str]:
     """Extract the JWT from the request.
 
-    Checks `Authorization: Bearer <jwt>` first, then falls back to the
-    `?token=` query parameter. The query-token fallback exists because
-    browser elements like <img>, <video>, <audio>, and <iframe> cannot set
-    headers. The allowlist for which routes may honor `?token=` lives in
-    `app/api/auth/middleware.py`.
+    Browser asset tokens are intentionally excluded from identity resolution;
+    only the API middleware may accept them on allowlisted asset GET routes.
     """
     auth = request.headers.get("Authorization", "")
     if auth and auth.lower().startswith("bearer "):
         return auth.split(" ", 1)[1].strip() or None
-    return request.args.get("token") or None
+    return None
 
 
 def _load_role_from_users_table(user_id: str) -> Optional[str]:

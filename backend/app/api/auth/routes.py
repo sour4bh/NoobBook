@@ -9,22 +9,61 @@ Routes:
 - POST /auth/refresh  - Refresh expired JWT using refresh token
 """
 
-from flask import jsonify, request
+from typing import Any, Optional
+
+from flask import current_app, jsonify, request
 
 from app.api.auth import auth_bp
+from app.auth.asset_tokens import build_asset_token
 from app.auth.identity import get_request_identity, is_auth_required
 from app.providers.supabase.auth import auth_service
+
+
+def _get_user_id(result: dict[str, Any]) -> Optional[str]:
+    user = result.get("user")
+    if isinstance(user, dict):
+        user_id = user.get("id")
+        return str(user_id) if user_id else None
+    return None
+
+
+def _secret_key() -> str:
+    return str(current_app.config["SECRET_KEY"])
+
+
+def _with_asset_token(result: dict[str, Any]) -> dict[str, Any]:
+    session = result.get("session")
+    if not isinstance(session, dict) or not session.get("access_token"):
+        return result
+
+    user_id = _get_user_id(result)
+    if user_id:
+        result = dict(result)
+        result["asset_token"] = build_asset_token(
+            user_id=user_id,
+            secret_key=_secret_key(),
+        )
+    return result
 
 
 @auth_bp.route("/auth/me", methods=["GET"])
 def me():
     """Get current user identity with RBAC role info."""
     identity = get_request_identity()
+    auth_required = is_auth_required()
+    asset_token = None
+    if identity.is_authenticated or not auth_required:
+        asset_token = build_asset_token(
+            user_id=identity.user_id,
+            secret_key=_secret_key(),
+        )
+
     return (
         jsonify(
             {
                 "success": True,
-                "auth_required": is_auth_required(),
+                "auth_required": auth_required,
+                "asset_token": asset_token,
                 "user": {
                     "id": identity.user_id,
                     "email": identity.email,
@@ -55,7 +94,7 @@ def signup():
     if not result.get("success"):
         return jsonify({"success": False, "error": result.get("error", "Sign up failed")}), 400
 
-    return jsonify(result), 200
+    return jsonify(_with_asset_token(result)), 200
 
 
 @auth_bp.route("/auth/signin", methods=["POST"])
@@ -74,7 +113,7 @@ def signin():
     if not result.get("success"):
         return jsonify({"success": False, "error": result.get("error", "Sign in failed")}), 400
 
-    return jsonify(result), 200
+    return jsonify(_with_asset_token(result)), 200
 
 
 @auth_bp.route("/auth/signout", methods=["POST"])
@@ -107,4 +146,4 @@ def refresh():
     result = auth_service.refresh_with_token(refresh_token)
     if not result.get("success"):
         return jsonify(result), 401
-    return jsonify(result), 200
+    return jsonify(_with_asset_token(result)), 200

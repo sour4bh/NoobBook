@@ -169,6 +169,7 @@ class AuthService:
             response = self.supabase.auth.refresh_session(refresh_token)
             return {
                 "success": True,
+                "user": self._serialize_user(getattr(response, "user", None)),
                 "session": self._serialize_session(response.session),
             }
         except Exception as e:

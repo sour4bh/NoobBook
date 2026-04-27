@@ -1,9 +1,10 @@
 """
 Auth domain root.
 
-Charter (NBB-104): Identity, route/service guards, permission policy, and the
-user identity store. Owns token validation, query-token policy, project-access
-checks, and the surfaces that other domains call to authorize a request.
+Charter (NBB-104): Identity, route/service guards, permission policy, scoped
+asset tokens, and the user identity store. Owns token validation,
+project-access checks, and the surfaces that other domains call to authorize a
+request.
 
 Allowed imports:
 - Other domains may import this package's public surface to resolve identity

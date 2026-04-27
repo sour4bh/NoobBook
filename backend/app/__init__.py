@@ -58,7 +58,7 @@ validator ↔ reload-hook map.
 """
 import os
 
-from flask import Flask, request
+from flask import Flask, g, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
@@ -110,7 +110,8 @@ def create_app(config_name='development'):
         auth_service.bootstrap_admin_from_env()
 
     # Optional auth enforcement (RBAC)
-    from app.auth.identity import get_request_identity, is_auth_required
+    from app.api.auth.middleware import validate_token
+    from app.auth.identity import is_auth_required
 
     @app.before_request
     def enforce_auth():
@@ -122,7 +123,7 @@ def create_app(config_name='development'):
             return None
 
         path = request.path
-        api_prefix = app.config.get('API_PREFIX', '/api/v1')
+        api_prefix = str(app.config.get('API_PREFIX', '/api/v1'))
 
         if not path.startswith(api_prefix):
             return None
@@ -136,9 +137,10 @@ def create_app(config_name='development'):
         ):
             return None
 
-        identity = get_request_identity()
-        if not identity.is_authenticated:
+        user_id = validate_token()
+        if not user_id:
             return {"success": False, "error": "Authentication required"}, 401
+        g.user_id = user_id
 
         # Enforce per-project access for project-scoped routes
         project_prefix = f"{api_prefix}/projects/"
@@ -147,7 +149,7 @@ def create_app(config_name='development'):
             project_id = remainder.split("/", 1)[0] if remainder else ""
             if project_id:
                 from app.projects.store import project_service
-                if not project_service.has_project_access(project_id, identity.user_id):
+                if not project_service.has_project_access(project_id, user_id):
                     return {"success": False, "error": "Project not found"}, 404
 
         return None

@@ -32,8 +32,11 @@ Routes:
 import io
 import re
 import zipfile
+from urllib.parse import quote
+
 from flask import jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
+from app.api.studio.preview_security import html_preview_response
 import app.studio.jobs.store as studio_index_service
 from app.providers.supabase import storage_service
 from app.auth.guards import require_permission
@@ -247,17 +250,16 @@ def get_website_file(project_id: str, job_id: str, filename: str):
         if content is None:
             return jsonify({'success': False, 'error': 'File not found'}), 404
 
-        # For CSS files, inject auth token into url() references so images load.
-        # Educational Note: CSS url() references (e.g. background-image) trigger
-        # separate browser requests that don't carry the parent page's query params.
-        token = request.args.get('token', '')
-        if mime_type == 'text/css' and token:
+        asset_token = request.args.get('asset_token', '')
+        if mime_type == 'text/css' and asset_token:
+            encoded_token = quote(asset_token, safe="")
+
             def _add_token_to_css_url(match: re.Match) -> str:
                 prefix = match.group(1)
                 url = match.group(2)
                 suffix = match.group(3)
                 sep = '&' if '?' in url else '?'
-                return f'{prefix}{url}{sep}token={token}{suffix}'
+                return f'{prefix}{url}{sep}asset_token={encoded_token}{suffix}'
 
             content = re.sub(
                 r"""(url\(["']?)(?!https?://|//|data:)([^"')\s]+)(["']?\))""",
@@ -278,12 +280,11 @@ def get_website_file(project_id: str, job_id: str, filename: str):
 @studio_bp.route('/projects/<project_id>/studio/websites/<job_id>/preview', methods=['GET'])
 def preview_website(project_id: str, job_id: str):
     """
-    Preview website by serving index.html with auth tokens injected.
+    Preview website by serving index.html with scoped asset tokens injected.
 
-    Educational Note: The iframe can't pass Authorization headers for sub-resource
-    requests (CSS, JS, images). We inject ?token= into local resource URLs in the
-    HTML so the browser passes the JWT when fetching these files. The original
-    files on disk stay clean for download/export.
+    The iframe can't pass Authorization headers for sub-resource requests. We
+    inject `asset_token` into local resource URLs so generated files can load
+    without exposing the primary JWT.
     """
     try:
         # Download index.html from Supabase Storage
@@ -296,14 +297,15 @@ def preview_website(project_id: str, job_id: str):
                 'error': 'Website not ready yet or index.html not found'
             }), 404
 
-        # Inject auth token into local resource URLs (CSS, JS, images)
-        token = request.args.get('token', '')
-        if token:
+        asset_token = request.args.get('asset_token', '')
+        if asset_token:
+            encoded_token = quote(asset_token, safe="")
+
             def _add_token(match: re.Match) -> str:
                 attr = match.group(1)   # src or href
                 url = match.group(2)
                 sep = '&' if '?' in url else '?'
-                return f'{attr}="{url}{sep}token={token}"'
+                return f'{attr}="{url}{sep}asset_token={encoded_token}"'
 
             # Match src="..." and href="..." but skip external URLs
             html_content = re.sub(
@@ -312,7 +314,7 @@ def preview_website(project_id: str, job_id: str):
                 html_content
             )
 
-        return Response(html_content, mimetype='text/html')
+        return html_preview_response(html_content)
 
     except Exception as e:
         current_app.logger.error(f"Error previewing website: {e}")

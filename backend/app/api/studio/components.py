@@ -29,6 +29,7 @@ Routes:
 import io
 from flask import g, jsonify, request, current_app, send_file, Response
 from app.api.studio import studio_bp
+from app.api.studio.preview_security import html_preview_response
 import app.studio.jobs.store as studio_index_service
 import app.studio.design.component.run
 from app.providers.supabase import storage_service
@@ -188,7 +189,7 @@ def preview_component(project_id: str, job_id: str, filename: str):
                 'error': f'Component file not found: {filename}'
             }), 404
 
-        return Response(content, mimetype='text/html')
+        return html_preview_response(content)
 
     except Exception as e:
         current_app.logger.error(f"Error serving component preview: {e}")

@@ -135,7 +135,7 @@ export const usePresentationGeneration = (projectId: string) => {
    * Download presentation as PPTX
    */
   const downloadPresentation = (jobId: string) => {
-    // API_BASE_URL already includes /api/v1 path, getAuthUrl adds JWT for browser element auth
+    // API_BASE_URL already includes /api/v1 path; getAuthUrl adds browser asset auth.
     const downloadUrl = presentationsAPI.getDownloadUrl(projectId, jobId, 'pptx');
     const link = document.createElement('a');
     link.href = getAuthUrl(downloadUrl);
@@ -146,7 +146,7 @@ export const usePresentationGeneration = (projectId: string) => {
    * Download presentation source as ZIP
    */
   const downloadPresentationSource = (jobId: string) => {
-    // API_BASE_URL already includes /api/v1 path, getAuthUrl adds JWT for browser element auth
+    // API_BASE_URL already includes /api/v1 path; getAuthUrl adds browser asset auth.
     const downloadUrl = presentationsAPI.getDownloadUrl(projectId, jobId, 'zip');
     const link = document.createElement('a');
     link.href = getAuthUrl(downloadUrl);

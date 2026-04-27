@@ -345,13 +345,13 @@ extension map (`png|jpg|jpeg|gif|webp|svg` -> `image/*`), default `image/png`.
 
 ---
 
-## Contract 6 - Query-token asset access
+## Contract 6 - Scoped asset-token access
 
 **Backend owner:** `backend/app/auth/access.py::get_current_user_id`
-(current request identity) and `backend/app/api/auth/middleware.py`
-(Bearer-token and query-token extraction).
+(current request identity) and `backend/app/api/auth/middleware.py` (Bearer JWT
+and scoped asset-token extraction).
 Call sites that inject the token into rendered HTML:
-- `backend/app/api/studio/emails.py::preview_email_template` (rewrites `src="..."` to append `?token=<jwt>`)
+- `backend/app/api/studio/emails.py::preview_email_template` (rewrites `src="..."` to append `?asset_token=<token>`)
 - `backend/app/api/studio/websites.py` (same pattern for CSS/JS/image URLs)
 - `backend/app/api/transcription/routes.py` (ElevenLabs WebSocket URL carries `?token=` but that token is an ElevenLabs single-use token, not the Supabase JWT).
 
@@ -359,39 +359,40 @@ Call sites that inject the token into rendered HTML:
 `frontend/src/lib/api/studio/websites.ts`, and the iframe components that render HTML
 previews.
 
-**Compatibility expectation:** The query token IS the Supabase JWT — same secret, same
-lifecycle as the `Authorization: Bearer` header. The only difference is transport
-location. This exists because `<img>`, `<video>`, `<audio>`, and `<iframe>` elements
-cannot attach custom headers. Transcription is the single exception: the
-`?token=` on the ElevenLabs WebSocket URL is an ElevenLabs-issued token.
+**Compatibility expectation:** Primary Supabase JWTs are not valid query-string
+credentials. Browser elements that cannot attach custom headers use a short-lived
+`asset_token` minted by the auth endpoints and accepted only on allowlisted asset
+GET paths. Normal JSON/API endpoints must still use `Authorization: Bearer <jwt>`.
+Transcription is the single `?token=` exception: the token on the ElevenLabs
+WebSocket URL is an ElevenLabs-issued token.
 
 **Minimal valid example:**
 
 ```text
-GET /api/v1/projects/<id>/ai-images/chart.png?token=<JWT>
+GET /api/v1/projects/<id>/ai-images/chart.png?asset_token=<asset-token>
 -> 200 image/png
 ```
 
 **Realistic current-production example (email template preview iframe):**
 
 ```text
-GET /api/v1/projects/p1/studio/email-templates/j1/preview?token=<JWT>
+GET /api/v1/projects/p1/studio/email-templates/j1/preview?asset_token=<asset-token>
 -> 200 text/html
 
 HTML body contains rewritten inline image refs:
-<img src="/api/v1/projects/p1/studio/email-templates/j1/hero.png?token=<JWT>">
+<img src="/api/v1/projects/p1/studio/email-templates/j1/hero.png?asset_token=<asset-token>">
 ```
 
 **Invalid example (runtime validation exists):**
-- No `Authorization` header and no `?token=` -> `auth_middleware` logs a warning and
+- No `Authorization` header and no `?asset_token=` -> `auth_middleware` logs a warning and
   returns `None`, causing the project guard to return 401/404 JSON.
-- `?token=` present but not a valid Supabase JWT -> `supabase.auth.get_user(token)`
-  raises, middleware logs "Token validation failed", returns 401/404.
+- `?asset_token=` present on a JSON route -> the middleware ignores it and returns 401.
+- `?token=<supabase-jwt>` on an asset route -> the middleware ignores it and returns 401.
 
 **Test plan:**
 - Extend `backend/tests/test_media_access.py` (see Contract 5) with a query-param
-  path: `GET /ai-images/<file>?token=<valid_jwt>` returns 200; same URL without token
-  returns 401/404; invalid token returns 401/404.
+  path: `GET /ai-images/<file>?asset_token=<valid>` returns 200; same URL without
+  token returns 401/404; invalid/expired asset tokens return 401/404.
 
 ---
 

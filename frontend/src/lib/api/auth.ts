@@ -1,10 +1,11 @@
 import type { AxiosError } from 'axios';
 import { api } from './client';
-import { setSession, clearSession } from '../auth/session';
+import { setSession, setAssetToken, clearSession } from '../auth/session';
 
 export interface MeResponse {
   success: boolean;
   auth_required?: boolean;
+  asset_token?: string | null;
   user: {
     id: string;
     email?: string | null;
@@ -26,6 +27,7 @@ export interface AuthResponse {
     expires_in?: number | null;
     token_type?: string | null;
   };
+  asset_token?: string | null;
   error?: string;
 }
 
@@ -37,7 +39,9 @@ interface ApiErrorBody {
 export const authAPI = {
   async me(): Promise<MeResponse> {
     const response = await api.get('/auth/me');
-    return response.data as MeResponse;
+    const data = response.data as MeResponse;
+    setAssetToken(data.asset_token);
+    return data;
   },
 
   async signIn(email: string, password: string): Promise<AuthResponse> {
@@ -45,7 +49,7 @@ export const authAPI = {
       const response = await api.post('/auth/signin', { email, password });
       const data = response.data as AuthResponse;
       if (data?.session?.access_token) {
-        setSession(data.session.access_token, data.session.refresh_token);
+        setSession(data.session.access_token, data.session.refresh_token, data.asset_token);
       }
       return data;
     } catch (err) {
@@ -64,7 +68,7 @@ export const authAPI = {
       const response = await api.post('/auth/signup', { email, password });
       const data = response.data as AuthResponse;
       if (data?.session?.access_token) {
-        setSession(data.session.access_token, data.session.refresh_token);
+        setSession(data.session.access_token, data.session.refresh_token, data.asset_token);
       }
       return data;
     } catch (err) {

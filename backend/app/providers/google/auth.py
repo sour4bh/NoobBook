@@ -20,8 +20,9 @@ Required Setup:
     1. Create project at https://console.cloud.google.com
     2. Enable Google Drive API
     3. Create OAuth 2.0 credentials (Web application)
-    4. Add http://localhost:5001/api/v1/google/callback as redirect URI
-    5. Copy Client ID and Client Secret to Admin Settings
+    4. Set API_PUBLIC_ORIGIN or GOOGLE_OAUTH_REDIRECT_URI
+    5. Add the resulting callback URI to Google Console
+    6. Copy Client ID and Client Secret to Admin Settings
 
 Migration Note (2026-01):
     Previously tokens were stored in data/google_tokens.json (single file for all users).
@@ -31,17 +32,20 @@ Migration Note (2026-01):
 
 import logging
 import os
-from datetime import datetime
-from typing import Dict, Any, Optional, Tuple
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional, Tuple
+from uuid import uuid4
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-logger = logging.getLogger(__name__)
-
+from app.config.runtime import RuntimeSettings
 from app.providers.supabase import get_supabase
+
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleAuthService:
@@ -62,10 +66,7 @@ class GoogleAuthService:
         'https://www.googleapis.com/auth/drive.readonly',
     ]
     STATE_MAX_AGE_SECONDS = 600
-
-    # Redirect URI for OAuth callback
-    # Educational Note: Must match exactly what's configured in Google Console
-    REDIRECT_URI = 'http://localhost:5001/api/v1/google/callback'
+    STATE_TABLE = "oauth_states"
 
     def __init__(self):
         """Initialize the Google Auth service."""
@@ -78,7 +79,11 @@ class GoogleAuthService:
             self._supabase = get_supabase()
         return self._supabase
 
-    def _get_client_config(self) -> Optional[Dict[str, Any]]:
+    def _get_redirect_uri(self, redirect_uri: Optional[str] = None) -> str:
+        """Return the OAuth callback URI registered with Google."""
+        return redirect_uri or RuntimeSettings().google_callback_url
+
+    def _get_client_config(self, redirect_uri: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get OAuth client configuration from environment.
 
@@ -89,19 +94,20 @@ class GoogleAuthService:
         Returns:
             Client config dict or None if credentials not set
         """
-        client_id = os.getenv('GOOGLE_CLIENT_ID')
-        client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
 
         if not client_id or not client_secret:
             return None
+        callback_url = self._get_redirect_uri(redirect_uri)
 
         return {
-            'web': {
-                'client_id': client_id,
-                'client_secret': client_secret,
-                'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
-                'token_uri': 'https://oauth2.googleapis.com/token',
-                'redirect_uris': [self.REDIRECT_URI],
+            "web": {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [callback_url],
             }
         }
 
@@ -159,11 +165,14 @@ class GoogleAuthService:
 
     def build_state(self, user_id: str, secret_key: str) -> str:
         """Build an opaque signed OAuth state token for the callback."""
+        nonce = str(uuid4())
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=self.STATE_MAX_AGE_SECONDS)
+        self._store_state_nonce(user_id=user_id, nonce=nonce, expires_at=expires_at)
         serializer = URLSafeTimedSerializer(secret_key, salt="google-oauth-state")
-        return serializer.dumps({"user_id": user_id})
+        return serializer.dumps({"user_id": user_id, "nonce": nonce})
 
     def parse_state(self, state: str, secret_key: str) -> Optional[str]:
-        """Return the user id from a valid OAuth state token, else None."""
+        """Consume and return the user id from a valid OAuth state token."""
         serializer = URLSafeTimedSerializer(secret_key, salt="google-oauth-state")
         try:
             payload = serializer.loads(state, max_age=self.STATE_MAX_AGE_SECONDS)
@@ -172,9 +181,48 @@ class GoogleAuthService:
         if not isinstance(payload, dict):
             return None
         user_id = payload.get("user_id")
-        return str(user_id) if user_id else None
+        nonce = payload.get("nonce")
+        if not user_id or not nonce:
+            return None
+        user_id = str(user_id)
+        if not self._consume_state_nonce(user_id=user_id, nonce=str(nonce)):
+            return None
+        return user_id
 
-    def get_auth_url(self, user_id: Optional[str] = None, state: Optional[str] = None) -> Optional[str]:
+    def _store_state_nonce(self, user_id: str, nonce: str, expires_at: datetime) -> None:
+        """Persist a one-time state nonce before sending the user to Google."""
+        self.supabase.table(self.STATE_TABLE).insert({
+            "provider": "google",
+            "nonce": nonce,
+            "user_id": user_id,
+            "expires_at": expires_at.isoformat(),
+        }).execute()
+
+    def _consume_state_nonce(self, user_id: str, nonce: str) -> bool:
+        """Atomically mark a state nonce consumed if it is valid and unused."""
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            response = (
+                self.supabase.table(self.STATE_TABLE)
+                .update({"consumed_at": now})
+                .eq("provider", "google")
+                .eq("nonce", nonce)
+                .eq("user_id", user_id)
+                .gt("expires_at", now)
+                .is_("consumed_at", "null")
+                .execute()
+            )
+        except Exception as e:
+            logger.warning("Failed to consume Google OAuth state nonce: %s", e)
+            return False
+        return bool(response.data)
+
+    def get_auth_url(
+        self,
+        user_id: Optional[str] = None,
+        state: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
+    ) -> Optional[str]:
         """
         Generate the Google OAuth authorization URL.
 
@@ -188,39 +236,45 @@ class GoogleAuthService:
         - state: signed opaque token identifying who initiated OAuth
 
         Args:
-            user_id: Optional user ID used only if no explicit state is provided
+            user_id: Optional user ID retained for call-site clarity
             state: Opaque signed callback state generated by the API route
+            redirect_uri: OAuth callback URI registered with Google
 
         Returns:
             Authorization URL or None if not configured
         """
-        client_config = self._get_client_config()
+        client_config = self._get_client_config(redirect_uri)
         if not client_config:
             return None
-
-        # Use provided user_id or get default for single-user mode
-        effective_user_id = user_id or self._get_default_user_id()
+        if not state:
+            logger.error("Google OAuth auth URL requested without signed state")
+            return None
 
         flow = Flow.from_client_config(
             client_config,
             scopes=self.SCOPES,
-            redirect_uri=self.REDIRECT_URI
+            redirect_uri=self._get_redirect_uri(redirect_uri)
         )
 
         # Generate auth URL
         # access_type='offline' ensures we get a refresh token
         # prompt='consent' forces consent screen to ensure refresh token
-        # state parameter carries user_id for the callback
+        # state carries the signed one-time nonce consumed by the callback.
         auth_url, _ = flow.authorization_url(
             access_type='offline',
             prompt='consent',
             include_granted_scopes='true',
-            state=state or effective_user_id or ''
+            state=state
         )
 
         return auth_url
 
-    def handle_callback(self, authorization_code: str, user_id: Optional[str] = None) -> Tuple[bool, str]:
+    def handle_callback(
+        self,
+        authorization_code: str,
+        user_id: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
+    ) -> Tuple[bool, str]:
         """
         Handle the OAuth callback and exchange code for tokens.
 
@@ -230,12 +284,13 @@ class GoogleAuthService:
 
         Args:
             authorization_code: The code from Google's redirect
-            user_id: User ID from state parameter (for multi-user support)
+            user_id: User ID from the validated state token
+            redirect_uri: OAuth callback URI registered with Google
 
         Returns:
             Tuple of (success, message or error)
         """
-        client_config = self._get_client_config()
+        client_config = self._get_client_config(redirect_uri)
         if not client_config:
             return False, "Google OAuth not configured"
 
@@ -248,7 +303,7 @@ class GoogleAuthService:
             flow = Flow.from_client_config(
                 client_config,
                 scopes=self.SCOPES,
-                redirect_uri=self.REDIRECT_URI
+                redirect_uri=self._get_redirect_uri(redirect_uri)
             )
 
             # Exchange authorization code for tokens

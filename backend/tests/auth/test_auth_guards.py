@@ -12,7 +12,7 @@ Scope:
 - `NOOBBOOK_AUTH_REQUIRED=false` dev/single-user behavior reaches the API
   transport layer and attaches the fallback identity.
 """
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -264,19 +264,24 @@ def test_google_callback_bypasses_bearer_guard_and_rejects_missing_state(
 
     assert response.status_code == 302
     assert "google_auth=error" in response.headers["Location"]
-    assert "Invalid+OAuth+state" in response.headers["Location"]
+    assert "message=Google+authentication+failed" in response.headers["Location"]
 
 
 def test_google_callback_accepts_valid_signed_state(auth_client, auth_required_env):
     """A valid signed OAuth state authorizes the callback before token exchange."""
     from app.api.google import oauth as google_oauth
 
-    state = google_oauth.google_auth_service.build_state(
-        user_id="user-oauth",
-        secret_key=auth_client.application.config["SECRET_KEY"],
-    )
+    with patch.object(google_oauth.google_auth_service, "_store_state_nonce"):
+        state = google_oauth.google_auth_service.build_state(
+            user_id="user-oauth",
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        )
 
     with patch.object(
+        google_oauth.google_auth_service,
+        "_consume_state_nonce",
+        return_value=True,
+    ), patch.object(
         google_oauth.google_auth_service,
         "handle_callback",
         return_value=(True, "connected"),
@@ -288,7 +293,236 @@ def test_google_callback_accepts_valid_signed_state(auth_client, auth_required_e
 
     assert response.status_code == 302
     assert response.headers["Location"] == "http://localhost:5173?google_auth=success"
-    handle_callback.assert_called_once_with("auth-code", user_id="user-oauth")
+    handle_callback.assert_called_once_with(
+        "auth-code",
+        user_id="user-oauth",
+        redirect_uri="http://localhost:5001/api/v1/google/callback",
+    )
+
+
+def test_google_callback_rejects_replayed_state_before_token_exchange(
+    auth_client, auth_required_env
+):
+    """A signed state whose nonce is already consumed cannot be replayed."""
+    from app.api.google import oauth as google_oauth
+
+    with patch.object(google_oauth.google_auth_service, "_store_state_nonce"):
+        state = google_oauth.google_auth_service.build_state(
+            user_id="user-oauth",
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        )
+
+    with patch.object(
+        google_oauth.google_auth_service,
+        "_consume_state_nonce",
+        return_value=False,
+    ) as consume, patch.object(
+        google_oauth.google_auth_service,
+        "handle_callback",
+    ) as handle_callback:
+        response = auth_client.get(
+            f"/api/v1/google/callback?code=auth-code&state={quote(state)}",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 302
+    parsed = urlparse(response.headers["Location"])
+    assert parsed.scheme == "http"
+    assert parsed.netloc == "localhost:5173"
+    assert parse_qs(parsed.query) == {
+        "google_auth": ["error"],
+        "message": ["Google authentication failed"],
+    }
+    consume.assert_called_once()
+    handle_callback.assert_not_called()
+
+
+def test_google_callback_uses_configured_frontend_origin(
+    auth_client,
+    auth_required_env,
+    monkeypatch,
+):
+    """Production deployments can redirect back to the configured frontend."""
+    from app.api.google import oauth as google_oauth
+
+    monkeypatch.setitem(
+        auth_client.application.config,
+        "FRONTEND_ORIGIN",
+        "https://app.example.test/",
+    )
+    with patch.object(google_oauth.google_auth_service, "_store_state_nonce"):
+        state = google_oauth.google_auth_service.build_state(
+            user_id="user-oauth",
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        )
+
+    with patch.object(
+        google_oauth.google_auth_service,
+        "_consume_state_nonce",
+        return_value=True,
+    ), patch.object(
+        google_oauth.google_auth_service,
+        "handle_callback",
+        return_value=(True, "connected"),
+    ):
+        response = auth_client.get(
+            f"/api/v1/google/callback?code=auth-code&state={quote(state)}",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "https://app.example.test?google_auth=success"
+
+
+def test_google_callback_hides_provider_failure_details(
+    auth_client,
+    auth_required_env,
+):
+    """Provider exchange errors are logged server-side, not leaked to the URL."""
+    from app.api.google import oauth as google_oauth
+
+    with patch.object(google_oauth.google_auth_service, "_store_state_nonce"):
+        state = google_oauth.google_auth_service.build_state(
+            user_id="user-oauth",
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        )
+
+    with patch.object(
+        google_oauth.google_auth_service,
+        "_consume_state_nonce",
+        return_value=True,
+    ), patch.object(
+        google_oauth.google_auth_service,
+        "handle_callback",
+        return_value=(False, "Failed to authenticate: provider secret detail"),
+    ):
+        response = auth_client.get(
+            f"/api/v1/google/callback?code=auth-code&state={quote(state)}",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 302
+    assert "provider+secret+detail" not in response.headers["Location"]
+    assert "message=Google+authentication+failed" in response.headers["Location"]
+
+
+def test_google_state_nonce_is_consumed_once(auth_client, auth_required_env):
+    """The signed state is insufficient without the one-time nonce row."""
+    from app.providers.google.auth import GoogleAuthService
+
+    service = GoogleAuthService()
+    with patch.object(service, "_store_state_nonce") as store, patch.object(
+        service,
+        "_consume_state_nonce",
+        side_effect=[True, False],
+    ) as consume:
+        state = service.build_state(
+            user_id="user-oauth",
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        )
+
+        assert service.parse_state(
+            state,
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        ) == "user-oauth"
+        assert service.parse_state(
+            state,
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        ) is None
+
+    store.assert_called_once()
+    assert consume.call_count == 2
+
+
+def test_google_state_rejects_wrong_user_nonce(auth_client, auth_required_env):
+    """A signed state fails when its nonce row does not match that user."""
+    from app.providers.google.auth import GoogleAuthService
+
+    service = GoogleAuthService()
+    with patch.object(service, "_store_state_nonce"), patch.object(
+        service,
+        "_consume_state_nonce",
+        return_value=False,
+    ) as consume:
+        state = service.build_state(
+            user_id="user-oauth",
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        )
+
+        assert service.parse_state(
+            state,
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        ) is None
+
+    consume.assert_called_once()
+
+
+def test_google_state_rejects_expired_signature(auth_client, auth_required_env):
+    """Expired signed state is rejected before nonce consumption."""
+    from app.providers.google.auth import GoogleAuthService
+
+    service = GoogleAuthService()
+    service.STATE_MAX_AGE_SECONDS = -1
+    with patch.object(service, "_store_state_nonce"), patch.object(
+        service,
+        "_consume_state_nonce",
+    ) as consume:
+        state = service.build_state(
+            user_id="user-oauth",
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        )
+
+        assert service.parse_state(
+            state,
+            secret_key=auth_client.application.config["SECRET_KEY"],
+        ) is None
+
+    consume.assert_not_called()
+
+
+def test_google_auth_url_uses_configured_redirect_uri(monkeypatch):
+    """Google Console callback URI comes from runtime config, not a dev constant."""
+    from app.providers.google.auth import GoogleAuthService
+
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "client-secret")
+    service = GoogleAuthService()
+    flow = MagicMock()
+    flow.authorization_url.return_value = ("https://accounts.google.test/auth", "state")
+
+    with patch(
+        "app.providers.google.auth.Flow.from_client_config",
+        return_value=flow,
+    ) as from_config:
+        auth_url = service.get_auth_url(
+            user_id="user-oauth",
+            state="signed-state",
+            redirect_uri="https://api.example.test/api/v1/google/callback",
+        )
+
+    assert auth_url == "https://accounts.google.test/auth"
+    client_config = from_config.call_args.args[0]
+    assert client_config["web"]["redirect_uris"] == [
+        "https://api.example.test/api/v1/google/callback",
+    ]
+    assert from_config.call_args.kwargs["redirect_uri"] == (
+        "https://api.example.test/api/v1/google/callback"
+    )
+    flow.authorization_url.assert_called_once()
+
+
+def test_google_auth_url_returns_none_when_oauth_credentials_missing(monkeypatch):
+    """Missing Google OAuth config fails before building a provider URL."""
+    from app.providers.google.auth import GoogleAuthService
+
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_SECRET", raising=False)
+
+    assert GoogleAuthService().get_auth_url(
+        user_id="user-oauth",
+        state="signed-state",
+        redirect_uri="https://api.example.test/api/v1/google/callback",
+    ) is None
 
 
 # ---------------------------------------------------------------------------

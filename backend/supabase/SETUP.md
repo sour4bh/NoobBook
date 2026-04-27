@@ -50,6 +50,11 @@ ELEVENLABS_API_KEY=...          # Audio features
 TAVILY_API_KEY=...              # Web search fallback
 GOOGLE_CLIENT_ID=...            # Google Drive import
 GOOGLE_CLIENT_SECRET=...
+FRONTEND_ORIGIN=http://localhost:5173
+API_PUBLIC_ORIGIN=http://localhost:5001
+# Optional explicit override when the public callback URL does not equal
+# API_PUBLIC_ORIGIN + /api/v1/google/callback:
+# GOOGLE_OAUTH_REDIRECT_URI=https://api.example.com/api/v1/google/callback
 ```
 
 ### Managing the Setup

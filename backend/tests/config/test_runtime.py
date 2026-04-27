@@ -7,6 +7,9 @@ from app.config.runtime import Config, RuntimeSettings
 
 def test_runtime_settings_defaults(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
+    monkeypatch.delenv("FRONTEND_ORIGIN", raising=False)
+    monkeypatch.delenv("API_PUBLIC_ORIGIN", raising=False)
+    monkeypatch.delenv("GOOGLE_OAUTH_REDIRECT_URI", raising=False)
 
     settings = RuntimeSettings(_env_file=tmp_path / "missing.env")
 
@@ -16,12 +19,16 @@ def test_runtime_settings_defaults(monkeypatch, tmp_path: Path) -> None:
         "http://localhost:5173",
         "http://localhost:3000",
     ]
+    assert settings.frontend_redirect_origin == "http://localhost:5173"
+    assert settings.google_callback_url == "http://localhost:5001/api/v1/google/callback"
 
 
 def test_runtime_settings_env_override(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text(
         "ALLOWED_ORIGINS=http://example.test,http://localhost:9999\n"
+        "FRONTEND_ORIGIN=https://app.example.test/\n"
+        "API_PUBLIC_ORIGIN=https://api.example.test/\n"
         "MAX_CONTENT_LENGTH=123\n",
         encoding="utf-8",
     )
@@ -32,7 +39,21 @@ def test_runtime_settings_env_override(tmp_path: Path) -> None:
         "http://example.test",
         "http://localhost:9999",
     ]
+    assert settings.frontend_redirect_origin == "https://app.example.test"
+    assert settings.google_callback_url == "https://api.example.test/api/v1/google/callback"
     assert settings.max_content_length == 123
+
+
+def test_runtime_settings_explicit_google_redirect_uri(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "GOOGLE_OAUTH_REDIRECT_URI=https://oauth.example.test/google/callback\n",
+        encoding="utf-8",
+    )
+
+    settings = RuntimeSettings(_env_file=env_file)
+
+    assert settings.google_callback_url == "https://oauth.example.test/google/callback"
 
 
 def test_backend_config_module_collision_is_removed() -> None:

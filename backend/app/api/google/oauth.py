@@ -7,9 +7,9 @@ sharing their password.
 
 The OAuth Dance:
 1. /google/status  - Check if we're configured and connected
-2. /google/auth    - Get the authorization URL (includes user_id in state)
+2. /google/auth    - Get the authorization URL (includes signed one-time state)
 3. (User visits Google, grants permission)
-4. /google/callback - Google redirects here with auth code + state (user_id)
+4. /google/callback - Google redirects here with auth code + state
 5. /google/disconnect - Remove stored tokens
 
 Security Considerations:
@@ -17,7 +17,7 @@ Security Considerations:
 - Use HTTPS in production for callback URL
 - Store refresh tokens securely in Supabase (per-user)
 - Handle token expiration gracefully
-- State parameter carries user_id for multi-user support
+- State parameter carries a signed one-time nonce for multi-user support
 
 Routes:
 - GET  /google/status     - Check configuration and connection
@@ -25,12 +25,31 @@ Routes:
 - GET  /google/callback   - Handle OAuth callback (redirects)
 - POST /google/disconnect - Remove stored tokens
 """
-from urllib.parse import quote_plus
+from urllib.parse import urlencode
+
 from flask import jsonify, request, redirect, current_app
+from flask.typing import ResponseReturnValue
+
 from app.api.google import google_bp
-from app.providers.google.auth import google_auth_service
-from app.auth.identity import get_request_identity
 from app.auth.guards import require_permission
+from app.auth.identity import get_request_identity
+from app.providers.google.auth import google_auth_service
+
+
+_GENERIC_OAUTH_ERROR = "Google authentication failed"
+
+
+def _frontend_redirect(params: dict[str, str]) -> ResponseReturnValue:
+    origin = str(current_app.config["FRONTEND_ORIGIN"]).rstrip("/")
+    return redirect(f"{origin}?{urlencode(params)}")
+
+
+def _oauth_success_redirect() -> ResponseReturnValue:
+    return _frontend_redirect({"google_auth": "success"})
+
+
+def _oauth_error_redirect(message: str = _GENERIC_OAUTH_ERROR) -> ResponseReturnValue:
+    return _frontend_redirect({"google_auth": "error", "message": message})
 
 
 def _get_current_user_id() -> str:
@@ -117,7 +136,11 @@ def google_auth():
             user_id=user_id,
             secret_key=current_app.config["SECRET_KEY"],
         )
-        auth_url = google_auth_service.get_auth_url(user_id=user_id, state=state)
+        auth_url = google_auth_service.get_auth_url(
+            user_id=user_id,
+            state=state,
+            redirect_uri=current_app.config["GOOGLE_OAUTH_REDIRECT_URI"],
+        )
         if not auth_url:
             return jsonify({
                 'success': False,
@@ -143,7 +166,7 @@ def google_callback():
     Handle OAuth callback from Google.
 
     Educational Note: This is where the OAuth "dance" completes:
-    1. Google redirects here with ?code=AUTHORIZATION_CODE&state=USER_ID
+    1. Google redirects here with ?code=AUTHORIZATION_CODE&state=SIGNED_STATE
     2. We exchange the code for access + refresh tokens
     3. Tokens are stored in Supabase users.google_tokens (per-user)
     4. We redirect user back to frontend with success/error
@@ -155,7 +178,7 @@ def google_callback():
 
     Query Params:
         code: Authorization code from Google (on success)
-        state: User ID passed from get_auth_url (for multi-user support)
+        state: Signed one-time state token from get_auth_url
         error: Error message if user denied access
 
     Returns:
@@ -165,13 +188,14 @@ def google_callback():
         # Check for error (user denied access)
         error = request.args.get('error')
         if error:
-            current_app.logger.warning(f"Google OAuth denied: {error}")
-            return redirect(f'http://localhost:5173?google_auth=error&message={quote_plus(error)}')
+            current_app.logger.warning("Google OAuth denied by provider: %s", error)
+            return _oauth_error_redirect("Google authentication was cancelled")
 
         # Get authorization code
         code = request.args.get('code')
         if not code:
-            return redirect('http://localhost:5173?google_auth=error&message=No+authorization+code')
+            current_app.logger.warning("Google OAuth callback missing authorization code")
+            return _oauth_error_redirect()
 
         state = request.args.get('state', '')
         user_id = google_auth_service.parse_state(
@@ -179,21 +203,26 @@ def google_callback():
             secret_key=current_app.config["SECRET_KEY"],
         )
         if not user_id:
-            return redirect('http://localhost:5173?google_auth=error&message=Invalid+OAuth+state')
+            current_app.logger.warning("Google OAuth callback rejected invalid or replayed state")
+            return _oauth_error_redirect()
 
         # Exchange code for tokens, passing user_id for storage
-        success, message = google_auth_service.handle_callback(code, user_id=user_id)
+        success, message = google_auth_service.handle_callback(
+            code,
+            user_id=user_id,
+            redirect_uri=current_app.config["GOOGLE_OAUTH_REDIRECT_URI"],
+        )
 
         if success:
             current_app.logger.info(f"Google OAuth successful: {message}")
-            return redirect('http://localhost:5173?google_auth=success')
+            return _oauth_success_redirect()
         else:
             current_app.logger.error(f"Google OAuth failed: {message}")
-            return redirect(f'http://localhost:5173?google_auth=error&message={quote_plus(message)}')
+            return _oauth_error_redirect()
 
     except Exception as e:
-        current_app.logger.error(f"Error in Google callback: {e}")
-        return redirect(f'http://localhost:5173?google_auth=error&message={quote_plus(str(e))}')
+        current_app.logger.exception("Error in Google callback: %s", e)
+        return _oauth_error_redirect()
 
 
 @google_bp.route('/google/disconnect', methods=['POST'])

@@ -43,6 +43,26 @@ WHERE id = '00000000-0000-0000-0000-000000000001'
   AND role <> 'admin';
 
 -- ============================================================================
+-- OAUTH STATES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS oauth_states (
+  nonce TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  consumed_at TIMESTAMPTZ,
+  CONSTRAINT oauth_states_provider_not_empty CHECK (length(trim(provider)) > 0),
+  CONSTRAINT oauth_states_nonce_not_empty CHECK (length(trim(nonce)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_states_user_id ON oauth_states(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_states_expiry ON oauth_states(expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_states_unconsumed
+  ON oauth_states(provider, user_id, expires_at)
+  WHERE consumed_at IS NULL;
+
+-- ============================================================================
 -- PROJECTS TABLE
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS projects (

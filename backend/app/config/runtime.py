@@ -21,6 +21,9 @@ class RuntimeSettings(BaseSettings):
         default="http://localhost:5173,http://localhost:3000",
         alias="ALLOWED_ORIGINS",
     )
+    frontend_origin: str = Field(default="http://localhost:5173", alias="FRONTEND_ORIGIN")
+    api_public_origin: str = Field(default="http://localhost:5001", alias="API_PUBLIC_ORIGIN")
+    google_oauth_redirect_uri: str = Field(default="", alias="GOOGLE_OAUTH_REDIRECT_URI")
     max_content_length: int = 100 * 1024 * 1024
     api_prefix: str = "/api/v1"
 
@@ -36,6 +39,23 @@ class RuntimeSettings(BaseSettings):
         origins = [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
         return origins or ["http://localhost:5173", "http://localhost:3000"]
 
+    @property
+    def frontend_redirect_origin(self) -> str:
+        origin = self.frontend_origin.strip().rstrip("/")
+        if not origin:
+            raise ValueError("FRONTEND_ORIGIN must not be empty")
+        return origin
+
+    @property
+    def google_callback_url(self) -> str:
+        explicit = self.google_oauth_redirect_uri.strip()
+        if explicit:
+            return explicit
+        origin = self.api_public_origin.strip().rstrip("/")
+        if not origin:
+            raise ValueError("API_PUBLIC_ORIGIN must not be empty")
+        return f"{origin}{self.api_prefix}/google/callback"
+
 
 runtime_settings = RuntimeSettings()
 
@@ -49,6 +69,8 @@ class Config:
     DEBUG = False
     TESTING = False
     CORS_ALLOWED_ORIGINS = runtime_settings.cors_allowed_origins
+    FRONTEND_ORIGIN = runtime_settings.frontend_redirect_origin
+    GOOGLE_OAUTH_REDIRECT_URI = runtime_settings.google_callback_url
     BASE_DIR = BACKEND_DIR
     DATA_DIR = BASE_DIR / "data"
     PROJECTS_DIR = DATA_DIR / "projects"
@@ -73,6 +95,8 @@ class Config:
         cls.TEMP_DIR.mkdir(exist_ok=True)
         app.config["SECRET_KEY"] = cls.SECRET_KEY
         app.config["CORS_ALLOWED_ORIGINS"] = list(dict.fromkeys(cls.CORS_ALLOWED_ORIGINS))
+        app.config["FRONTEND_ORIGIN"] = cls.FRONTEND_ORIGIN
+        app.config["GOOGLE_OAUTH_REDIRECT_URI"] = cls.GOOGLE_OAUTH_REDIRECT_URI
         logger.info("%s v%s initialized (debug=%s)", cls.APP_NAME, cls.VERSION, cls.DEBUG)
 
 
@@ -91,7 +115,10 @@ class ProductionConfig(Config):
         if not secret_key:
             raise ValueError("SECRET_KEY environment variable must be set in production")
         cls.SECRET_KEY = secret_key
-        cls.CORS_ALLOWED_ORIGINS = RuntimeSettings().cors_allowed_origins
+        settings = RuntimeSettings()
+        cls.CORS_ALLOWED_ORIGINS = settings.cors_allowed_origins
+        cls.FRONTEND_ORIGIN = settings.frontend_redirect_origin
+        cls.GOOGLE_OAUTH_REDIRECT_URI = settings.google_callback_url
         super().init_app(app)
 
 

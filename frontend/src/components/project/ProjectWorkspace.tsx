@@ -26,6 +26,7 @@ import {
 interface ProjectWorkspaceProps {
   project: {
     id: string;
+    workspace_id?: string;
     name: string;
     description: string;
   };
@@ -33,6 +34,7 @@ interface ProjectWorkspaceProps {
   onDeleteProject: (projectId: string) => void;
   onRenameProject?: (newName: string) => Promise<void>;
   onSignOut?: () => Promise<void>;
+  currentUserId: string;
 }
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
@@ -41,6 +43,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   onDeleteProject,
   onRenameProject,
   onSignOut,
+  currentUserId,
 }) => {
   // Refs for programmatic panel control
   const leftPanelRef = useRef<ImperativePanelHandle>(null);
@@ -120,6 +123,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         costsVersion={costsVersion}
         onRename={onRenameProject}
         onSignOut={onSignOut}
+        currentUserId={currentUserId}
       />
 
       {/* Main Content Area - Floating panels over background */}

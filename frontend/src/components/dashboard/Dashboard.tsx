@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ProjectList } from '../project';
 import { AppSettings } from './AppSettings';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { Button } from '../ui/button';
 import {
   AlertDialog,
@@ -13,6 +14,7 @@ import {
 import { Gear, Ghost, SignOut, Warning } from '@phosphor-icons/react';
 import { ToastContainer } from '../ui/toast';
 import { useToast } from '../ui/use-toast';
+import type { WorkspaceSessionContext } from '@/lib/api/contracts';
 
 /**
  * Dashboard Component
@@ -44,6 +46,8 @@ interface DashboardProps {
   globalRole: string;
   workspaceRole: string | null;
   selectedWorkspaceId: string | null;
+  workspace: WorkspaceSessionContext | null;
+  onWorkspaceChange: (workspaceId: string) => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -58,6 +62,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   globalRole,
   workspaceRole,
   selectedWorkspaceId,
+  workspace,
+  onWorkspaceChange,
 }) => {
   const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
@@ -74,6 +80,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex items-center gap-2">
             <Ghost size={24} weight="fill" className="text-primary" />
             <h1 className="text-lg font-semibold">NoobBook</h1>
+            {isAuthenticated ? (
+              <div className="ml-3">
+                <WorkspaceSwitcher
+                  workspace={workspace}
+                  onWorkspaceChange={onWorkspaceChange}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
@@ -110,6 +124,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           onCreateNew={onCreateNewProject}
           refreshTrigger={refreshTrigger}
           workspaceId={selectedWorkspaceId}
+          currentUserId={userId}
+          canCreateProject={Boolean(workspace?.can_create_project)}
         />
       </main>
 
@@ -121,6 +137,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         userEmail={userEmail}
         globalRole={globalRole}
         workspaceRole={workspaceRole}
+        selectedWorkspaceId={selectedWorkspaceId}
         canManageWorkspace={canManageWorkspace}
         onSignOut={onSignOut}
       />

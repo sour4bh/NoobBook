@@ -1,7 +1,7 @@
 /**
  * AppSettings Component
- * Admin Settings dialog with Notion-style sidebar navigation.
- * Features: Profile, Team Management, API Keys, Integrations, System Settings.
+ * Workspace settings dialog with Notion-style sidebar navigation.
+ * Features: Profile, Workspace Members, API Keys, Integrations, System Settings.
  */
 
 import React, { useState } from 'react';
@@ -14,7 +14,7 @@ import {
 import { SettingsSidebar, type SettingsSection } from '../settings/SettingsSidebar';
 import {
   ProfileSection,
-  TeamSection,
+  WorkspaceMembersSection,
   ApiKeysSection,
   IntegrationsSection,
   SystemSection,
@@ -29,6 +29,7 @@ interface AppSettingsProps {
   globalRole?: string;
   workspaceRole?: string | null;
   canManageWorkspace?: boolean;
+  selectedWorkspaceId?: string | null;
   userId?: string;
   onSignOut?: () => Promise<void>;
 }
@@ -40,6 +41,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
   globalRole = 'user',
   workspaceRole = null,
   canManageWorkspace = false,
+  selectedWorkspaceId = null,
   userId = '',
   onSignOut,
 }) => {
@@ -74,7 +76,12 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
           />
         );
       case 'team':
-        return canManageWorkspace ? <TeamSection currentUserId={userId} /> : null;
+        return canManageWorkspace ? (
+          <WorkspaceMembersSection
+            currentUserId={userId}
+            workspaceId={selectedWorkspaceId}
+          />
+        ) : null;
       case 'api-keys':
         return canManageWorkspace ? <ApiKeysSection /> : null;
       case 'models':

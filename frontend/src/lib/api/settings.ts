@@ -46,18 +46,6 @@ export interface DatabaseConnection {
 
 export type ResetFrequency = 'daily' | 'weekly' | 'monthly' | null;
 
-export interface UserSummary {
-  id: string;
-  email: string | null;
-  role: 'admin' | 'user' | string;
-  cost_limit: number | null;
-  reset_frequency: ResetFrequency;
-  period_spend: number;
-  period_start: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface UserUsage {
   cost_limit: number | null;
   reset_frequency: ResetFrequency;
@@ -392,116 +380,6 @@ export const mcpAPI = new McpAPI();
 // ============================================================================
 
 class UsersAPI {
-  async listUsers(): Promise<UserSummary[]> {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/settings/users`);
-      return response.data.users || [];
-    } catch (error) {
-      log.error({ err: error }, 'failed to fetch users');
-      throw error;
-    }
-  }
-
-  async createUser(email: string, role: 'admin' | 'user' = 'user'): Promise<{ user: UserSummary; password: string }> {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/settings/users`, { email, role });
-      return {
-        user: response.data.user,
-        password: response.data.password,
-      };
-    } catch (error) {
-      log.error({ err: error }, 'failed to create user');
-      throw error;
-    }
-  }
-
-  async deleteUser(userId: string): Promise<void> {
-    try {
-      await axios.delete(`${API_BASE_URL}/settings/users/${userId}`);
-    } catch (error) {
-      log.error({ err: error }, 'failed to delete user');
-      throw error;
-    }
-  }
-
-  async updateUserRole(userId: string, role: 'admin' | 'user'): Promise<UserSummary> {
-    try {
-      const response = await axios.put(`${API_BASE_URL}/settings/users/${userId}/role`, { role });
-      return response.data.user;
-    } catch (error) {
-      log.error({ err: error }, 'failed to update user role');
-      throw error;
-    }
-  }
-
-  async resetPassword(userId: string): Promise<{ password: string }> {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/settings/users/${userId}/reset-password`);
-      return { password: response.data.password };
-    } catch (error) {
-      log.error({ err: error }, 'failed to reset password');
-      throw error;
-    }
-  }
-
-  /**
-   * Get permissions for a specific user
-   * Educational Note: Returns the category-based permission structure that
-   * controls which features are available to this user.
-   */
-  async getUserPermissions(userId: string): Promise<{
-    permissions: UserPermissions;
-    connections: { databases: { id: string; name: string }[]; mcp: { id: string; name: string }[] };
-    connection_access: { database_ids: string[]; mcp_ids: string[] };
-  }> {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/settings/users/${userId}/permissions`);
-      return {
-        permissions: response.data.permissions,
-        connections: response.data.connections || { databases: [], mcp: [] },
-        connection_access: response.data.connection_access || { database_ids: [], mcp_ids: [] },
-      };
-    } catch (error) {
-      log.error({ err: error }, 'failed to fetch user permissions');
-      throw error;
-    }
-  }
-
-  /**
-   * Update permissions for a specific user (including per-connection access)
-   */
-  async updateUserPermissions(
-    userId: string,
-    permissions: UserPermissions,
-    connectionAccess?: { database_ids?: string[]; mcp_ids?: string[] },
-  ): Promise<void> {
-    try {
-      await axios.put(`${API_BASE_URL}/settings/users/${userId}/permissions`, {
-        permissions,
-        connection_access: connectionAccess,
-      });
-    } catch (error) {
-      log.error({ err: error }, 'failed to update user permissions');
-      throw error;
-    }
-  }
-
-  async updateCostLimit(
-    userId: string,
-    costLimit: number | null,
-    resetFrequency?: ResetFrequency,
-  ): Promise<void> {
-    try {
-      await axios.put(`${API_BASE_URL}/settings/users/${userId}/cost-limit`, {
-        cost_limit: costLimit,
-        reset_frequency: resetFrequency ?? null,
-      });
-    } catch (error) {
-      log.error({ err: error }, 'failed to update cost limit');
-      throw error;
-    }
-  }
-
   async getMyUsage(): Promise<UserUsage | null> {
     try {
       const response = await axios.get(`${API_BASE_URL}/settings/users/me/usage`);
@@ -511,20 +389,6 @@ class UsersAPI {
       return null;
     }
   }
-}
-
-// Permission types for per-user feature gating
-interface PermissionCategory {
-  enabled: boolean;
-  items: Record<string, boolean>;
-}
-
-export interface UserPermissions {
-  document_sources: PermissionCategory;
-  data_sources: PermissionCategory;
-  studio: PermissionCategory;
-  integrations: PermissionCategory;
-  chat_features: PermissionCategory;
 }
 
 export const usersAPI = new UsersAPI();

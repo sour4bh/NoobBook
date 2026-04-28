@@ -7,7 +7,14 @@
 
 import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { getAccessToken, getRefreshToken, getAssetToken, setSession, clearSession } from '../auth/session';
+import {
+  getAccessToken,
+  getRefreshToken,
+  getAssetToken,
+  getSelectedWorkspaceId,
+  setSession,
+  clearSession,
+} from '../auth/session';
 import { createLogger } from '@/lib/logger';
 import { parseAuthSessionResponse, parseErrorEnvelope } from './contracts';
 
@@ -35,6 +42,11 @@ const attachAuthHeader = (config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const workspaceId = getSelectedWorkspaceId();
+  if (workspaceId) {
+    config.headers = config.headers || {};
+    config.headers['X-NoobBook-Workspace-Id'] = workspaceId;
   }
   return config;
 };
@@ -90,10 +102,16 @@ function isAuthRoute(url: string | URL): boolean {
 function withAuthHeader(init: RequestInit): RequestInit {
   const headers = new Headers(init.headers);
   const token = getAccessToken();
+  const workspaceId = getSelectedWorkspaceId();
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   } else {
     headers.delete('Authorization');
+  }
+  if (workspaceId) {
+    headers.set('X-NoobBook-Workspace-Id', workspaceId);
+  } else {
+    headers.delete('X-NoobBook-Workspace-Id');
   }
   return { ...init, headers };
 }

@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { Dashboard, CreateProjectDialog } from './components/dashboard';
 import { ProjectWorkspace } from './components/project';
 
-import { projectsAPI } from './lib/api';
+import { projectsAPI, workspacesAPI } from './lib/api';
 import { AuthPage } from './components/auth/AuthPage';
 import { authAPI } from './lib/api/auth';
 import { createLogger } from '@/lib/logger';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import type { WorkspaceSessionContext } from './lib/api/contracts';
+import { setSelectedWorkspaceId } from './lib/auth/session';
+import { Button } from './components/ui/button';
 
 const log = createLogger('app');
 
@@ -26,6 +28,7 @@ const log = createLogger('app');
  */
 interface Project {
   id: string;
+  workspace_id?: string;
   name: string;
   description: string;
   created_at: string;
@@ -46,6 +49,8 @@ interface AppContentProps {
   globalRole: string;
   workspaceRole: string | null;
   selectedWorkspaceId: string | null;
+  workspace: WorkspaceSessionContext | null;
+  onWorkspaceChange: (workspaceId: string) => Promise<void>;
 }
 
 /**
@@ -66,6 +71,8 @@ function AppContent({
   globalRole,
   workspaceRole,
   selectedWorkspaceId,
+  workspace,
+  onWorkspaceChange,
 }: AppContentProps) {
   const navigate = useNavigate();
 
@@ -94,6 +101,8 @@ function AppContent({
         globalRole={globalRole}
         workspaceRole={workspaceRole}
         selectedWorkspaceId={selectedWorkspaceId}
+        workspace={workspace}
+        onWorkspaceChange={onWorkspaceChange}
       />
 
       {showCreateDialog && (
@@ -116,10 +125,12 @@ function ProjectWorkspaceRoute({
   setRefreshTrigger,
   isAuthenticated,
   onSignOut,
+  currentUserId,
 }: {
   setRefreshTrigger: (fn: (prev: number) => number) => void;
   isAuthenticated: boolean;
   onSignOut: () => Promise<void>;
+  currentUserId: string;
 }) {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -182,7 +193,56 @@ function ProjectWorkspaceRoute({
       onDeleteProject={handleDeleteProject}
       onRenameProject={handleRenameProject}
       onSignOut={isAuthenticated ? onSignOut : undefined}
+      currentUserId={currentUserId}
     />
+  );
+}
+
+function WorkspaceInviteRoute({
+  onAccepted,
+}: {
+  onAccepted: (workspaceId: string) => Promise<void>;
+}) {
+  const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
+  const acceptingRef = useRef(false);
+  const [status, setStatus] = useState<'loading' | 'error'>('loading');
+  const [message, setMessage] = useState('Accepting invite...');
+
+  useEffect(() => {
+    if (!token || acceptingRef.current) return;
+    acceptingRef.current = true;
+
+    const accept = async () => {
+      try {
+        const accepted = await workspacesAPI.acceptInvite(token);
+        setSelectedWorkspaceId(accepted.workspace.id);
+        await onAccepted(accepted.workspace.id);
+        navigate(accepted.project_id ? `/projects/${accepted.project_id}` : '/', { replace: true });
+      } catch (err) {
+        log.error({ err }, 'failed to accept workspace invite');
+        setMessage('This invite is invalid, expired, already used, or belongs to another email address.');
+        setStatus('error');
+      }
+    };
+
+    accept();
+  }, [token, onAccepted, navigate]);
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-lg border bg-card p-6 text-center shadow-sm">
+        <h1 className="text-lg font-semibold">Workspace invite</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        {status === 'error' ? (
+          <Button className="mt-4" onClick={() => navigate('/', { replace: true })}>
+            Back to dashboard
+          </Button>
+        ) : (
+          <div className="mx-auto mt-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -207,7 +267,9 @@ function App() {
       setUserId(res?.user?.id || '');
       setUserEmail(res?.user?.email || null);
       setGlobalRole(res?.user?.global_role || 'user');
-      setWorkspace(res?.workspace || null);
+      const workspaceContext = res?.workspace || null;
+      setWorkspace(workspaceContext);
+      setSelectedWorkspaceId(workspaceContext?.selected_workspace_id || null);
     } catch (err) {
       log.error({ err }, 'auth check failed');
       setAuthRequired(false);
@@ -217,9 +279,16 @@ function App() {
       setUserEmail(null);
       setGlobalRole('user');
       setWorkspace(null);
+      setSelectedWorkspaceId(null);
     } finally {
       setAuthReady(true);
     }
+  };
+
+  const handleWorkspaceChange = async (workspaceId: string) => {
+    setSelectedWorkspaceId(workspaceId);
+    await refreshAuth();
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleSignOut = async () => {
@@ -254,12 +323,23 @@ function App() {
         <Routes>
           {/* Project Workspace - URL-based routing */}
           <Route
+            path="/workspace-invites/:token"
+            element={
+              <WorkspaceInviteRoute
+                onAccepted={handleWorkspaceChange}
+              />
+            }
+          />
+
+          {/* Project Workspace - URL-based routing */}
+          <Route
             path="/projects/:projectId"
             element={
               <ProjectWorkspaceRoute
                 setRefreshTrigger={setRefreshTrigger}
                 isAuthenticated={isAuthenticated}
                 onSignOut={handleSignOut}
+                currentUserId={userId}
               />
             }
           />
@@ -281,6 +361,8 @@ function App() {
                 globalRole={globalRole}
                 workspaceRole={workspace?.workspace_role || null}
                 selectedWorkspaceId={workspace?.selected_workspace_id || null}
+                workspace={workspace}
+                onWorkspaceChange={handleWorkspaceChange}
               />
             }
           />

@@ -28,13 +28,14 @@ import {
   CollapsibleTrigger,
 } from '../ui/collapsible';
 import { Textarea } from '../ui/textarea';
-import { ArrowLeft, DotsThreeVertical, Plus, Trash, FolderOpen, Gear, CircleNotch, CurrencyDollar, Brain, CaretDown, CaretRight, PencilSimple, SignOut } from '@phosphor-icons/react';
+import { ArrowLeft, DotsThreeVertical, Plus, Trash, FolderOpen, Gear, CircleNotch, CurrencyDollar, Brain, CaretDown, CaretRight, PencilSimple, SignOut, ShareNetwork } from '@phosphor-icons/react';
 import { Input } from '../ui/input';
 import { chatsAPI, type PromptConfig } from '../../lib/api/chats';
 import { projectsAPI, type CostTracking, type MemoryData } from '../../lib/api';
 import { ToastContainer } from '../ui/toast';
 import { useToast } from '../ui/use-toast';
 import { createLogger } from '@/lib/logger';
+import { ProjectShareDialog } from './ProjectShareDialog';
 
 const log = createLogger('project-header');
 
@@ -47,6 +48,7 @@ const log = createLogger('project-header');
 interface ProjectHeaderProps {
   project: {
     id: string;
+    workspace_id?: string;
     name: string;
     description?: string;
   };
@@ -55,6 +57,7 @@ interface ProjectHeaderProps {
   costsVersion?: number; // Increment to trigger cost refresh
   onRename?: (newName: string) => Promise<void>;
   onSignOut?: () => Promise<void>;
+  currentUserId: string;
 }
 
 export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
@@ -64,11 +67,15 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   costsVersion,
   onRename,
   onSignOut,
+  currentUserId,
 }) => {
   const { toasts, dismissToast, error, success } = useToast();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [projectRole, setProjectRole] = React.useState<'owner' | 'editor' | 'viewer' | null>(null);
+  const [loadingProjectRole, setLoadingProjectRole] = React.useState(true);
 
   // Rename dialog state
   const [renameDialogOpen, setRenameDialogOpen] = React.useState(false);
@@ -90,6 +97,25 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   const [allPrompts, setAllPrompts] = React.useState<PromptConfig[]>([]);
   const [loadingPrompts, setLoadingPrompts] = React.useState(false);
   const [expandedPrompts, setExpandedPrompts] = React.useState<Set<string>>(new Set());
+
+  const loadProjectRole = React.useCallback(async () => {
+    if (!currentUserId) {
+      setProjectRole(null);
+      setLoadingProjectRole(false);
+      return;
+    }
+    try {
+      setLoadingProjectRole(true);
+      const members = await projectsAPI.listMembers(project.id);
+      const currentMember = members.find((member) => member.user_id === currentUserId);
+      setProjectRole(currentMember?.role || null);
+    } catch (err) {
+      log.error({ err }, 'failed to load project role');
+      setProjectRole(null);
+    } finally {
+      setLoadingProjectRole(false);
+    }
+  }, [currentUserId, project.id]);
 
   /**
    * Load project cost tracking data
@@ -113,6 +139,10 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   useEffect(() => {
     loadCosts();
   }, [loadCosts]);
+
+  useEffect(() => {
+    loadProjectRole();
+  }, [loadProjectRole]);
 
   /**
    * Refresh costs when costsVersion changes (triggered after chat messages)
@@ -152,6 +182,10 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
    * Educational Note: Memory is fetched on-demand when dialog opens.
    */
   const handleOpenMemory = () => {
+    if (!canEditProject) {
+      error('Project editor role required');
+      return;
+    }
     setMemoryDialogOpen(true);
     loadMemory();
   };
@@ -192,6 +226,9 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   const memoryIsDirty =
     editedUserMemory !== (memory?.user_memory || '') ||
     editedProjectMemory !== (memory?.project_memory || '');
+
+  const canManageProject = projectRole === 'owner';
+  const canEditProject = projectRole === 'owner' || projectRole === 'editor';
 
   /**
    * Load all prompt configurations
@@ -401,11 +438,24 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
           variant="soft"
           size="sm"
           onClick={handleOpenMemory}
+          disabled={loadingProjectRole || !canEditProject}
           className="gap-2"
         >
           <Brain size={16} />
           Memory
         </Button>
+
+        {canManageProject ? (
+          <Button
+            variant="soft"
+            size="sm"
+            onClick={() => setShareDialogOpen(true)}
+            className="gap-2"
+          >
+            <ShareNetwork size={16} />
+            Share
+          </Button>
+        ) : null}
 
         <Button
           variant="soft"
@@ -434,21 +484,27 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => {
-              setRenameValue(project.name);
-              setRenameDialogOpen(true);
-            }}>
-              <PencilSimple size={16} className="mr-2" />
-              Rename Project
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash size={16} className="mr-2" />
-              Delete Project
-            </DropdownMenuItem>
+            {canEditProject ? (
+              <DropdownMenuItem onClick={() => {
+                setRenameValue(project.name);
+                setRenameDialogOpen(true);
+              }}>
+                <PencilSimple size={16} className="mr-2" />
+                Rename Project
+              </DropdownMenuItem>
+            ) : null}
+            {canManageProject ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash size={16} className="mr-2" />
+                  Delete Project
+                </DropdownMenuItem>
+              </>
+            ) : null}
             {onSignOut && (
               <>
                 <DropdownMenuSeparator />
@@ -492,6 +548,19 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProjectShareDialog
+        open={shareDialogOpen}
+        onOpenChange={(open) => {
+          setShareDialogOpen(open);
+          if (!open) {
+            loadProjectRole();
+          }
+        }}
+        projectId={project.id}
+        workspaceId={project.workspace_id || null}
+        currentUserId={currentUserId}
+      />
 
       {/* Rename Project Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={(open) => {
@@ -751,7 +820,7 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
             </Button>
             <Button
               onClick={handleSaveMemory}
-              disabled={savingMemory || !memoryIsDirty}
+              disabled={savingMemory || !memoryIsDirty || !canEditProject}
             >
               {savingMemory ? 'Saving...' : 'Save'}
             </Button>

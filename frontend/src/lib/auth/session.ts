@@ -1,6 +1,7 @@
 const ACCESS_TOKEN_KEY = 'noobbook.access_token';
 const REFRESH_TOKEN_KEY = 'noobbook.refresh_token';
 const ASSET_TOKEN_KEY = 'noobbook.asset_token';
+const SELECTED_WORKSPACE_KEY = 'noobbook.selected_workspace_id';
 
 export const getAccessToken = (): string | null => {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -12,6 +13,18 @@ export const getRefreshToken = (): string | null => {
 
 export const getAssetToken = (): string | null => {
   return localStorage.getItem(ASSET_TOKEN_KEY);
+};
+
+export const getSelectedWorkspaceId = (): string | null => {
+  return localStorage.getItem(SELECTED_WORKSPACE_KEY);
+};
+
+export const setSelectedWorkspaceId = (workspaceId?: string | null) => {
+  if (workspaceId) {
+    localStorage.setItem(SELECTED_WORKSPACE_KEY, workspaceId);
+  } else {
+    localStorage.removeItem(SELECTED_WORKSPACE_KEY);
+  }
 };
 
 export const setAssetToken = (assetToken?: string | null) => {
@@ -34,4 +47,5 @@ export const clearSession = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(ASSET_TOKEN_KEY);
+  localStorage.removeItem(SELECTED_WORKSPACE_KEY);
 };

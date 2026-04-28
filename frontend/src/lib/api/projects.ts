@@ -7,9 +7,14 @@
 import { api } from './client';
 import {
   parseActiveTasksResponse,
+  parseProjectInviteResponse,
+  parseProjectMemberResponse,
+  parseProjectMembersResponse,
   parseProjectCostsResponse,
   type ActiveTasksResponse,
   type CostTracking,
+  type MembershipInvite,
+  type ProjectMember,
 } from './contracts';
 import type { AxiosResponse } from 'axios';
 
@@ -28,6 +33,7 @@ export interface MemoryData {
  * Educational Note: These types match the backend cost tracking structure.
  */
 export type { ActiveTask, ActiveTasksResponse, CostTracking, ModelCostBreakdown } from './contracts';
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
 
 type ProjectCostsAxiosResponse = AxiosResponse<{
   success: true;
@@ -78,4 +84,47 @@ export const projectsAPI = {
   // Update user and/or project memory (both fields optional)
   updateMemory: (id: string, data: { user_memory?: string; project_memory?: string }) =>
     api.put(`/projects/${id}/memory`, data),
+
+  listMembers: async (id: string): Promise<ProjectMember[]> => {
+    const response = await api.get(`/projects/${id}/members`);
+    return parseProjectMembersResponse(response.data).members;
+  },
+
+  addMember: async (
+    id: string,
+    userId: string,
+    role: ProjectRole,
+  ): Promise<ProjectMember> => {
+    const response = await api.post(`/projects/${id}/members`, {
+      user_id: userId,
+      role,
+    });
+    return parseProjectMemberResponse(response.data).member;
+  },
+
+  updateMemberRole: async (
+    id: string,
+    userId: string,
+    role: ProjectRole,
+  ): Promise<ProjectMember> => {
+    const response = await api.put(`/projects/${id}/members/${userId}`, { role });
+    return parseProjectMemberResponse(response.data).member;
+  },
+
+  removeMember: async (id: string, userId: string): Promise<void> => {
+    await api.delete(`/projects/${id}/members/${userId}`);
+  },
+
+  createInvite: async (
+    id: string,
+    email: string,
+    projectRole: ProjectRole,
+  ): Promise<MembershipInvite> => {
+    const response = await api.post(`/projects/${id}/invites`, {
+      email,
+      workspace_role: 'member',
+      project_role: projectRole,
+    });
+    return parseProjectInviteResponse(response.data).invite;
+  },
 };

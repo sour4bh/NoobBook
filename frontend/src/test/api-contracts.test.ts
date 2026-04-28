@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { chatsAPI } from '../lib/api/chats';
@@ -7,10 +7,18 @@ import {
   parseActiveTasksResponse,
   parseChatStreamEvent,
   parseGeneratedAssetAccess,
+  parseInviteAcceptResponse,
   parseMeResponse,
+  parseProjectInviteResponse,
+  parseProjectMemberResponse,
+  parseProjectMembersResponse,
   parseProjectCostsResponse,
+  parseWorkspaceInviteResponse,
+  parseWorkspaceMembersResponse,
+  parseWorkspaceSessionResponse,
 } from '../lib/api/contracts';
-import { setSession } from '../lib/auth/session';
+import { api, fetchWithAuthRefresh } from '../lib/api/client';
+import { setSelectedWorkspaceId, setSession } from '../lib/auth/session';
 
 const message = {
   id: 'msg-1',
@@ -87,6 +95,65 @@ describe('frontend API contract parsers', () => {
         status: 'processing',
       }],
     }).tasks).toHaveLength(1);
+
+    expect(parseWorkspaceSessionResponse({
+      success: true,
+      workspace,
+    }).workspace.selected_workspace_id).toBe('workspace-1');
+
+    expect(parseWorkspaceMembersResponse({
+      success: true,
+      count: 1,
+      members: [{
+        user_id: 'user-1',
+        email: 'user@example.com',
+        role: 'owner',
+        created_at: '2026-04-27T00:00:00Z',
+      }],
+    }).members[0].role).toBe('owner');
+
+    const invite = {
+      id: 'invite-1',
+      workspace_id: 'workspace-1',
+      email: 'teammate@example.com',
+      workspace_role: 'member' as const,
+      project_id: 'project-1',
+      project_role: 'viewer' as const,
+      expires_at: '2026-04-28T00:00:00Z',
+      token: 'signed-token',
+    };
+    expect(parseWorkspaceInviteResponse({
+      success: true,
+      invite: { ...invite, project_id: null, project_role: null },
+    }).invite.token).toBe('signed-token');
+    expect(parseInviteAcceptResponse({
+      success: true,
+      workspace: workspace.selected_workspace,
+      workspace_role: 'member',
+      project_id: 'project-1',
+      project_role: 'viewer',
+    }).project_id).toBe('project-1');
+    expect(parseProjectMembersResponse({
+      success: true,
+      count: 1,
+      members: [{
+        user_id: 'user-2',
+        email: 'editor@example.com',
+        role: 'editor',
+      }],
+    }).members[0].role).toBe('editor');
+    expect(parseProjectMemberResponse({
+      success: true,
+      member: {
+        user_id: 'user-3',
+        email: 'viewer@example.com',
+        role: 'viewer',
+      },
+    }).member.user_id).toBe('user-3');
+    expect(parseProjectInviteResponse({
+      success: true,
+      invite,
+    }).invite.project_role).toBe('viewer');
   });
 
   it('rejects malformed contract payloads', () => {
@@ -131,6 +198,37 @@ describe('frontend API contract parsers', () => {
       filename: 'chart.png',
       mime_type: 'image/png',
     })).toThrow(ContractParseError);
+  });
+
+  it('attaches the selected workspace id to axios and fetch requests', async () => {
+    setSession('access-token', 'refresh-token', 'asset-token');
+    setSelectedWorkspaceId('workspace-1');
+
+    const originalAdapter = api.defaults.adapter;
+    const adapter = vi.fn(async (config) => ({
+      data: { success: true },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    }));
+    api.defaults.adapter = adapter;
+
+    try {
+      await api.get('/contract-test');
+      const axiosHeaders = new AxiosHeaders(adapter.mock.calls[0][0].headers);
+      expect(axiosHeaders.get('Authorization')).toBe('Bearer access-token');
+      expect(axiosHeaders.get('X-NoobBook-Workspace-Id')).toBe('workspace-1');
+    } finally {
+      api.defaults.adapter = originalAdapter;
+    }
+
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchWithAuthRefresh('/api/v1/contract-test');
+    const fetchHeaders = fetchMock.mock.calls[0][1]?.headers as Headers;
+    expect(fetchHeaders.get('Authorization')).toBe('Bearer access-token');
+    expect(fetchHeaders.get('X-NoobBook-Workspace-Id')).toBe('workspace-1');
   });
 
   it('refreshes auth before retrying chat SSE transport', async () => {

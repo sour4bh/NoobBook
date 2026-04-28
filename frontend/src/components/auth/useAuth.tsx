@@ -17,7 +17,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import type { AxiosError } from 'axios';
 import { authAPI } from '@/lib/api/auth';
-import { getAccessToken, clearSession } from '@/lib/auth/session';
+import { getAccessToken, clearSession, setSelectedWorkspaceId } from '@/lib/auth/session';
 
 // ==================== Types ====================
 
@@ -64,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const response = await authAPI.me();
         if (response.success && response.user) {
+          setSelectedWorkspaceId(response.workspace.selected_workspace_id || null);
           setUser({
             id: response.user.id,
             email: response.user.email || null,
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.user) {
         // Fetch /auth/me to get the user's role
         const meResponse = await authAPI.me();
+        setSelectedWorkspaceId(meResponse.workspace.selected_workspace_id || null);
         const role: 'admin' | 'user' = meResponse.user?.global_role === 'admin' ? 'admin' : 'user';
         setUser({
           id: result.user.id,
@@ -124,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.user) {
         // Fetch /auth/me to get the user's role
         const meResponse = await authAPI.me();
+        setSelectedWorkspaceId(meResponse.workspace.selected_workspace_id || null);
         const role: 'admin' | 'user' = meResponse.user?.global_role === 'admin' ? 'admin' : 'user';
         setUser({
           id: result.user.id,

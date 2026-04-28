@@ -15,7 +15,11 @@ export { authAPI } from './auth';
 
 // Projects API
 export { projectsAPI } from './projects';
-export type { ActiveTask, ActiveTasksResponse, MemoryData, ModelCostBreakdown, CostTracking } from './projects';
+export type { ActiveTask, ActiveTasksResponse, MemoryData, ModelCostBreakdown, CostTracking, ProjectRole } from './projects';
+
+// Workspaces API
+export { workspacesAPI } from './workspaces';
+export type { WorkspaceRole } from './workspaces';
 
 // Feature APIs (re-export for convenience)
 export * from './chats';

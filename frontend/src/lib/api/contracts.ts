@@ -46,6 +46,33 @@ const workspaceSummarySchema = z.object({
   is_personal: z.boolean(),
 }).strict();
 
+const workspaceMemberSchema = z.object({
+  user_id: z.string(),
+  email: z.string().nullable().optional(),
+  role: z.enum(['owner', 'admin', 'member']),
+  created_at: z.string().nullable().optional(),
+  updated_at: z.string().nullable().optional(),
+}).strict();
+
+const projectMemberSchema = z.object({
+  user_id: z.string(),
+  email: z.string().nullable().optional(),
+  role: z.enum(['owner', 'editor', 'viewer']),
+  created_at: z.string().nullable().optional(),
+  updated_at: z.string().nullable().optional(),
+}).strict();
+
+const inviteSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string(),
+  email: z.string(),
+  workspace_role: z.enum(['owner', 'admin', 'member']),
+  project_id: z.string().nullable().optional(),
+  project_role: z.enum(['owner', 'editor', 'viewer']).nullable().optional(),
+  expires_at: z.string().nullable().optional(),
+  token: z.string(),
+}).strict();
+
 const workspaceSessionContextSchema = z.object({
   available_workspaces: z.array(workspaceSummarySchema),
   selected_workspace: workspaceSummarySchema.nullable().optional(),
@@ -53,6 +80,51 @@ const workspaceSessionContextSchema = z.object({
   workspace_role: z.enum(['owner', 'admin', 'member']).nullable().optional(),
   can_manage_workspace: z.boolean(),
   can_create_project: z.boolean(),
+}).strict();
+
+export const workspaceSessionResponseSchema = z.object({
+  success: z.literal(true),
+  workspace: workspaceSessionContextSchema,
+}).strict();
+
+export const workspaceCreateResponseSchema = z.object({
+  success: z.literal(true),
+  workspace: workspaceSummarySchema,
+}).strict();
+
+export const workspaceMembersResponseSchema = z.object({
+  success: z.literal(true),
+  members: z.array(workspaceMemberSchema),
+  count: z.number().int(),
+}).strict();
+
+export const workspaceInviteResponseSchema = z.object({
+  success: z.literal(true),
+  invite: inviteSchema,
+}).strict();
+
+export const inviteAcceptResponseSchema = z.object({
+  success: z.literal(true),
+  workspace: workspaceSummarySchema,
+  workspace_role: z.enum(['owner', 'admin', 'member']),
+  project_id: z.string().nullable().optional(),
+  project_role: z.enum(['owner', 'editor', 'viewer']).nullable().optional(),
+}).strict();
+
+export const projectMembersResponseSchema = z.object({
+  success: z.literal(true),
+  members: z.array(projectMemberSchema),
+  count: z.number().int(),
+}).strict();
+
+export const projectMemberResponseSchema = z.object({
+  success: z.literal(true),
+  member: projectMemberSchema,
+}).strict();
+
+export const projectInviteResponseSchema = z.object({
+  success: z.literal(true),
+  invite: inviteSchema,
 }).strict();
 
 const authSessionSchema = z.object({
@@ -235,7 +307,17 @@ export const studioEventPayloadSchema = z.object({
 export type ErrorEnvelope = z.infer<typeof errorEnvelopeSchema>;
 export type MeResponse = z.infer<typeof meResponseSchema>;
 export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>;
+export type WorkspaceSummary = z.infer<typeof workspaceSummarySchema>;
 export type WorkspaceSessionContext = z.infer<typeof workspaceSessionContextSchema>;
+export type WorkspaceSessionResponse = z.infer<typeof workspaceSessionResponseSchema>;
+export type WorkspaceMember = z.infer<typeof workspaceMemberSchema>;
+export type ProjectMember = z.infer<typeof projectMemberSchema>;
+export type MembershipInvite = z.infer<typeof inviteSchema>;
+export type WorkspaceInviteResponse = z.infer<typeof workspaceInviteResponseSchema>;
+export type InviteAcceptResponse = z.infer<typeof inviteAcceptResponseSchema>;
+export type ProjectMembersResponse = z.infer<typeof projectMembersResponseSchema>;
+export type ProjectMemberResponse = z.infer<typeof projectMemberResponseSchema>;
+export type ProjectInviteResponse = z.infer<typeof projectInviteResponseSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type ChatMessageResponse = z.infer<typeof chatMessageResponseSchema>;
 export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>;
@@ -263,6 +345,38 @@ export function parseMeResponse(payload: unknown): MeResponse {
 
 export function parseAuthSessionResponse(payload: unknown): AuthSessionResponse {
   return parseContract(authSessionResponseSchema, payload, 'AuthSessionResponse');
+}
+
+export function parseWorkspaceSessionResponse(payload: unknown): WorkspaceSessionResponse {
+  return parseContract(workspaceSessionResponseSchema, payload, 'WorkspaceSessionResponse');
+}
+
+export function parseWorkspaceCreateResponse(payload: unknown): z.infer<typeof workspaceCreateResponseSchema> {
+  return parseContract(workspaceCreateResponseSchema, payload, 'WorkspaceCreateResponse');
+}
+
+export function parseWorkspaceMembersResponse(payload: unknown): z.infer<typeof workspaceMembersResponseSchema> {
+  return parseContract(workspaceMembersResponseSchema, payload, 'WorkspaceMembersResponse');
+}
+
+export function parseWorkspaceInviteResponse(payload: unknown): WorkspaceInviteResponse {
+  return parseContract(workspaceInviteResponseSchema, payload, 'WorkspaceInviteResponse');
+}
+
+export function parseInviteAcceptResponse(payload: unknown): InviteAcceptResponse {
+  return parseContract(inviteAcceptResponseSchema, payload, 'InviteAcceptResponse');
+}
+
+export function parseProjectMembersResponse(payload: unknown): ProjectMembersResponse {
+  return parseContract(projectMembersResponseSchema, payload, 'ProjectMembersResponse');
+}
+
+export function parseProjectMemberResponse(payload: unknown): ProjectMemberResponse {
+  return parseContract(projectMemberResponseSchema, payload, 'ProjectMemberResponse');
+}
+
+export function parseProjectInviteResponse(payload: unknown): ProjectInviteResponse {
+  return parseContract(projectInviteResponseSchema, payload, 'ProjectInviteResponse');
 }
 
 export function parseChatMessageResponse(payload: unknown): ChatMessageResponse {

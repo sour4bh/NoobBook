@@ -25,7 +25,7 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
   { id: 'profile', label: 'Profile', icon: <User size={18} />, category: 'account' },
-  { id: 'team', label: 'Team', icon: <Users size={18} />, category: 'workspace', adminOnly: true },
+  { id: 'team', label: 'Workspace Members', icon: <Users size={18} />, category: 'workspace', adminOnly: true },
   { id: 'api-keys', label: 'API Keys', icon: <Key size={18} />, category: 'workspace', adminOnly: true },
   { id: 'models', label: 'Models', icon: <Brain size={18} />, category: 'workspace', adminOnly: true },
   { id: 'integrations', label: 'Integrations', icon: <Plug size={18} />, category: 'workspace' },

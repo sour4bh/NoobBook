@@ -30,6 +30,7 @@ describe('project workspace shell', () => {
         project={{ id: 'proj-1', name: 'Demo Project', description: '' }}
         onBack={() => {}}
         onDeleteProject={() => {}}
+        currentUserId="user-1"
       />
     );
 

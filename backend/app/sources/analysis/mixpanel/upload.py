@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.connectors.mixpanel.client import mixpanel_service
+from app.connectors.mixpanel import client as mixpanel_client
 from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index
@@ -39,7 +39,7 @@ def add_mixpanel_source(
     Raises:
         ValueError: If Mixpanel is not configured
     """
-    if not mixpanel_service.is_configured(project_id=project_id):
+    if not mixpanel_client.is_configured(project_id=project_id):
         raise ValueError(
             "Mixpanel not configured. Please add MIXPANEL_SERVICE_ACCOUNT_USERNAME, "
             "MIXPANEL_SERVICE_ACCOUNT_SECRET, and MIXPANEL_PROJECT_ID in Workspace Settings."

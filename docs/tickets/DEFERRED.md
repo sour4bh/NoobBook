@@ -55,7 +55,7 @@ provider, workspace shell, and citation UI coverage.
 
 ## D-005 - Cross-stack contract redesign beyond preservation
 
-**Status:** Narrowed by `NBB-916` and `NBB-917`; reconciled by `NBB-918`
+**Status:** Resolved by `NBB-010`; reconciled by `NBB-1008`
 
 **Resolution:** `NBB-205` named and preserved the migration-time wire
 contracts. `NBB-916` and `NBB-917` converted the highest-risk preserved
@@ -68,14 +68,17 @@ contracts into backend-owned DTOs and frontend runtime parsers:
 - `NBB-917` adds frontend Zod parsers for the frontend-facing DTOs and makes
   chat SSE share the same auth refresh/retry lifecycle as normal API calls.
 
-**Residual scope:** `NBB-010` now owns the broader collaborative
-team/workspace membership redesign. The chosen product model is personal
-workspace on signup, signed workspace invites, private projects by explicit
-project membership, workspace roles (`owner`, `admin`, `member`), project roles
-(`owner`, `editor`, `viewer`), and global admin reserved for instance/bootstrap
-operations.
-
-**Suggested owner:** Product/API/auth owner.
+**Final workspace resolution:** `NBB-010` implements the collaborative
+workspace/team membership contract. Public signup creates a personal workspace
+where the user is workspace `owner` and global `user`; users join additional
+workspaces through signed one-time invites; projects are private by default and
+visible only through explicit `project_members` rows; workspace roles
+(`owner`, `admin`, `member`) govern team/settings/secret management; project
+roles (`owner`, `editor`, `viewer`) govern private project access and mutation;
+global admin remains an instance/bootstrap-only role, not a normal team owner.
+Workspace-scoped settings/secrets and frontend workspace/project sharing flows
+land in the same epic, so no residual cross-stack redesign scope remains in
+this deferred register.
 
 ## D-006 - OAuth callback auth bypass
 
@@ -97,12 +100,12 @@ token.
 
 ## D-008 - Project membership access check
 
-**Status:** Resolved for owner-only semantics by `NBB-905`; team membership
-redesign remains the narrowed residual scope in `D-005`
+**Status:** Resolved by `NBB-905` and completed for collaborative membership by
+`NBB-010`
 
 **Resolution:** `verify_project_access()` now uses a pure project-access check,
 `GET /projects/{id}` is side-effect-free, and `POST /projects/{id}/open` is the
 only route that updates `last_accessed`.
 
-**Follow-up boundary:** Broader collaborative membership semantics are the
-remaining cross-stack contract/product redesign under `D-005`.
+**Workspace completion:** `NBB-010` extends the pure access check into explicit
+private project membership roles, so the earlier owner-only residual is closed.

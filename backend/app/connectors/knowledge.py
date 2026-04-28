@@ -12,9 +12,9 @@ This keeps main_chat_service.py clean by centralizing all KB integration logic.
 from typing import Dict, Any, List, Callable, Optional
 
 from app.config.tool import tool_loader
-from app.connectors.jira.client import jira_service
-from app.connectors.mixpanel.client import mixpanel_service
-from app.connectors.notion.client import notion_service
+from app.connectors.jira import client as jira_client
+from app.connectors.mixpanel import client as mixpanel_client
+from app.connectors.notion import client as notion_client
 
 
 class KnowledgeBaseService:
@@ -103,7 +103,7 @@ class KnowledgeBaseService:
         # and added via get_jira_tools() only when the project has a .jira source.
 
         # Add Notion tools if configured
-        if notion_service.is_configured(project_id=project_id):
+        if notion_client.is_configured(project_id=project_id):
             tools.extend([self._get_tool(name) for name in self.NOTION_TOOLS])
 
         # Future: Add GitHub tools if configured
@@ -126,7 +126,7 @@ class KnowledgeBaseService:
         Returns:
             List of Jira tool definitions, or empty list if not configured
         """
-        if jira_service.is_configured(project_id=project_id):
+        if jira_client.is_configured(project_id=project_id):
             return [self._get_tool(name) for name in self.JIRA_TOOLS]
         return []
 
@@ -144,7 +144,7 @@ class KnowledgeBaseService:
         Returns:
             List of Mixpanel tool definitions, or empty list if not configured
         """
-        if mixpanel_service.is_configured(project_id=project_id):
+        if mixpanel_client.is_configured(project_id=project_id):
             return [self._get_tool(name) for name in self.MIXPANEL_TOOLS]
         return []
 
@@ -195,7 +195,7 @@ class KnowledgeBaseService:
         search_query = tool_input.get("search_query")
         limit = tool_input.get("limit", 50)
 
-        result = jira_service.list_projects(
+        result = jira_client.list_projects(
             search_query=search_query,
             limit=limit,
             project_id=project_id,
@@ -226,7 +226,7 @@ class KnowledgeBaseService:
         if not project_key:
             return "Error: project_key is required"
 
-        result = jira_service.get_project(project_key, project_id=project_id)
+        result = jira_client.get_project(project_key, project_id=project_id)
 
         if not result["success"]:
             return f"Error: {result.get('error', 'Unknown error')}"
@@ -263,7 +263,7 @@ class KnowledgeBaseService:
         issue_type = tool_input.get("issue_type")
         max_results = tool_input.get("max_results", 50)
 
-        result = jira_service.search_issues(
+        result = jira_client.search_issues(
             project_key=project_key,
             jql=jql,
             status=status,
@@ -304,7 +304,7 @@ class KnowledgeBaseService:
         if not issue_key:
             return "Error: issue_key is required (e.g., 'PROJ-123')"
 
-        result = jira_service.get_issue(
+        result = jira_client.get_issue(
             issue_key=issue_key,
             include_comments=include_comments,
             project_id=project_id,
@@ -361,7 +361,7 @@ class KnowledgeBaseService:
     def _execute_mixpanel_list_events(self, project_id: str, tool_input: Dict[str, Any]) -> str:
         """List tracked event names."""
         limit = tool_input.get("limit", 100)
-        result = mixpanel_service.list_events(limit=limit, project_id=project_id)
+        result = mixpanel_client.list_events(limit=limit, project_id=project_id)
         if not result["success"]:
             return f"Error: {result.get('error', 'Unknown error')}"
 
@@ -381,7 +381,7 @@ class KnowledgeBaseService:
         to_date = tool_input.get("to_date")
         unit = tool_input.get("unit", "day")
 
-        result = mixpanel_service.query_events(
+        result = mixpanel_client.query_events(
             event_names=event_names,
             from_date=from_date,
             to_date=to_date,
@@ -401,7 +401,7 @@ class KnowledgeBaseService:
         where = tool_input.get("where")
         unit = tool_input.get("unit", "day")
 
-        result = mixpanel_service.segmentation(
+        result = mixpanel_client.segmentation(
             event=event, from_date=from_date, to_date=to_date,
             on=on, where=where, unit=unit, project_id=project_id,
         )
@@ -414,7 +414,7 @@ class KnowledgeBaseService:
 
     def _execute_mixpanel_list_funnels(self, project_id: str, tool_input: Dict[str, Any]) -> str:
         """List funnels."""
-        result = mixpanel_service.list_funnels(project_id=project_id)
+        result = mixpanel_client.list_funnels(project_id=project_id)
         if not result["success"]:
             return f"Error: {result.get('error', 'Unknown error')}"
 
@@ -434,7 +434,7 @@ class KnowledgeBaseService:
         to_date = tool_input.get("to_date")
         unit = tool_input.get("unit", "day")
 
-        result = mixpanel_service.query_funnel(
+        result = mixpanel_client.query_funnel(
             funnel_id=funnel_id,
             from_date=from_date,
             to_date=to_date,
@@ -457,7 +457,7 @@ class KnowledgeBaseService:
         retention_type = tool_input.get("retention_type", "birth")
         unit = tool_input.get("unit", "day")
 
-        result = mixpanel_service.retention(
+        result = mixpanel_client.retention(
             born_event=born_event, event=event,
             from_date=from_date, to_date=to_date,
             retention_type=retention_type,
@@ -474,7 +474,7 @@ class KnowledgeBaseService:
     def _execute_mixpanel_jql(self, project_id: str, tool_input: Dict[str, Any]) -> str:
         """Run a JQL script."""
         script = tool_input.get("script")
-        result = mixpanel_service.jql(script=script, project_id=project_id)
+        result = mixpanel_client.jql(script=script, project_id=project_id)
         if not result["success"]:
             return f"Error: {result.get('error', 'Unknown error')}"
         return self._format_mixpanel_data(result.get("data"), title="JQL result")
@@ -508,7 +508,7 @@ class KnowledgeBaseService:
         filter_type = tool_input.get("filter_type")
         limit = tool_input.get("limit", 20)
 
-        result = notion_service.search(
+        result = notion_client.search(
             query=query,
             filter_type=filter_type,
             limit=limit,
@@ -545,7 +545,7 @@ class KnowledgeBaseService:
         if not page_id:
             return "Error: page_id is required"
 
-        result = notion_service.get_page(page_id, project_id=project_id)
+        result = notion_client.get_page(page_id, project_id=project_id)
 
         if not result["success"]:
             return f"Error: {result.get('error', 'Unknown error')}"
@@ -575,7 +575,7 @@ class KnowledgeBaseService:
         if not database_id:
             return "Error: database_id is required"
 
-        result = notion_service.get_database(database_id, project_id=project_id)
+        result = notion_client.get_database(database_id, project_id=project_id)
 
         if not result["success"]:
             return f"Error: {result.get('error', 'Unknown error')}"
@@ -611,7 +611,7 @@ class KnowledgeBaseService:
         if not database_id:
             return "Error: database_id is required"
 
-        result = notion_service.query_database(
+        result = notion_client.query_database(
             database_id=database_id,
             filter_conditions=filter_conditions,
             limit=limit,

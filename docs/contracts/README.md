@@ -3,9 +3,10 @@
 This document names the wire contracts that the backend publishes and the frontend
 consumes, so parallel migration in Epics 003-006 cannot silently break them.
 
-**Scope of this doc:** preserve current production behavior and name the
-backend/frontend boundary shapes. Intentional redesign beyond these preserved
-shapes is narrowed to the residual `D-005` scope in `docs/tickets/DEFERRED.md`.
+**Scope of this doc:** name the backend/frontend boundary shapes that product
+code depends on. Earlier migration-time preservation gaps are closed by
+`NBB-916`, `NBB-917`, and `NBB-010`; `D-005` is resolved in
+`docs/tickets/DEFERRED.md`.
 
 **Authority:** `NBB-204`'s charters (`backend/app/*/CHARTER.md`) name this file as the
 shape owner for JSONB fields they catalog (`chats.costs`, `chats.selected_source_ids`,
@@ -13,7 +14,8 @@ shape owner for JSONB fields they catalog (`chats.costs`, `chats.selected_source
 source of truth for wire shape; the charters remain the access-control source of truth.
 `NBB-916` adds backend Pydantic DTOs near the owning domains so public response,
 event, and JSONB payloads are validated; `NBB-917` adds frontend runtime parsers
-for the frontend-facing DTOs.
+for the frontend-facing DTOs. `NBB-010` adds the workspace/project membership
+contract described below and resolves the former `D-005` residual.
 
 Each contract below carries seven fields:
 
@@ -24,6 +26,66 @@ Each contract below carries seven fields:
 5. Realistic current-production example
 6. Invalid example (if runtime validation exists) or explicit "no runtime validation" note
 7. Test plan
+
+---
+
+## Workspace and project membership contract (NBB-010)
+
+**Backend owners:**
+- Workspace/session state: `backend/app/workspaces/store.py`
+- Auth session transport: `backend/app/api/auth/routes.py`
+- Workspace transport: `backend/app/api/workspaces/routes.py`
+- Project membership transport: `backend/app/api/projects/members.py`
+- Project access policy: `backend/app/auth/access.py`
+
+**Frontend consumers:**
+- Session parsing: `frontend/src/lib/api/contracts.ts`
+- Workspace API client: `frontend/src/lib/api/workspaces.ts`
+- Project API client: `frontend/src/lib/api/projects.ts`
+- Workspace switch/members UI: `frontend/src/components/dashboard/WorkspaceSwitcher.tsx` and `frontend/src/components/settings/sections/WorkspaceMembersSection.tsx`
+- Project sharing UI: `frontend/src/components/project/ProjectShareDialog.tsx`
+
+**Compatibility expectation:** Global admin is not the team owner concept.
+Public signup creates `global_role=user` and a personal workspace where the user
+is workspace `owner`. Normal team management happens through workspace members
+and signed invites, not `/settings/users` global user administration. Projects
+are private by default; workspace membership alone does not grant project
+visibility.
+
+**Role scopes:**
+
+| Scope | Roles | Contract |
+|---|---|---|
+| Global | `admin`, `user` | Instance/bootstrap administration only. Public signup never creates `admin`. |
+| Workspace | `owner`, `admin`, `member` | Team, provider secrets, model defaults, brand, and workspace settings. |
+| Project | `owner`, `editor`, `viewer` | Private project access. Owners share/delete, editors mutate content, viewers read. |
+
+**Session shape:** Auth responses include `workspace.available_workspaces`,
+`workspace.selected_workspace`, `workspace.selected_workspace_id`,
+`workspace.workspace_role`, and capability booleans such as
+`workspace.can_manage_workspace` and `workspace.can_create_project`. The
+frontend persists the selected workspace id in
+`noobbook.selected_workspace_id` and sends it as `X-NoobBook-Workspace-Id` on
+API requests.
+
+**Route shape:**
+
+| Route | Contract |
+|---|---|
+| `GET /api/v1/workspaces` | List available workspaces and selected workspace context. |
+| `POST /api/v1/workspaces` | Create a workspace where the caller is `owner`. |
+| `GET /api/v1/workspaces/{workspace_id}/members` | List workspace members for workspace managers. |
+| `POST /api/v1/workspaces/{workspace_id}/invites` | Create a signed one-time workspace invite. |
+| `POST /api/v1/workspace-invites/{token}/accept` | Accept a valid invite and return granted workspace/project context. |
+| `GET /api/v1/projects?workspace_id=...` | List only projects where the caller has explicit project membership. |
+| `POST /api/v1/projects` | Create a private project in the requested workspace and grant the creator project `owner`. |
+| `GET/POST/PUT/DELETE /api/v1/projects/{project_id}/members...` | Project-owner sharing surface. |
+
+**Test plan:** Backend tests cover signup workspace bootstrap, workspace
+invites, project membership guards, workspace-scoped settings/secrets, and
+private storage access. Frontend Vitest covers workspace session parsing,
+selected-workspace request headers, workspace members/invites UI, invite
+acceptance, and project sharing.
 
 ---
 
@@ -992,8 +1054,8 @@ non-list + non-null as a bug and will raise. In practice the upstream writers
 
 - Access-control (who can call these endpoints) is owned by `NBB-107` tests and the
   NBB-204 charters; this doc only covers shapes.
-- Redesign beyond the preserved contracts above is narrowed in
-  `docs/tickets/DEFERRED.md` D-005.
+- The former cross-stack redesign deferral (`D-005`) is resolved by `NBB-010`
+  and reconciled in `docs/tickets/DEFERRED.md`.
 - `backend/app/chat/CHARTER.md` (NBB-204) explicitly defers wire-shape ownership for
   `chats.costs`, `chats.selected_source_ids`, and `messages.content` to this doc.
 - Loader registry for tool schemas (Contract 11) is owned by `NBB-207A`; prompt/tool

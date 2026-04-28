@@ -55,6 +55,20 @@ Feature-owned code lives beside the feature. A feature subtree is the unit of ow
 - A feature's components, hooks, helpers, local contexts, and tests live inside its subtree (for example under `frontend/src/components/<feature>/`), not in the shell buckets above.
 - Only the feature's top-level shell mount (the component the app renders from a route or parent screen) is referenced from outside the feature subtree.
 
+## Workspace Membership UI
+
+Workspace context is the normal collaboration boundary. The dashboard owns
+workspace selection and creation, settings owns workspace member/invite
+management, and project components own project sharing controls. Normal team
+management must not call the old global `/settings/users` administration
+surface; frontend code should use `workspacesAPI`, `projectsAPI` membership
+methods, workspace session capabilities, and project roles.
+
+The selected workspace id is stored in `noobbook.selected_workspace_id` and sent
+as `X-NoobBook-Workspace-Id` by the shared API clients. UI permission checks
+should prefer workspace/project capability fields and roles over
+`user.role === "admin"`.
+
 ## Domain Subtree Patterns
 
 Feature subtrees use one of two shapes. Both are valid; pick the one that matches the feature's internal cardinality. Do not invent a third shape or introduce mechanism-named buckets such as `hooks/`, `helpers/`, `utils/`, `types/` inside a subtree.

@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from app.connectors.jira.client import jira_service
+from app.connectors.jira import client as jira_client
 from app.providers.supabase import storage_service
 from app.sources.summary import generate_summary
 
@@ -84,7 +84,7 @@ def process_jira(
 
     # Step 1: Verify connection and get project list
     try:
-        result = jira_service.list_projects(project_id=project_id)
+        result = jira_client.list_projects(project_id=project_id)
     except Exception as e:
         source_service.update_source(
             project_id, source_id, status="error",

@@ -20,6 +20,19 @@ Per-root charters live next to each root:
 Storage contracts live under [`supabase/STORAGE_CONTRACTS.md`](supabase/STORAGE_CONTRACTS.md)
 and [`supabase/migrations/OWNERS.md`](supabase/migrations/OWNERS.md) (NBB-204).
 
+## Workspace and Project Membership
+
+`workspaces/` owns collaborative team membership, workspace roles, signed
+invites, and workspace-scoped settings/secrets. `projects/` owns private
+project membership and project roles. Project routes, chat routes, sources,
+studio, brand, storage access, and provider/connector secret resolution must
+flow through those public membership contracts rather than checking
+`projects.user_id` or global `users.role` directly.
+
+Global `admin` is an instance/bootstrap role only. Public signup creates a
+normal global user and a personal workspace where that user is workspace
+`owner`; workspace ownership does not imply global administration.
+
 ## Architecture checks
 
 Two CI guardrails run on every push/PR:

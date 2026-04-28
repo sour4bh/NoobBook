@@ -12,12 +12,11 @@ from typing import Optional, Tuple
 import requests
 from requests.auth import HTTPBasicAuth
 
-from app.connectors.mixpanel.client import MixpanelService
+from app.connectors.mixpanel.client import REGION_HOSTS
 
 logger = logging.getLogger(__name__)
 
 # Reuse the service's region map so the two stay in sync (DRY).
-REGION_HOSTS = MixpanelService.REGION_HOSTS
 
 
 def validate_mixpanel_key(

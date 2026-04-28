@@ -87,10 +87,10 @@ Schema/RLS implications stay with `NBB-204`; the `*Service → *Store` rename is
 
 | `key_id(s)` | Today's validator | Reload hook | Target |
 |---|---|---|---|
-| `NOTION_API_KEY` | `connectors/notion/validation.py` | `notion_service.reload_config()` | `connectors/notion/` |
-| `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `connectors/jira/validation.py` | `jira_service.reload_config()` | `connectors/jira/` |
+| `NOTION_API_KEY` | `connectors/notion/validation.py` | `connectors.notion.client.reload_config()` | `connectors/notion/` |
+| `JIRA_API_KEY` + `JIRA_EMAIL` + `JIRA_CLOUD_ID` | `connectors/jira/validation.py` | `connectors.jira.client.reload_config()` | `connectors/jira/` |
 | `FRESHDESK_API_KEY` + `FRESHDESK_DOMAIN` | `connectors/freshdesk/validation.py` | `freshdesk_service.reload_config()` | `connectors/freshdesk/` |
-| `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `connectors/mixpanel/validation.py` | `mixpanel_service.reload_config()` | `connectors/mixpanel/` |
+| `MIXPANEL_SERVICE_ACCOUNT_*` + region/project | `connectors/mixpanel/validation.py` | `connectors.mixpanel.client.reload_config()` | `connectors/mixpanel/` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | accepted-if-present | none (OAuth flow reads env per request) | `connectors/google_drive/` (validator split: OAuth primitive stays provider-side) |
 
 Reload sequencing (`env_service.reload_env()` → per-service `reload_config()`) is owned by `settings/` and documented in the api_keys.py module header; connectors implement the `reload_config()` hook but never self-reload. Any new connector with cached config must implement this hook so `update_api_keys` can call it without a process restart.

@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from app.connectors.mixpanel.client import mixpanel_service
+from app.connectors.mixpanel import client as mixpanel_client
 from app.providers.supabase import storage_service
 from app.sources.summary import generate_summary
 
@@ -78,7 +78,7 @@ def process_mixpanel(
     embedding_info = source.get("embedding_info", {}) or {}
 
     try:
-        result = mixpanel_service.list_events(limit=100, project_id=project_id)
+        result = mixpanel_client.list_events(limit=100, project_id=project_id)
     except Exception as e:
         source_service.update_source(
             project_id, source_id, status="error",

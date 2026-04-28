@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.connectors.jira.client import jira_service
+from app.connectors.jira import client as jira_client
 from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index
@@ -44,7 +44,7 @@ def add_jira_source(
     Raises:
         ValueError: If Jira is not configured
     """
-    if not jira_service.is_configured(project_id=project_id):
+    if not jira_client.is_configured(project_id=project_id):
         raise ValueError(
             "Jira not configured. Please add JIRA_EMAIL, JIRA_API_KEY, and "
             "either JIRA_CLOUD_ID or JIRA_DOMAIN in Workspace Settings."

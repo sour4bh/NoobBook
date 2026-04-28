@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 
 from app.providers.pinecone.index import PineconeService
 from app.connectors.freshdesk.client import freshdesk_service
-from app.connectors.jira.client import jira_service
-from app.connectors.mixpanel.client import mixpanel_service
-from app.connectors.notion.client import notion_service
+from app.connectors.jira import client as jira_client
+from app.connectors.mixpanel import client as mixpanel_client
+from app.connectors.notion import client as notion_client
 from app.config.model import PromptModel, resolve_model_for_project
 from app.config.provider import APIProvider, get_tier
 from app.providers.elevenlabs import tts_service
@@ -169,10 +169,10 @@ def test_connector_clients_resolve_project_workspace_secrets(monkeypatch):
             lambda key, **_kwargs: secrets.get(key)
         )
 
-        assert notion_service.is_configured(project_id="project-1") is True
-        assert jira_service.is_configured(project_id="project-1") is True
+        assert notion_client.is_configured(project_id="project-1") is True
+        assert jira_client.is_configured(project_id="project-1") is True
         assert freshdesk_service.is_configured(project_id="project-1") is True
-        assert mixpanel_service.is_configured(project_id="project-1") is True
+        assert mixpanel_client.is_configured(project_id="project-1") is True
 
     freshdesk_service.reload_config()
 

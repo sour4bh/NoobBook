@@ -119,35 +119,35 @@ These modules live in studio but do not map to a single item. They stay as studi
 | `studio/learning/mind_map/tools/` | `studio/learning/mind_map/tools/` |
 | `studio/learning/quiz/tools/` | `studio/learning/quiz/tools/` |
 | `studio/media/audio/tools/` | `studio/media/audio/tools/` |
-| `studio/signal/tools/studio_signal_tool.json` | `studio/signal/tools/` |
+| `studio/signal/tools/specs.py` | `studio/signal/tools/` |
 
-`read_source_content.json` is sources-owned (`sources/content/tools/`) per NBB-207C; it is intentionally absent from the studio list above. `NBB-207C` also notes: studio invokes `sources/content/tools/` through the sources public surface; studio does not own source reading.
+`read_source_content` is sources behavior invoked through the sources public surface; studio does not own source reading. The live tool contract is now a typed `ToolSpec`.
 
 ## Studio prompts
 
-Studio-related prompts now live under item-owned `prompts/` directories.
+Studio-related prompts now live under item-owned `` directories.
 
 | Current prompt | Owner |
 |---|---|
-| `studio/marketing/ad/prompts/ad_creative_prompt.json` | `studio/marketing/ad/prompts/` |
-| `studio/media/audio/prompts/audio_script_prompt.json` | `studio/media/audio/prompts/` |
-| `studio/documents/blog/prompts/blog_agent_prompt.json` | `studio/documents/blog/prompts/` |
-| `studio/documents/business_report/prompts/business_report_agent_prompt.json` | `studio/documents/business_report/prompts/` |
-| `studio/design/component/prompts/component_agent_prompt.json` | `studio/design/component/prompts/` |
-| `studio/marketing/email/prompts/email_agent_prompt.json` | `studio/marketing/email/prompts/` |
-| `studio/learning/flash_card/prompts/flash_cards_prompt.json` | `studio/learning/flash_card/prompts/` |
-| `studio/design/flow_diagram/prompts/flow_diagram_prompt.json` | `studio/design/flow_diagram/prompts/` |
-| `studio/marketing/infographic/prompts/infographic_prompt.json` | `studio/marketing/infographic/prompts/` |
-| `studio/marketing/strategy/prompts/marketing_strategy_agent_prompt.json` | `studio/marketing/strategy/prompts/` |
-| `studio/learning/mind_map/prompts/mind_map_prompt.json` | `studio/learning/mind_map/prompts/` |
-| `studio/documents/prd/prompts/prd_agent_prompt.json` | `studio/documents/prd/prompts/` |
-| `studio/documents/presentation/prompts/presentation_agent_prompt.json` | `studio/documents/presentation/prompts/` |
-| `studio/learning/quiz/prompts/quiz_prompt.json` | `studio/learning/quiz/prompts/` |
-| `studio/marketing/social_post/prompts/social_posts_prompt.json` | `studio/marketing/social_post/prompts/` |
-| `studio/media/video/prompts/video_prompt.json` | `studio/media/video/prompts/` |
-| `studio/design/website/prompts/website_agent_prompt.json` | `studio/design/website/prompts/` |
-| `studio/design/wireframe/prompts/wireframe_agent_prompt.json` | `studio/design/wireframe/prompts/` |
-| `studio/design/wireframe/prompts/wireframe_prompt.json` | `studio/design/wireframe/prompts/` |
+| `studio/marketing/ad/prompt.py` | `studio/marketing/ad/` |
+| `studio/media/audio/prompt.py` | `studio/media/audio/` |
+| `studio/documents/blog/prompt.py` | `studio/documents/blog/` |
+| `studio/documents/business_report/prompt.py` | `studio/documents/business_report/` |
+| `studio/design/component/prompt.py` | `studio/design/component/` |
+| `studio/marketing/email/prompt.py` | `studio/marketing/email/` |
+| `studio/learning/flash_card/prompt.py` | `studio/learning/flash_card/` |
+| `studio/design/flow_diagram/prompt.py` | `studio/design/flow_diagram/` |
+| `studio/marketing/infographic/prompt.py` | `studio/marketing/infographic/` |
+| `studio/marketing/strategy/prompt.py` | `studio/marketing/strategy/` |
+| `studio/learning/mind_map/prompt.py` | `studio/learning/mind_map/` |
+| `studio/documents/prd/prompt.py` | `studio/documents/prd/` |
+| `studio/documents/presentation/prompt.py` | `studio/documents/presentation/` |
+| `studio/learning/quiz/prompt.py` | `studio/learning/quiz/` |
+| `studio/marketing/social_post/prompt.py` | `studio/marketing/social_post/` |
+| `studio/media/video/prompt.py` | `studio/media/video/` |
+| `studio/design/website/prompt.py` | `studio/design/website/` |
+| `studio/design/wireframe/prompt.py` | `studio/design/wireframe/` |
+| `studio/design/wireframe/prompt.py` | `studio/design/wireframe/` |
 
 ## Reserved slot: `design/logo/`
 

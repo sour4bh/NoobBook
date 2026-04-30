@@ -11,20 +11,48 @@ Flow:
 - Step 2: Gemini generates images for each prompt
 - Output: 3 ad creative images saved to disk
 """
-import json
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
+from pydantic import BaseModel, Field
+
+from app.agents.runtime import (
+    LocalToolSpec,
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    bind_local_tools,
+    echo_input,
+    require_tool_result_payload,
+    run_with_provider,
+)
 from app.providers.google.imagen import imagen_service
 import app.studio.jobs.store as studio_index_service
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.brand import brand_context_loader
 from app.providers.supabase import storage_service
 
 
 logger = logging.getLogger(__name__)
+
+
+class AdPrompt(BaseModel):
+    type: str = ""
+    prompt: str = ""
+
+
+class AdPromptResult(BaseModel):
+    prompts: list[AdPrompt] = Field(default_factory=list)
+
+
+_AD_PROMPTS_TOOL = LocalToolSpec(
+    name="submit_ad_creative_prompts",
+    description="Return the final ad creative image prompts.",
+    input_model=AdPromptResult,
+)
 
 
 class AdCreator:
@@ -38,13 +66,7 @@ class AdCreator:
 
     def __init__(self):
         """Initialize service with lazy-loaded config."""
-        self._prompt_config = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        """Lazy load prompt configuration."""
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("ad_creative")
-        return self._prompt_config
+        pass
 
     def generate_ad_creatives(
         self,
@@ -229,8 +251,6 @@ class AdCreator:
         In edit mode, previous prompts are included as context so Claude
         refines rather than starts from scratch.
         """
-        config = self._load_config()
-
         # Logo context — tells Claude to write prompts that reference the logo
         logo_context = ""
         if has_logo:
@@ -253,76 +273,61 @@ class AdCreator:
             # Parent job not found or has no images, but user still provided edit instructions
             effective_direction = effective_direction + f"\n\nADDITIONAL INSTRUCTIONS: {edit_instructions}"
 
-        # Build user message
-        user_message = config["user_message"].format(
-            product_name=product_name,
-            direction=effective_direction,
-            logo_context=logo_context
-        )
-
-        messages = [{"role": "user", "content": user_message}]
-
         # Load brand context so Claude knows brand name, colors, voice, etc.
         brand_context = brand_context_loader.load_brand_context(
             project_id, "ads_creative"
         )
-        system_prompt = config["system_prompt"]
-        if brand_context:
-            system_prompt = f"{system_prompt}\n\n{brand_context}"
+        prompt = render_prompt(
+            "ad_creative",
+            {
+                "product_name": product_name,
+                "direction": effective_direction,
+                "logo_context": logo_context,
+            },
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
+        )
+        user_message = prompt.user_message or ""
 
         try:
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=system_prompt,
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                project_id=project_id
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose="ad_creative",
+                    messages=[
+                        RunMessage(role="user", content=[TextPart(text=user_message)])
+                    ],
+                    system_prompt=prompt.system_prompt,
+                    tools=bind_local_tools(
+                        [_AD_PROMPTS_TOOL],
+                        {_AD_PROMPTS_TOOL.name: echo_input},
+                        terminating_tools={_AD_PROMPTS_TOOL.name},
+                    ),
+                    tool_choice=ToolChoice(type="tool", name=_AD_PROMPTS_TOOL.name),
+                    limits=RunLimits(
+                        max_tool_turns=1,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
+                    project_id=project_id,
+                )
             )
 
-            # Extract text from response
-            content_blocks = response.get("content_blocks", [])
-            text_content = ""
-            for block in content_blocks:
-                if hasattr(block, "text"):
-                    text_content = block.text
-                    break
-                elif isinstance(block, dict) and block.get("type") == "text":
-                    text_content = block.get("text", "")
-                    break
-
-            if not text_content:
-                return {
-                    "success": False,
-                    "error": "No text response from Claude"
-                }
-
-            # Parse JSON from response
-            # Find JSON in the response (might be wrapped in markdown code blocks)
-            json_start = text_content.find("{")
-            json_end = text_content.rfind("}") + 1
-
-            if json_start == -1 or json_end == 0:
-                return {
-                    "success": False,
-                    "error": "No JSON found in Claude response"
-                }
-
-            json_str = text_content[json_start:json_end]
-            parsed = json.loads(json_str)
-            prompts = parsed.get("prompts", [])
+            payload = require_tool_result_payload(
+                result,
+                _AD_PROMPTS_TOOL.name,
+                dict,
+            )
+            parsed = AdPromptResult.model_validate(payload)
+            prompts = [prompt.model_dump(mode="json") for prompt in parsed.prompts]
 
             return {
                 "success": True,
                 "prompts": prompts,
-                "usage": response.get("usage", {})
+                "usage": result.usage.model_dump(mode="json"),
             }
 
-        except json.JSONDecodeError as e:
-            return {
-                "success": False,
-                "error": f"Failed to parse Claude response as JSON: {str(e)}"
-            }
         except Exception as e:
             return {
                 "success": False,

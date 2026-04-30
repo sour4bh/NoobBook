@@ -8,15 +8,27 @@ Educational Note: This service implements a two-step AI pipeline:
 Infographics are visual summaries that organize information in an
 educational, easy-to-scan format with icons, sections, and visual flow.
 """
-import json
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
+from pydantic import BaseModel, Field
+
+from app.agents.runtime import (
+    LocalToolSpec,
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    bind_local_tools,
+    echo_input,
+    require_tool_result_payload,
+    run_with_provider,
+)
 from app.providers.google.imagen import imagen_service
 import app.studio.jobs.store as studio_index_service
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.brand import brand_context_loader
 from app.providers.supabase import storage_service
 from app.sources import index
@@ -27,6 +39,34 @@ logger = logging.getLogger(__name__)
 
 # Infographic aspect ratio - landscape for modal display
 INFOGRAPHIC_ASPECT_RATIO = "16:9"
+
+
+class InfographicSection(BaseModel):
+    title: str = ""
+    description: str = ""
+    icon: Optional[str] = None
+
+
+class InfographicColorScheme(BaseModel):
+    primary: Optional[str] = None
+    secondary: Optional[str] = None
+    accent: Optional[str] = None
+    background: Optional[str] = None
+
+
+class InfographicPromptResult(BaseModel):
+    topic_title: str = "Infographic"
+    topic_summary: str = ""
+    key_sections: list[InfographicSection] = Field(default_factory=list)
+    image_prompt: str = ""
+    color_scheme: InfographicColorScheme = Field(default_factory=InfographicColorScheme)
+
+
+_INFOGRAPHIC_PROMPT_TOOL = LocalToolSpec(
+    name="submit_infographic_prompt",
+    description="Return the final infographic planning payload and image prompt.",
+    input_model=InfographicPromptResult,
+)
 
 
 class InfographicCreator:
@@ -41,13 +81,7 @@ class InfographicCreator:
 
     def __init__(self):
         """Initialize service with lazy-loaded config."""
-        self._prompt_config = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        """Lazy load prompt configuration."""
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("infographic")
-        return self._prompt_config
+        pass
 
     def _get_source_content(
         self,
@@ -292,8 +326,6 @@ class InfographicCreator:
         When editing, the previous image prompt is provided as context
         so Claude can refine it based on the user's edit instructions.
         """
-        config = self._load_config()
-
         # Build source section — include source content block only if available
         if source_content:
             source_section = (
@@ -329,82 +361,78 @@ class InfographicCreator:
                 "=== END EDIT MODE ==="
             )
 
-        # Build user message
-        user_message = config["user_message"].format(
-            source_section=source_section,
-            direction=direction or "Create an informative infographic summarizing the key concepts.",
-            logo_context=logo_context
-        )
-
-        # Append edit context after the formatted message
-        if edit_context:
-            user_message += edit_context
-
-        messages = [{"role": "user", "content": user_message}]
-
         # Load brand context so Claude knows brand colors, voice, etc.
         brand_context = brand_context_loader.load_brand_context(
             project_id, "infographic"
         )
-        system_prompt = config["system_prompt"]
-        if brand_context:
-            system_prompt = f"{system_prompt}\n\n{brand_context}"
+        prompt = render_prompt(
+            "infographic",
+            {
+                "source_section": source_section,
+                "direction": (
+                    direction
+                    or "Create an informative infographic summarizing the key concepts."
+                ),
+                "logo_context": logo_context,
+            },
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
+        )
+        user_message = prompt.user_message or ""
+        if edit_context:
+            user_message += edit_context
 
         try:
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=system_prompt,
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                project_id=project_id
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose="infographic",
+                    messages=[
+                        RunMessage(role="user", content=[TextPart(text=user_message)])
+                    ],
+                    system_prompt=prompt.system_prompt,
+                    tools=bind_local_tools(
+                        [_INFOGRAPHIC_PROMPT_TOOL],
+                        {_INFOGRAPHIC_PROMPT_TOOL.name: echo_input},
+                        terminating_tools={_INFOGRAPHIC_PROMPT_TOOL.name},
+                    ),
+                    tool_choice=ToolChoice(
+                        type="tool",
+                        name=_INFOGRAPHIC_PROMPT_TOOL.name,
+                    ),
+                    limits=RunLimits(
+                        max_tool_turns=1,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
+                    project_id=project_id,
+                )
             )
 
-            # Extract text from response
-            content_blocks = response.get("content_blocks", [])
-            text_content = ""
-            for block in content_blocks:
-                if hasattr(block, "text"):
-                    text_content = block.text
-                    break
-                elif isinstance(block, dict) and block.get("type") == "text":
-                    text_content = block.get("text", "")
-                    break
-
-            if not text_content:
-                return {
-                    "success": False,
-                    "error": "No text response from Claude"
-                }
-
-            # Parse JSON from response
-            json_start = text_content.find("{")
-            json_end = text_content.rfind("}") + 1
-
-            if json_start == -1 or json_end == 0:
-                return {
-                    "success": False,
-                    "error": "No JSON found in Claude response"
-                }
-
-            json_str = text_content[json_start:json_end]
-            parsed = json.loads(json_str)
+            payload = require_tool_result_payload(
+                result,
+                _INFOGRAPHIC_PROMPT_TOOL.name,
+                dict,
+            )
+            parsed = InfographicPromptResult.model_validate(payload)
 
             return {
                 "success": True,
-                "topic_title": parsed.get("topic_title", "Infographic"),
-                "topic_summary": parsed.get("topic_summary", ""),
-                "key_sections": parsed.get("key_sections", []),
-                "image_prompt": parsed.get("image_prompt", ""),
-                "color_scheme": parsed.get("color_scheme", {}),
-                "usage": response.get("usage", {})
+                "topic_title": parsed.topic_title,
+                "topic_summary": parsed.topic_summary,
+                "key_sections": [
+                    section.model_dump(mode="json", exclude_none=True)
+                    for section in parsed.key_sections
+                ],
+                "image_prompt": parsed.image_prompt,
+                "color_scheme": parsed.color_scheme.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                ),
+                "usage": result.usage.model_dump(mode="json"),
             }
 
-        except json.JSONDecodeError as e:
-            return {
-                "success": False,
-                "error": f"Failed to parse Claude response as JSON: {str(e)}"
-            }
         except Exception as e:
             return {
                 "success": False,

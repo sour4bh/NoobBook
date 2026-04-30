@@ -6,7 +6,7 @@ identifies opportunities to activate studio generation options. The flow is:
 
 1. Main chat Claude calls studio_signal tool with signals array
 2. This executor validates and stores signals in Supabase studio_signals table
-3. Returns "signals activated" response to Claude
+3. Returns "signals activated" response to the model
 
 Signals are stored in the studio_signals table and linked to the chat.
 """

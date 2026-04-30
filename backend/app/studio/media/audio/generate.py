@@ -16,19 +16,19 @@ Tools:
 """
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
+from app.agents.runtime import RunLimits, RunMessage, RunRequest, TextPart, ToolChoice, run_with_provider
+from app.agents.runtime.error import ToolIterationLimitError
 from app.providers.elevenlabs import tts_service
 import app.studio.jobs.store as studio_index_service
 from app.studio.media.audio.tool import studio_audio_executor
-from app.config.prompt import prompt_loader
+from app.studio.media.audio.tools.binding import bind_audio_tools
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
 from app.providers.supabase import storage_service
 from app.sources import index
-import app.providers.anthropic.response_parser
-import app.providers.anthropic.content
 
 
 logger = logging.getLogger(__name__)
@@ -48,14 +48,7 @@ class AudioGenerator:
 
     def __init__(self):
         """Initialize service with lazy-loaded config and tools."""
-        self._prompt_config = None
         self._tools = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        """Lazy load prompt configuration."""
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("audio_script")
-        return self._prompt_config
 
     def _load_tools(self) -> List[Dict[str, Any]]:
         """Load tools for the audio agent."""
@@ -63,10 +56,11 @@ class AudioGenerator:
             # Audio uses two tools: read_source_content (sources public surface)
             # and write_script_section (audio-owned). Loaded by name so the
             # legacy `studio_tools/` category dir can disappear after NBB-507.
-            self._tools = [
-                tool_loader.load_tool("studio_tools", "read_source_content"),
-                tool_loader.load_tool("studio_tools", "write_script_section"),
+            specs = [
+                tool_loader.load_tool_spec("studio_tools", "read_source_content"),
+                tool_loader.load_tool_spec("studio_tools", "write_script_section"),
             ]
+            self._tools = specs
         return self._tools
 
     # =========================================================================
@@ -289,17 +283,18 @@ class AudioGenerator:
         Returns:
             Dict with success status, iterations, and usage stats
         """
-        config = self._load_config()
         tools = self._load_tools()
 
-        # Build user message from config template
-        user_message = config["user_message"].format(
-            direction=direction,
-            source_id=source_id,
-            source_name=source_name,
-            token_count=token_count,
-            is_large=str(is_large)
+        prompt = render_prompt(
+            "audio_script",
+            {
+                "direction": direction,
+                "source_id": source_id,
+                "source_name": source_name,
+            },
+            project_id=project_id,
         )
+        user_message = prompt.user_message or ""
 
         # Append edit context if editing a previous audio script
         if previous_content and edit_instructions:
@@ -315,153 +310,89 @@ class AudioGenerator:
             )
             user_message += edit_context
 
-        messages = [{"role": "user", "content": user_message}]
-
-        total_input_tokens = 0
-        total_output_tokens = 0
-        last_batch_seen = False  # Track if we've seen "last batch" message
-        iterations_since_last_batch = 0  # Track iterations after last batch
-        full_content_seen = False  # Track if we've seen full content (small source)
-
         # Smaller limit for small sources (should finish in 2-3 iterations)
         max_iterations = 5 if not is_large else self.MAX_ITERATIONS
 
-        for iteration in range(1, max_iterations + 1):
-            # Update progress
-            studio_index_service.update_audio_job(
-                project_id, job_id,
-                progress=f"Generating script (step {iteration})..."
-            )
+        context: dict[str, Any] = {
+            "last_batch_seen": False,
+            "full_content_seen": False,
+            "completed": False,
+        }
 
-            # Call Claude API
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=config["system_prompt"],
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                tools=tools,
-                tool_choice={"type": "any"},
-                project_id=project_id
-            )
-
-            # Track usage
-            total_input_tokens += response["usage"]["input_tokens"]
-            total_output_tokens += response["usage"]["output_tokens"]
-
-            # Add assistant response to messages
-            content_blocks = response.get("content_blocks", [])
-            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
-            messages.append({"role": "assistant", "content": serialized_content})
-
-            # Process tool calls
-            tool_results = []
-            is_complete = False
-
-            for block in content_blocks:
-                block_type = getattr(block, "type", None) if hasattr(block, "type") else block.get("type")
-
-                if block_type == "tool_use":
-                    tool_name = getattr(block, "name", "") if hasattr(block, "name") else block.get("name", "")
-                    tool_input = getattr(block, "input", {}) if hasattr(block, "input") else block.get("input", {})
-                    tool_id = getattr(block, "id", "") if hasattr(block, "id") else block.get("id", "")
-
-                    # Execute the tool
-                    result, completed = studio_audio_executor.dispatch(
-                        tool_name=tool_name,
-                        tool_input=tool_input,
+        try:
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose=self.AGENT_NAME,
+                    system_prompt=prompt.system_prompt,
+                    messages=[
+                        RunMessage(role="user", content=[TextPart(text=user_message)])
+                    ],
+                    tools=bind_audio_tools(
+                        tools,
                         project_id=project_id,
-                        job_id=job_id
-                    )
-
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": result
-                    })
-
-                    if completed:
-                        is_complete = True
-
-                    # Track if this is the last batch of content
-                    if "This is the last batch" in result:
-                        last_batch_seen = True
-
-                    # Track if we've seen full content (small source)
-                    if "FULL SOURCE CONTENT" in result:
-                        full_content_seen = True
-
-            # Add tool results to messages
-            if tool_results:
-                messages.append({"role": "user", "content": tool_results})
-
-            # Check if script generation is complete
-            if is_complete:
+                        job_id=job_id,
+                        context=context,
+                    ),
+                    tool_choice=ToolChoice(type="any"),
+                    limits=RunLimits(
+                        max_tool_turns=max_iterations,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
+                    project_id=project_id,
+                    metadata={"job_id": job_id, "source_id": source_id},
+                )
+            )
+        except ToolIterationLimitError:
+            logger.warning("Audio script generation hit max iterations (%s)", max_iterations)
+            if storage_service.download_studio_file(project_id, "audio", job_id, "script.txt"):
                 return {
                     "success": True,
-                    "iterations": iteration,
-                    "usage": {
-                        "input_tokens": total_input_tokens,
-                        "output_tokens": total_output_tokens
-                    }
+                    "iterations": max_iterations,
+                    "usage": {},
+                    "note": f"Script generation used all {max_iterations} iterations",
                 }
-
-            # Force completion if we've seen all content and Claude isn't finishing
-            if last_batch_seen or full_content_seen:
-                iterations_since_last_batch += 1
-                # Give Claude 2 extra iterations to finish properly
-                if iterations_since_last_batch >= 2 and storage_service.download_studio_file(project_id, "audio", job_id, "script.txt"):
-                    reason = "last batch" if last_batch_seen else "full content"
-                    return {
-                        "success": True,
-                        "iterations": iteration,
-                        "usage": {
-                            "input_tokens": total_input_tokens,
-                            "output_tokens": total_output_tokens
-                        },
-                        "note": f"Script generation forced after {reason}"
-                    }
-
-            # Check for end_turn without tool use (shouldn't happen, but handle it)
-            if app.providers.anthropic.response_parser.is_end_turn(response) and not tool_results:
-                logger.warning("Unexpected end_turn at iteration %s", iteration)
-                # Try to use whatever script was written
-                if storage_service.download_studio_file(project_id, "audio", job_id, "script.txt"):
-                    return {
-                        "success": True,
-                        "iterations": iteration,
-                        "usage": {
-                            "input_tokens": total_input_tokens,
-                            "output_tokens": total_output_tokens
-                        },
-                        "note": "Script generation ended early"
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "error": "Script generation ended without producing output",
-                        "iterations": iteration
-                    }
-
-        # Max iterations reached
-        logger.warning("Audio script generation hit max iterations (%s)", max_iterations)
-        if storage_service.download_studio_file(project_id, "audio", job_id, "script.txt"):
-            return {
-                "success": True,
-                "iterations": max_iterations,
-                "usage": {
-                    "input_tokens": total_input_tokens,
-                    "output_tokens": total_output_tokens
-                },
-                "note": f"Script generation used all {max_iterations} iterations"
-            }
-        else:
             return {
                 "success": False,
                 "error": f"Max iterations reached ({max_iterations}) without completing script",
-                "iterations": max_iterations
+                "iterations": max_iterations,
             }
 
+        iterations = self._iteration_count(result)
+        if context.get("completed") or "write_script_section" in result.terminated_by_tools:
+            return {
+                "success": True,
+                "iterations": iterations,
+                "usage": result.usage.model_dump(mode="json"),
+            }
+
+        if storage_service.download_studio_file(project_id, "audio", job_id, "script.txt"):
+            logger.warning("Audio script generation ended before explicit finalization")
+            reason = "last batch" if context.get("last_batch_seen") else "early provider stop"
+            if context.get("full_content_seen"):
+                reason = "full content"
+            return {
+                "success": True,
+                "iterations": iterations,
+                "usage": result.usage.model_dump(mode="json"),
+                "note": f"Script generation accepted after {reason}",
+            }
+
+        return {
+            "success": False,
+            "error": "Script generation ended without producing output",
+            "iterations": iterations,
+        }
+
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
 
 # Singleton instance
 audio_overview_service = AudioGenerator()

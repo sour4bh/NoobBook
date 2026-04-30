@@ -1,11 +1,11 @@
 """
 Quiz Service - Generates quiz questions from source content.
 
-Educational Note: This service uses Claude to generate multiple choice quiz
+Educational Note: This service uses the selected model to generate multiple choice quiz
 questions for testing knowledge. Like flash cards, this is a single-call service:
 
 1. Read source content (chunked or full)
-2. Call Claude with generate_quiz tool
+2. Call the selected model with generate_quiz tool
 3. Parse and return the quiz questions
 
 The tool-based approach ensures structured output with questions, options,
@@ -15,13 +15,23 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    ToolSpec,
+    bind_local_tools,
+    echo_input,
+    require_tool_result_payload,
+    run_with_provider,
+)
 import app.studio.jobs.store as studio_index_service
 from app.providers.supabase import storage_service
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
 from app.sources import index
-import app.providers.anthropic.response_parser
 
 
 logger = logging.getLogger(__name__)
@@ -31,25 +41,18 @@ class QuizCreator:
     """
     Service for generating quiz questions from source content.
 
-    Educational Note: Quiz questions are generated in a single Claude call
+    Educational Note: Quiz questions are generated in a single model call
     using the generate_quiz tool for structured output.
     """
 
     def __init__(self):
         """Initialize service with lazy-loaded config and tools."""
-        self._prompt_config = None
         self._tool = None
 
-    def _load_config(self) -> Dict[str, Any]:
-        """Lazy load prompt configuration."""
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("quiz")
-        return self._prompt_config
-
-    def _load_tool(self) -> Dict[str, Any]:
+    def _load_tool(self) -> ToolSpec:
         """Load the quiz tool definition."""
         if self._tool is None:
-            self._tool = tool_loader.load_tool("studio_tools", "quiz_tool")
+            self._tool = tool_loader.load_tool_spec("studio_tools", "quiz_tool")
         return self._tool
 
     def _get_source_content(
@@ -157,15 +160,18 @@ class QuizCreator:
                 if not content:
                     raise ValueError("No content found for source")
 
-            # Load config and tool
-            config = self._load_config()
+            # Load the static tool and render this run's prompt context.
             tool = self._load_tool()
 
-            # Build the user message
-            user_message = config["user_message_template"].format(
-                direction=direction,
-                content=content[:15000]  # Limit content to ~15k chars
+            prompt = render_prompt(
+                "quiz",
+                {
+                    "direction": direction,
+                    "content": content[:15000],
+                },
+                project_id=project_id,
             )
+            user_message = prompt.user_message or ""
 
             # Append edit context so Claude refines rather than regenerates
             if is_edit:
@@ -179,33 +185,36 @@ class QuizCreator:
                 )
                 user_message += edit_context
 
-            # Call Claude with the quiz tool
+            # Call the selected model with the quiz tool
             studio_index_service.update_quiz_job(
                 project_id, job_id,
                 progress="Generating quiz questions..."
             )
 
-            response = claude_service.send_message(
-                messages=[{"role": "user", "content": user_message}],
-                system_prompt=config["system_prompt"],
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                tools=[tool],
-                tool_choice={"type": "tool", "name": "generate_quiz"},
-                project_id=project_id
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose="quiz",
+                    messages=[
+                        RunMessage(role="user", content=[TextPart(text=user_message)])
+                    ],
+                    system_prompt=prompt.system_prompt,
+                    tools=bind_local_tools([tool], {tool.name: echo_input}),
+                    tool_choice=ToolChoice(type="tool", name="generate_quiz"),
+                    limits=RunLimits(
+                        max_tool_turns=1,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
+                    project_id=project_id,
+                )
             )
 
-            # Extract tool use result
-            # Note: extract_tool_inputs returns a LIST of inputs (one per tool call)
-            tool_inputs_list = app.providers.anthropic.response_parser.extract_tool_inputs(
-                response, "generate_quiz"
-            )
-
-            if not tool_inputs_list or "questions" not in tool_inputs_list[0]:
+            tool_inputs = require_tool_result_payload(result, "generate_quiz", dict)
+            if "questions" not in tool_inputs:
                 raise ValueError("Failed to generate quiz - no questions returned")
 
-            tool_inputs = tool_inputs_list[0]  # Get first (and only) tool call
             questions = tool_inputs["questions"]
             topic_summary = tool_inputs.get("topic_summary", "")
 

@@ -17,11 +17,24 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.agents.runtime import (
+    LocalToolSpec,
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    bind_local_tools,
+    echo_input,
+    require_tool_result_payload,
+    run_with_provider,
+)
 from app.providers.google.imagen import imagen_service
 from app.providers.supabase import storage_service
 import app.studio.jobs.store as studio_index_service
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.brand import brand_context_loader
 
 
@@ -36,6 +49,28 @@ PLATFORM_ASPECT_RATIOS = {
 }
 
 
+class SocialPostPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    platform: str = ""
+    text: str = Field(default="", alias="copy")
+    hashtags: list[str] = Field(default_factory=list)
+    aspect_ratio: Optional[str] = None
+    image_prompt: str = ""
+
+
+class SocialPostResult(BaseModel):
+    posts: list[SocialPostPayload] = Field(default_factory=list)
+    topic_summary: str = ""
+
+
+_SOCIAL_POSTS_TOOL = LocalToolSpec(
+    name="submit_social_posts",
+    description="Return the final platform-specific social post copy and image prompts.",
+    input_model=SocialPostResult,
+)
+
+
 class SocialPostWriter:
     """
     Service for generating social media posts with images.
@@ -47,13 +82,7 @@ class SocialPostWriter:
 
     def __init__(self):
         """Initialize service with lazy-loaded config."""
-        self._prompt_config = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        """Lazy load prompt configuration."""
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("social_posts")
-        return self._prompt_config
+        pass
 
     def generate_social_posts(
         self,
@@ -278,8 +307,6 @@ class SocialPostWriter:
         if platforms is None:
             platforms = ["linkedin", "instagram", "twitter"]
 
-        config = self._load_config()
-
         # Format platform names for the prompt (e.g., "LinkedIn, Instagram, and Twitter")
         platform_display = {
             "linkedin": "LinkedIn",
@@ -328,83 +355,69 @@ class SocialPostWriter:
                 "=== END EDIT MODE ==="
             )
 
-        # Build user message
-        user_message = config["user_message"].format(
-            topic=topic,
-            direction=direction or "Create engaging social media posts for this topic.",
-            platforms=platforms_str,
-            logo_context=logo_context
-        )
-
-        # Append edit context after the formatted message
-        if edit_context:
-            user_message += edit_context
-
-        messages = [{"role": "user", "content": user_message}]
-
         # Load brand context so Claude knows brand name, colors, voice, etc.
         brand_context = brand_context_loader.load_brand_context(
             project_id, "social_post"
         )
-        system_prompt = config["system_prompt"]
-        if brand_context:
-            system_prompt = f"{system_prompt}\n\n{brand_context}"
+        prompt = render_prompt(
+            "social_posts",
+            {
+                "topic": topic,
+                "direction": (
+                    direction or "Create engaging social media posts for this topic."
+                ),
+                "platforms": platforms_str,
+                "logo_context": logo_context,
+            },
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
+        )
+        user_message = prompt.user_message or ""
+        if edit_context:
+            user_message += edit_context
 
         try:
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=system_prompt,
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                project_id=project_id
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose="social_posts",
+                    messages=[
+                        RunMessage(role="user", content=[TextPart(text=user_message)])
+                    ],
+                    system_prompt=prompt.system_prompt,
+                    tools=bind_local_tools(
+                        [_SOCIAL_POSTS_TOOL],
+                        {_SOCIAL_POSTS_TOOL.name: echo_input},
+                        terminating_tools={_SOCIAL_POSTS_TOOL.name},
+                    ),
+                    tool_choice=ToolChoice(type="tool", name=_SOCIAL_POSTS_TOOL.name),
+                    limits=RunLimits(
+                        max_tool_turns=1,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
+                    project_id=project_id,
+                )
             )
 
-            # Extract text from response
-            content_blocks = response.get("content_blocks", [])
-            text_content = ""
-            for block in content_blocks:
-                if hasattr(block, "text"):
-                    text_content = block.text
-                    break
-                elif isinstance(block, dict) and block.get("type") == "text":
-                    text_content = block.get("text", "")
-                    break
-
-            if not text_content:
-                return {
-                    "success": False,
-                    "error": "No text response from Claude"
-                }
-
-            # Parse JSON from response
-            # Find JSON in the response (might be wrapped in markdown code blocks)
-            json_start = text_content.find("{")
-            json_end = text_content.rfind("}") + 1
-
-            if json_start == -1 or json_end == 0:
-                return {
-                    "success": False,
-                    "error": "No JSON found in Claude response"
-                }
-
-            json_str = text_content[json_start:json_end]
-            parsed = json.loads(json_str)
-            posts = parsed.get("posts", [])
-            topic_summary = parsed.get("topic_summary", "")
+            payload = require_tool_result_payload(
+                result,
+                _SOCIAL_POSTS_TOOL.name,
+                dict,
+            )
+            parsed = SocialPostResult.model_validate(payload)
 
             return {
                 "success": True,
-                "posts": posts,
-                "topic_summary": topic_summary,
-                "usage": response.get("usage", {})
+                "posts": [
+                    post.model_dump(mode="json", by_alias=True)
+                    for post in parsed.posts
+                ],
+                "topic_summary": parsed.topic_summary,
+                "usage": result.usage.model_dump(mode="json"),
             }
 
-        except json.JSONDecodeError as e:
-            return {
-                "success": False,
-                "error": f"Failed to parse Claude response as JSON: {str(e)}"
-            }
         except Exception as e:
             return {
                 "success": False,

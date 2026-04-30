@@ -12,15 +12,20 @@ import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
-from app.config.prompt import prompt_loader
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
 from app.config.brand import brand_context_loader
 from app.sources.content import get_source_content
 import app.studio.jobs.store as studio_index_service
-from app.studio.documents.blog.tool import blog_tool_executor
-from app.chat.store import message_service
-import app.providers.anthropic.content
+from app.studio.documents.blog.tools.binding import bind_blog_tools
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +37,11 @@ class BlogWriter:
     MAX_ITERATIONS = 20
 
     def __init__(self):
-        self._prompt_config = None
         self._tools = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("blog_agent")
-        return self._prompt_config
 
     def _load_tools(self) -> List[Dict[str, Any]]:
         if self._tools is None:
-            self._tools = tool_loader.load_tools_for_agent(self.AGENT_NAME)
+            self._tools = list(tool_loader.load_tool_specs_for_agent(self.AGENT_NAME))
         return self._tools
 
     def generate_blog_post(
@@ -61,7 +60,6 @@ class BlogWriter:
         previous_title: Optional[str] = None
     ) -> Dict[str, Any]:
         """Run the agent to generate a blog post."""
-        config = self._load_config()
         tools = self._load_tools()
 
         execution_id = str(uuid.uuid4())
@@ -79,15 +77,45 @@ class BlogWriter:
             source_content = "Editing a previous blog post — see the PREVIOUS BLOG POST section below."
         else:
             source_content = get_source_content(project_id, source_id) if source_id else "No source document provided. Use the direction below as the basis for your blog post."
-        blog_types = config.get("blog_types", {})
+        brand_context = brand_context_loader.load_brand_context(
+            project_id, "blog"
+        )
+        prompt = render_prompt(
+            "blog_agent",
+            {
+                "source_content": source_content,
+                "target_keyword": (
+                    target_keyword or "Use your best judgment based on the content"
+                ),
+                "blog_type_display": blog_type.replace("_", " ").title(),
+                "direction": (
+                    direction
+                    or "No specific direction provided - use your best judgment based on the content."
+                ),
+            },
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
+        )
+        blog_types = prompt.metadata.get("blog_types", {})
         blog_type_display = blog_types.get(blog_type, blog_type.replace("_", " ").title())
 
-        user_message = config.get("user_message", "").format(
-            source_content=source_content,
-            target_keyword=target_keyword or "Use your best judgment based on the content",
-            blog_type_display=blog_type_display,
-            direction=direction or "No specific direction provided - use your best judgment based on the content."
+        prompt = render_prompt(
+            "blog_agent",
+            {
+                "source_content": source_content,
+                "target_keyword": (
+                    target_keyword or "Use your best judgment based on the content"
+                ),
+                "blog_type_display": blog_type_display,
+                "direction": (
+                    direction
+                    or "No specific direction provided - use your best judgment based on the content."
+                ),
+            },
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
         )
+        user_message = prompt.user_message or ""
 
         # Edit mode: append previous blog content + edit instructions to user message
         if previous_markdown:
@@ -105,107 +133,77 @@ class BlogWriter:
             # No parent content but user provided edit instructions — treat as additional guidance
             user_message += f"\n\nADDITIONAL INSTRUCTIONS: {edit_instructions}"
 
-        messages = [{"role": "user", "content": user_message}]
-
-        # Load brand context if configured for blog feature
-        brand_context = brand_context_loader.load_brand_context(
-            project_id, "blog"
-        )
-        system_prompt = config["system_prompt"]
-        if brand_context:
-            system_prompt = f"{system_prompt}\n\n{brand_context}"
-
         # Only use logo if brand is enabled (tied to brand context being non-empty)
         effective_logo = logo_image_bytes if brand_context else None
         if effective_logo:
-            system_prompt += (
+            logo_note = (
                 "\n\nNOTE: A brand logo/icon is available and will be passed to "
                 "the image generator. When calling generate_blog_image, write image "
                 "prompts that describe incorporating the logo naturally into the design."
             )
+            prompt = prompt.model_copy(
+                update={"system_prompt": f"{prompt.system_prompt}{logo_note}"}
+            )
 
-        total_input_tokens = 0
-        total_output_tokens = 0
         generated_images = []
 
         logger.info("Starting blog agent job %s", job_id[:8])
 
-        for iteration in range(1, self.MAX_ITERATIONS + 1):
-
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=system_prompt,
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                tools=tools["all_tools"] if isinstance(tools, dict) else tools,
-                tool_choice={"type": "any"},
-                project_id=project_id
+        context = {
+            "project_id": project_id,
+            "job_id": job_id,
+            "source_id": source_id,
+            "generated_images": generated_images,
+            "iterations": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "target_keyword": target_keyword,
+            "blog_type": blog_type,
+            "logo_image_bytes": effective_logo,
+            "logo_mime_type": logo_mime_type,
+        }
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose=self.AGENT_NAME,
+                system_prompt=prompt.system_prompt,
+                messages=[RunMessage(role="user", content=[TextPart(text=user_message)])],
+                tools=bind_blog_tools(tools, context=context),
+                tool_choice=ToolChoice(type="any"),
+                limits=RunLimits(
+                    max_tool_turns=self.MAX_ITERATIONS,
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
+                project_id=project_id,
+                user_id=user_id,
+                metadata={"tags": [self.AGENT_NAME]},
             )
+        )
+        final_result = self._terminating_tool_result(result)
+        if final_result is not None:
+            iterations = self._iteration_count(result)
+            final_result["iterations"] = iterations
+            final_result["usage"] = result.usage.model_dump(mode="json")
+            logger.info("Completed in %d iterations", iterations)
+            self._save_execution(
+                project_id,
+                execution_id,
+                job_id,
+                self._execution_messages(result, user_message),
+                final_result,
+                started_at,
+                source_id,
+            )
+            return final_result
 
-            total_input_tokens += response["usage"]["input_tokens"]
-            total_output_tokens += response["usage"]["output_tokens"]
-
-            content_blocks = response.get("content_blocks", [])
-            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
-            messages.append({"role": "assistant", "content": serialized_content})
-
-            # Process tool calls
-            tool_results = []
-
-            for block in content_blocks:
-                block_type = getattr(block, "type", None) if hasattr(block, "type") else block.get("type")
-
-                if block_type == "tool_use":
-                    tool_name = getattr(block, "name", "") if hasattr(block, "name") else block.get("name", "")
-                    tool_input = getattr(block, "input", {}) if hasattr(block, "input") else block.get("input", {})
-                    tool_id = getattr(block, "id", "") if hasattr(block, "id") else block.get("id", "")
-
-                    # Build execution context
-                    context = {
-                        "project_id": project_id,
-                        "job_id": job_id,
-                        "source_id": source_id,
-                        "generated_images": generated_images,
-                        "iterations": iteration,
-                        "input_tokens": total_input_tokens,
-                        "output_tokens": total_output_tokens,
-                        "target_keyword": target_keyword,
-                        "blog_type": blog_type,
-                        "logo_image_bytes": effective_logo,
-                        "logo_mime_type": logo_mime_type
-                    }
-
-                    # Execute tool via executor
-                    result, is_termination = blog_tool_executor.dispatch(
-                        tool_name, tool_input, context
-                    )
-
-                    if is_termination:
-                        logger.info("Completed in %d iterations", iteration)
-                        self._save_execution(
-                            project_id, execution_id, job_id, messages,
-                            result, started_at, source_id
-                        )
-                        return result
-
-                    # Add tool result
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": result.get("message", str(result))
-                    })
-
-            if tool_results:
-                messages.append({"role": "user", "content": tool_results})
-
-        # Max iterations reached
-        logger.warning("Max iterations reached (%d)", self.MAX_ITERATIONS)
+        logger.warning("Blog agent completed without write_blog_post")
         error_result = {
             "success": False,
-            "error_message": f"Agent reached maximum iterations ({self.MAX_ITERATIONS})",
-            "iterations": self.MAX_ITERATIONS,
-            "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
+            "error_message": "Agent completed without writing the blog post",
+            "iterations": self._iteration_count(result),
+            "usage": result.usage.model_dump(mode="json"),
         }
 
         studio_index_service.update_blog_job(
@@ -215,11 +213,44 @@ class BlogWriter:
         )
 
         self._save_execution(
-            project_id, execution_id, job_id, messages,
+            project_id, execution_id, job_id,
+            self._execution_messages(result, user_message),
             error_result, started_at, source_id
         )
 
         return error_result
+
+    def _terminating_tool_result(self, result: Any) -> Optional[Dict[str, Any]]:
+        for tool_result in reversed(result.tool_results):
+            if tool_result.name == "write_blog_post" and isinstance(tool_result.content, dict):
+                return tool_result.content
+        return None
+
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
+
+    def _execution_messages(
+        self,
+        result: Any,
+        user_message: str,
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
+        for message in result.generated_messages:
+            messages.append(
+                {
+                    "role": "user" if message.role == "tool" else message.role,
+                    "content": [
+                        part.model_dump(mode="json")
+                        for part in message.content
+                    ],
+                }
+            )
+        return messages
 
     def _save_execution(
         self,
@@ -232,6 +263,8 @@ class BlogWriter:
         source_id: Optional[str]
     ) -> None:
         """Save execution log for debugging."""
+        from app.chat.message import message_service
+
         message_service.save_agent_execution(
             project_id=project_id,
             agent_name=self.AGENT_NAME,

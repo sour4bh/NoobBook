@@ -200,7 +200,7 @@ Source paths come from `REGISTRY.md`. `none` means the layer is intentionally ab
 |---|---|
 | `build.py` (core) | `backend/app/studio/design/flow_diagram/build.py` |
 | `job.py` | `backend/app/studio/design/flow_diagram/job.py` |
-| `tool.py` | none (single Claude call with `flow_diagram_tool.json`; no tool executor module exists today) |
+| `tool.py` | none (single model call with typed flow-diagram tool spec; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-506 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -252,7 +252,7 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 |---|---|
 | `create.py` (core) | `backend/app/studio/learning/flash_card/create.py` |
 | `job.py` | `backend/app/studio/learning/flash_card/job.py` |
-| `tool.py` | none (single Claude call with `flash_cards_tool.json`; no tool executor module exists today) |
+| `tool.py` | none (single model call with typed flash-card tool spec; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -264,7 +264,7 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 |---|---|
 | `build.py` (core) | `backend/app/studio/learning/mind_map/build.py` |
 | `job.py` | `backend/app/studio/learning/mind_map/job.py` |
-| `tool.py` | none (single Claude call with `mind_map_tool.json`; no tool executor module exists today) |
+| `tool.py` | none (single model call with typed mind-map tool spec; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -276,7 +276,7 @@ Reserved slot only. `api/studio/logo_utils.py` is studio-level brand-asset resol
 |---|---|
 | `create.py` (core) | `backend/app/studio/learning/quiz/create.py` |
 | `job.py` | `backend/app/studio/learning/quiz/job.py` |
-| `tool.py` | none (single Claude call with `quiz_tool.json`; no tool executor module exists today) |
+| `tool.py` | none (single model call with typed quiz tool spec; no tool executor module exists today) |
 | `run.py` | none (no multi-step background orchestration) |
 | `schema.py` | none (new local contract file; lands in NBB-507 tied to Contract 13) |
 | Contracts | Contract 13; Contract 7; Contract 10 |
@@ -323,7 +323,7 @@ These modules live in the studio domain but are not item-owned. `REGISTRY.md` en
 | Per-item job modules | Per-item `job.py` wiring lives in the item directories listed above. | No forwarding jobs package remains. |
 | `backend/app/studio/signal/__init__.py` | Chat-side emitter that writes `studio_signals` rows (Contract 7) and routes to item-specific executors. | `emit(...)` per the executable naming rule. Studio-level, not item-specific. |
 
-Studio-level tool JSON (from NBB-207C, for cross-reference): `backend/app/studio/signal/tools/studio_signal_tool.json`.
+Studio-level tool spec: `backend/app/studio/signal/tools/specs.py`.
 
 ## `studio/export/` charter note
 

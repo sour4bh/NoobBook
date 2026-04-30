@@ -15,16 +15,21 @@ import uuid
 from typing import Dict, Any, List
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
-from app.config.prompt import prompt_loader
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
 from app.config.brand import brand_context_loader
 from app.sources.content import get_source_content
 import app.studio.jobs.store as studio_index_service
-from app.studio.design.wireframe.tool import wireframe_tool_executor
-from app.chat.store import message_service
+from app.studio.design.wireframe.tools.binding import bind_wireframe_tools
 from app.sources import index
-import app.providers.anthropic.content
 
 logger = logging.getLogger(__name__)
 
@@ -36,17 +41,11 @@ class WireframeBuilder:
     MAX_ITERATIONS = 15  # Allow enough iterations for complex wireframes
 
     def __init__(self):
-        self._prompt_config = None
         self._tools = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("wireframe_agent")
-        return self._prompt_config
 
     def _load_tools(self) -> List[Dict[str, Any]]:
         if self._tools is None:
-            self._tools = tool_loader.load_tools_for_agent(self.AGENT_NAME)
+            self._tools = list(tool_loader.load_tool_specs_for_agent(self.AGENT_NAME))
         return self._tools
 
     def generate_wireframe(
@@ -72,7 +71,6 @@ class WireframeBuilder:
         Returns:
             Dict with success status, elements, and metadata
         """
-        config = self._load_config()
         tools = self._load_tools()
 
         execution_id = str(uuid.uuid4())
@@ -109,13 +107,24 @@ class WireframeBuilder:
             has_valid_content = (source_content
                                 and not source_content.startswith("Error")
                                 and "not yet processed" not in source_content)
+            brand_context = brand_context_loader.load_brand_context(project_id, "infographic")
             if has_valid_content:
-                user_message = config.get("user_message", "").format(
-                    source_content=source_content, direction=direction
+                prompt = render_prompt(
+                    "wireframe_agent",
+                    {"source_content": source_content, "direction": direction},
+                    project_id=project_id,
+                    extra_sections=[brand_context] if brand_context else (),
                 )
+                user_message = prompt.user_message or ""
             else:
                 # No source — generate from direction alone
                 user_message = f"Create a wireframe based on this direction:\n\nDIRECTION:\n{direction}\n\nGenerate a complete wireframe layout using the agentic workflow."
+                prompt = render_prompt(
+                    "wireframe_agent",
+                    {"source_content": "", "direction": direction},
+                    project_id=project_id,
+                    extra_sections=[brand_context] if brand_context else (),
+                )
 
             # Append edit context if editing a previous wireframe
             if previous_content and edit_instructions:
@@ -129,179 +138,92 @@ class WireframeBuilder:
                 )
                 user_message += edit_context
 
-            messages = [{"role": "user", "content": user_message}]
-
-            # Load brand context if configured for infographic feature (wireframes are visual)
-            brand_context = brand_context_loader.load_brand_context(project_id, "infographic")
-            system_prompt = config["system_prompt"]
-            if brand_context:
-                system_prompt = f"{system_prompt}\n\n{brand_context}"
-
-            total_input_tokens = 0
-            total_output_tokens = 0
-
-            # Initialize accumulator for wireframe elements
-            accumulated_elements = []
-            wireframe_metadata = {
+            context: dict[str, Any] = {
+                "project_id": project_id,
+                "job_id": job_id,
+                "source_id": source_id,
+                "source_name": source_name,
+                "iterations": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "accumulated_elements": [],
                 "title": "Wireframe",
-                "description": "",
-                "canvas_width": 1200,
-                "canvas_height": 800,
-                "sections": [],
+                "wireframe_metadata": {
+                    "title": "Wireframe",
+                    "description": "",
+                    "canvas_width": 1200,
+                    "canvas_height": 800,
+                    "sections": [],
+                },
             }
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose=self.AGENT_NAME,
+                    system_prompt=prompt.system_prompt,
+                    messages=[
+                        RunMessage(role="user", content=[TextPart(text=user_message)])
+                    ],
+                    tools=bind_wireframe_tools(tools, context=context),
+                    tool_choice=ToolChoice(type="any"),
+                    limits=RunLimits(
+                        max_tool_turns=self.MAX_ITERATIONS,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
+                    project_id=project_id,
+                    metadata={"job_id": job_id, "source_id": source_id},
+                )
+            )
 
-            for iteration in range(1, self.MAX_ITERATIONS + 1):
+            context["iterations"] = self._iteration_count(result)
+            context["input_tokens"] = result.usage.input_tokens
+            context["output_tokens"] = result.usage.output_tokens
+            accumulated_elements = context.get("accumulated_elements", [])
+            wireframe_metadata = context.get("wireframe_metadata", {})
+            generation_time = (datetime.now() - started_at).total_seconds()
 
-                # Update progress
+            if result.terminated_by_tools:
                 studio_index_service.update_wireframe_job(
                     project_id,
                     job_id,
-                    progress=f"Generating wireframe (iteration {iteration})...",
+                    status="ready",
+                    progress="Complete",
+                    title=wireframe_metadata.get("title", "Wireframe"),
+                    description=wireframe_metadata.get("description", ""),
+                    elements=accumulated_elements,
+                    canvas_width=wireframe_metadata.get("canvas_width", 1200),
+                    canvas_height=wireframe_metadata.get("canvas_height", 800),
+                    element_count=len(accumulated_elements),
+                    generation_time_seconds=round(generation_time, 1),
+                    completed_at=datetime.now().isoformat(),
                 )
 
-                response = claude_service.send_message(
-                    messages=messages,
-                    system_prompt=system_prompt,
-                    model=config["model"],
-                    max_tokens=config["max_tokens"],
-                    temperature=config["temperature"],
-                    tools=tools["all_tools"] if isinstance(tools, dict) else tools,
-                    tool_choice={"type": "any"},
-                    project_id=project_id,
+                final_result = {
+                    "success": True,
+                    "title": wireframe_metadata.get("title", "Wireframe"),
+                    "description": wireframe_metadata.get("description", ""),
+                    "elements": accumulated_elements,
+                    "element_count": len(accumulated_elements),
+                    "source_name": source_name,
+                    "generation_time": generation_time,
+                    "iterations": context["iterations"],
+                    "usage": result.usage.model_dump(mode="json"),
+                }
+
+                self._save_execution(
+                    project_id,
+                    execution_id,
+                    job_id,
+                    self._execution_messages(result, user_message),
+                    final_result,
+                    started_at.isoformat(),
+                    source_id,
                 )
 
-                total_input_tokens += response["usage"]["input_tokens"]
-                total_output_tokens += response["usage"]["output_tokens"]
+                return final_result
 
-                content_blocks = response.get("content_blocks", [])
-                serialized_content = app.providers.anthropic.content.serialize_content_blocks(
-                    content_blocks
-                )
-                messages.append({"role": "assistant", "content": serialized_content})
-
-                # Process tool calls
-                tool_results = []
-
-                for block in content_blocks:
-                    block_type = (
-                        getattr(block, "type", None)
-                        if hasattr(block, "type")
-                        else block.get("type")
-                    )
-
-                    if block_type == "tool_use":
-                        tool_name = (
-                            getattr(block, "name", "")
-                            if hasattr(block, "name")
-                            else block.get("name", "")
-                        )
-                        tool_input = (
-                            getattr(block, "input", {})
-                            if hasattr(block, "input")
-                            else block.get("input", {})
-                        )
-                        tool_id = (
-                            getattr(block, "id", "")
-                            if hasattr(block, "id")
-                            else block.get("id", "")
-                        )
-
-                        # Build execution context with accumulated state
-                        context = {
-                            "project_id": project_id,
-                            "job_id": job_id,
-                            "source_id": source_id,
-                            "source_name": source_name,
-                            "iterations": iteration,
-                            "input_tokens": total_input_tokens,
-                            "output_tokens": total_output_tokens,
-                            "accumulated_elements": accumulated_elements,
-                            "wireframe_metadata": wireframe_metadata,
-                        }
-
-                        # Execute tool via executor
-                        result, is_termination = wireframe_tool_executor.dispatch(
-                            tool_name, tool_input, context
-                        )
-
-                        # Update accumulated state from result
-                        if "accumulated_elements" in result:
-                            accumulated_elements = result["accumulated_elements"]
-                        if "wireframe_metadata" in result:
-                            wireframe_metadata = result["wireframe_metadata"]
-
-                        if is_termination:
-                            logger.info("Completed in %d iterations", iteration)
-                            generation_time = (
-                                datetime.now() - started_at
-                            ).total_seconds()
-
-                            # Update job with final results
-                            studio_index_service.update_wireframe_job(
-                                project_id,
-                                job_id,
-                                status="ready",
-                                progress="Complete",
-                                title=wireframe_metadata.get("title", "Wireframe"),
-                                description=wireframe_metadata.get("description", ""),
-                                elements=accumulated_elements,
-                                canvas_width=wireframe_metadata.get(
-                                    "canvas_width", 1200
-                                ),
-                                canvas_height=wireframe_metadata.get(
-                                    "canvas_height", 800
-                                ),
-                                element_count=len(accumulated_elements),
-                                generation_time_seconds=round(generation_time, 1),
-                                completed_at=datetime.now().isoformat(),
-                            )
-
-                            final_result = {
-                                "success": True,
-                                "title": wireframe_metadata.get("title", "Wireframe"),
-                                "description": wireframe_metadata.get(
-                                    "description", ""
-                                ),
-                                "elements": accumulated_elements,
-                                "element_count": len(accumulated_elements),
-                                "source_name": source_name,
-                                "generation_time": generation_time,
-                                "iterations": iteration,
-                                "usage": {
-                                    "input_tokens": total_input_tokens,
-                                    "output_tokens": total_output_tokens,
-                                },
-                            }
-
-                            self._save_execution(
-                                project_id,
-                                execution_id,
-                                job_id,
-                                messages,
-                                final_result,
-                                started_at.isoformat(),
-                                source_id,
-                            )
-
-                            return final_result
-
-                        # Add tool result for next iteration
-                        tool_results.append(
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": tool_id,
-                                "content": result.get("message", str(result)),
-                            }
-                        )
-
-                if tool_results:
-                    messages.append({"role": "user", "content": tool_results})
-
-            # Max iterations reached
-            logger.warning("Max iterations reached (%d)", self.MAX_ITERATIONS)
-            generation_time = (datetime.now() - started_at).total_seconds()
-
-            # If we have accumulated elements, consider it a partial success
             if accumulated_elements:
                 studio_index_service.update_wireframe_job(
                     project_id,
@@ -326,19 +248,16 @@ class WireframeBuilder:
                     "element_count": len(accumulated_elements),
                     "source_name": source_name,
                     "generation_time": generation_time,
-                    "iterations": self.MAX_ITERATIONS,
+                    "iterations": context["iterations"],
                     "partial": True,
-                    "usage": {
-                        "input_tokens": total_input_tokens,
-                        "output_tokens": total_output_tokens,
-                    },
+                    "usage": result.usage.model_dump(mode="json"),
                 }
 
                 self._save_execution(
                     project_id,
                     execution_id,
                     job_id,
-                    messages,
+                    self._execution_messages(result, user_message),
                     partial_result,
                     started_at.isoformat(),
                     source_id,
@@ -350,11 +269,8 @@ class WireframeBuilder:
             error_result = {
                 "success": False,
                 "error": f"Agent reached maximum iterations ({self.MAX_ITERATIONS}) without generating elements",
-                "iterations": self.MAX_ITERATIONS,
-                "usage": {
-                    "input_tokens": total_input_tokens,
-                    "output_tokens": total_output_tokens,
-                },
+                "iterations": context["iterations"],
+                "usage": result.usage.model_dump(mode="json"),
             }
 
             studio_index_service.update_wireframe_job(
@@ -369,7 +285,7 @@ class WireframeBuilder:
                 project_id,
                 execution_id,
                 job_id,
-                messages,
+                self._execution_messages(result, user_message),
                 error_result,
                 started_at.isoformat(),
                 source_id,
@@ -388,6 +304,32 @@ class WireframeBuilder:
             )
             return {"success": False, "error": str(e)}
 
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
+
+    def _execution_messages(
+        self,
+        result: Any,
+        user_message: str,
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
+        for message in result.generated_messages:
+            messages.append(
+                {
+                    "role": "user" if message.role == "tool" else message.role,
+                    "content": [
+                        part.model_dump(mode="json")
+                        for part in message.content
+                    ],
+                }
+            )
+        return messages
+
     def _save_execution(
         self,
         project_id: str,
@@ -399,6 +341,8 @@ class WireframeBuilder:
         source_id: str,
     ) -> None:
         """Save execution log for debugging."""
+        from app.chat.message import message_service
+
         message_service.save_agent_execution(
             project_id=project_id,
             agent_name=self.AGENT_NAME,

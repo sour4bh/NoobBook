@@ -13,14 +13,19 @@ import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
-from app.config.prompt import prompt_loader
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
 from app.config.brand import brand_context_loader
-import app.providers.anthropic.content
 import app.studio.jobs.store as studio_index_service
-from app.studio.documents.business_report.tool import business_report_tool_executor
-from app.chat.store import message_service
+from app.studio.documents.business_report.tools.binding import bind_business_report_tools
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +37,11 @@ class BusinessReportWriter:
     MAX_ITERATIONS = 15
 
     def __init__(self):
-        self._prompt_config = None
         self._tools = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("business_report_agent")
-        return self._prompt_config
 
     def _load_tools(self) -> List[Dict[str, Any]]:
         if self._tools is None:
-            self._tools = tool_loader.load_tools_for_agent(self.AGENT_NAME)
+            self._tools = list(tool_loader.load_tool_specs_for_agent(self.AGENT_NAME))
         return self._tools
 
     def generate_business_report(
@@ -60,7 +59,6 @@ class BusinessReportWriter:
         previous_title: Optional[str] = None
     ) -> Dict[str, Any]:
         """Run the agent to generate a business report."""
-        config = self._load_config()
         tools = self._load_tools()
 
         csv_source_ids = csv_source_ids or []
@@ -80,107 +78,96 @@ class BusinessReportWriter:
 
         # Get source information and build user message
         source_info = self._get_source_info(project_id, csv_source_ids, context_source_ids)
-        report_types = config.get("report_types", {})
+        brand_context = brand_context_loader.load_brand_context(project_id, "business_report")
+        prompt = render_prompt(
+            "business_report_agent",
+            self._user_message_context(
+                source_info,
+                report_type.replace("_", " ").title(),
+                direction,
+                focus_areas,
+            ),
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
+        )
+        report_types = prompt.metadata.get("report_types", {})
         report_type_display = report_types.get(report_type, report_type.replace("_", " ").title())
 
-        user_message = self._build_user_message(
-            config, source_info, report_type_display, direction, focus_areas
+        prompt = render_prompt(
+            "business_report_agent",
+            self._user_message_context(
+                source_info,
+                report_type_display,
+                direction,
+                focus_areas,
+            ),
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
         )
+        user_message = prompt.user_message or ""
 
         # Edit mode: append previous report and edit instructions to user message
         if edit_instructions and previous_markdown:
             edit_context = f"\n\n## EDIT MODE\n\nYou are editing a previously generated report. Apply the user's edit instructions to refine the report.\n\n### Previous Report Title: {previous_title or 'Untitled'}\n\n### Previous Report Content:\n{previous_markdown}\n\n### Edit Instructions:\n{edit_instructions}\n\nStart from the previous content as your baseline. Apply the edit instructions to refine the report. Keep elements the user didn't ask to change. Focus changes on what the edit instructions specify. You may still call analyze_csv_data if the edit requires new data analysis or charts."
             user_message += edit_context
 
-        messages = [{"role": "user", "content": user_message}]
-
-        # Load brand context if configured for business_report feature
-        brand_context = brand_context_loader.load_brand_context(project_id, "business_report")
-        system_prompt = config["system_prompt"]
-        if brand_context:
-            system_prompt = f"{system_prompt}\n\n{brand_context}"
-
-        total_input_tokens = 0
-        total_output_tokens = 0
         collected_charts = []
         collected_analyses = []
 
         logger.info("Starting business report agent job %s, type=%s", job_id[:8], report_type)
 
-        for iteration in range(1, self.MAX_ITERATIONS + 1):
-
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=system_prompt,
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                tools=tools["all_tools"] if isinstance(tools, dict) else tools,
-                tool_choice={"type": "any"},
-                project_id=project_id
+        context = {
+            "project_id": project_id,
+            "job_id": job_id,
+            "source_id": source_id,
+            "collected_charts": collected_charts,
+            "collected_analyses": collected_analyses,
+            "iterations": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "report_type": report_type,
+        }
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose=self.AGENT_NAME,
+                system_prompt=prompt.system_prompt,
+                messages=[RunMessage(role="user", content=[TextPart(text=user_message)])],
+                tools=bind_business_report_tools(tools, context=context),
+                tool_choice=ToolChoice(type="any"),
+                limits=RunLimits(
+                    max_tool_turns=self.MAX_ITERATIONS,
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
+                project_id=project_id,
+                metadata={"tags": [self.AGENT_NAME]},
             )
+        )
+        final_result = self._terminating_tool_result(result)
+        if final_result is not None:
+            iterations = self._iteration_count(result)
+            final_result["iterations"] = iterations
+            final_result["usage"] = result.usage.model_dump(mode="json")
+            logger.info("Completed in %d iterations", iterations)
+            self._save_execution(
+                project_id,
+                execution_id,
+                job_id,
+                self._execution_messages(result, user_message),
+                final_result,
+                started_at,
+                source_id,
+            )
+            return final_result
 
-            total_input_tokens += response["usage"]["input_tokens"]
-            total_output_tokens += response["usage"]["output_tokens"]
-
-            content_blocks = response.get("content_blocks", [])
-            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
-            messages.append({"role": "assistant", "content": serialized_content})
-
-            # Process tool calls
-            tool_results = []
-
-            for block in content_blocks:
-                block_type = getattr(block, "type", None) if hasattr(block, "type") else block.get("type")
-
-                if block_type == "tool_use":
-                    tool_name = getattr(block, "name", "") if hasattr(block, "name") else block.get("name", "")
-                    tool_input = getattr(block, "input", {}) if hasattr(block, "input") else block.get("input", {})
-                    tool_id = getattr(block, "id", "") if hasattr(block, "id") else block.get("id", "")
-
-                    # Build execution context
-                    context = {
-                        "project_id": project_id,
-                        "job_id": job_id,
-                        "source_id": source_id,
-                        "collected_charts": collected_charts,
-                        "collected_analyses": collected_analyses,
-                        "iterations": iteration,
-                        "input_tokens": total_input_tokens,
-                        "output_tokens": total_output_tokens,
-                        "report_type": report_type
-                    }
-
-                    # Execute tool via executor
-                    result, is_termination = business_report_tool_executor.dispatch(
-                        tool_name, tool_input, context
-                    )
-
-                    if is_termination:
-                        logger.info("Completed in %d iterations", iteration)
-                        self._save_execution(
-                            project_id, execution_id, job_id, messages,
-                            result, started_at, source_id
-                        )
-                        return result
-
-                    # Add tool result
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": result.get("message", str(result))
-                    })
-
-            if tool_results:
-                messages.append({"role": "user", "content": tool_results})
-
-        # Max iterations reached
-        logger.warning("Max iterations reached (%d)", self.MAX_ITERATIONS)
+        logger.warning("Business report agent completed without write_business_report")
         error_result = {
             "success": False,
-            "error_message": f"Agent reached maximum iterations ({self.MAX_ITERATIONS})",
-            "iterations": self.MAX_ITERATIONS,
-            "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
+            "error_message": "Agent completed without writing the business report",
+            "iterations": self._iteration_count(result),
+            "usage": result.usage.model_dump(mode="json"),
         }
 
         studio_index_service.update_business_report_job(
@@ -190,11 +177,44 @@ class BusinessReportWriter:
         )
 
         self._save_execution(
-            project_id, execution_id, job_id, messages,
+            project_id, execution_id, job_id,
+            self._execution_messages(result, user_message),
             error_result, started_at, source_id
         )
 
         return error_result
+
+    def _terminating_tool_result(self, result: Any) -> Optional[Dict[str, Any]]:
+        for tool_result in reversed(result.tool_results):
+            if tool_result.name == "write_business_report" and isinstance(tool_result.content, dict):
+                return tool_result.content
+        return None
+
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
+
+    def _execution_messages(
+        self,
+        result: Any,
+        user_message: str,
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
+        for message in result.generated_messages:
+            messages.append(
+                {
+                    "role": "user" if message.role == "tool" else message.role,
+                    "content": [
+                        part.model_dump(mode="json")
+                        for part in message.content
+                    ],
+                }
+            )
+        return messages
 
     def _get_source_info(
         self,
@@ -235,15 +255,14 @@ class BusinessReportWriter:
             logger.exception("Error getting source info")
             return {"csv_sources": [], "context_sources": []}
 
-    def _build_user_message(
+    def _user_message_context(
         self,
-        config: Dict[str, Any],
         source_info: Dict[str, Any],
         report_type_display: str,
         direction: str,
         focus_areas: List[str]
-    ) -> str:
-        """Build the initial user message using config template."""
+    ) -> Dict[str, Any]:
+        """Build prompt render values with exact source IDs."""
         # Build CSV sources section
         csv_sources = source_info.get("csv_sources", [])
         if csv_sources:
@@ -276,16 +295,13 @@ class BusinessReportWriter:
         else:
             direction_section = ""
 
-        # Format user message from config
-        user_message = config.get("user_message", "").format(
-            report_type_display=report_type_display,
-            csv_sources_section=csv_sources_section,
-            context_sources_section=context_sources_section,
-            focus_areas_section=focus_areas_section,
-            direction_section=direction_section
-        )
-
-        return user_message
+        return {
+            "report_type_display": report_type_display,
+            "csv_sources_section": csv_sources_section,
+            "context_sources_section": context_sources_section,
+            "focus_areas_section": focus_areas_section,
+            "direction_section": direction_section,
+        }
 
     def _save_execution(
         self,
@@ -298,6 +314,8 @@ class BusinessReportWriter:
         source_id: str
     ) -> None:
         """Save execution log for debugging."""
+        from app.chat.message import message_service
+
         message_service.save_agent_execution(
             project_id=project_id,
             agent_name=self.AGENT_NAME,

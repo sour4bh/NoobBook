@@ -17,15 +17,20 @@ import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
-from app.config.prompt import prompt_loader
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
 from app.config.brand import brand_context_loader
 from app.sources.content import get_source_content
 import app.studio.jobs.store as studio_index_service
-from app.studio.documents.presentation.tool import presentation_tool_executor
-from app.chat.store import message_service
-import app.providers.anthropic.content
+from app.studio.documents.presentation.tools.binding import bind_presentation_tools
 
 logger = logging.getLogger(__name__)
 
@@ -37,17 +42,11 @@ class PresentationComposer:
     MAX_ITERATIONS = 40  # More iterations for presentations with many slides
 
     def __init__(self):
-        self._prompt_config = None
         self._tools = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("presentation_agent")
-        return self._prompt_config
 
     def _load_tools(self) -> List[Dict[str, Any]]:
         if self._tools is None:
-            self._tools = tool_loader.load_tools_for_agent(self.AGENT_NAME)
+            self._tools = list(tool_loader.load_tool_specs_for_agent(self.AGENT_NAME))
         return self._tools
 
     def generate_presentation(
@@ -61,7 +60,6 @@ class PresentationComposer:
         previous_title: Optional[str] = None
     ) -> Dict[str, Any]:
         """Run the agent to generate a presentation."""
-        config = self._load_config()
         tools = self._load_tools()
 
         execution_id = str(uuid.uuid4())
@@ -81,12 +79,26 @@ class PresentationComposer:
         else:
             source_content = get_source_content(project_id, source_id, max_chars=20000)
 
-        # Build user message from config
-        effective_direction = direction if direction else config.get("default_direction", "")
-        user_message = config.get("user_message", "").format(
-            source_content=source_content,
-            direction=effective_direction
+        # Load brand context if configured for presentation feature
+        brand_context = brand_context_loader.load_brand_context(project_id, "presentation")
+        prompt = render_prompt(
+            "presentation_agent",
+            {"source_content": source_content, "direction": direction},
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
         )
+        effective_direction = (
+            direction
+            if direction
+            else str(prompt.metadata.get("default_direction") or "")
+        )
+        prompt = render_prompt(
+            "presentation_agent",
+            {"source_content": source_content, "direction": effective_direction},
+            project_id=project_id,
+            extra_sections=[brand_context] if brand_context else (),
+        )
+        user_message = prompt.user_message or ""
 
         # Edit mode: append previous presentation content + edit instructions to user message
         if previous_markdown:
@@ -103,100 +115,59 @@ class PresentationComposer:
         elif edit_instructions:
             user_message += f"\n\nADDITIONAL INSTRUCTIONS: {edit_instructions}"
 
-        messages = [{"role": "user", "content": user_message}]
-
-        # Load brand context if configured for presentation feature
-        brand_context = brand_context_loader.load_brand_context(project_id, "presentation")
-        system_prompt = config["system_prompt"]
-        if brand_context:
-            system_prompt = f"{system_prompt}\n\n{brand_context}"
-
-        total_input_tokens = 0
-        total_output_tokens = 0
         created_files = []  # Track created files
         slides_info = []  # Track slide metadata
 
         logger.info("Starting presentation agent job %s", job_id[:8])
 
-        for iteration in range(1, self.MAX_ITERATIONS + 1):
-
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=system_prompt,
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                tools=tools["all_tools"] if isinstance(tools, dict) else tools,
-                tool_choice={"type": "any"},
-                project_id=project_id
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose=self.AGENT_NAME,
+                system_prompt=prompt.system_prompt,
+                messages=[RunMessage(role="user", content=[TextPart(text=user_message)])],
+                tools=bind_presentation_tools(
+                    tools,
+                    project_id=project_id,
+                    job_id=job_id,
+                    source_id=source_id,
+                    created_files=created_files,
+                    slides_info=slides_info,
+                ),
+                tool_choice=ToolChoice(type="any"),
+                limits=RunLimits(
+                    max_tool_turns=self.MAX_ITERATIONS,
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
+                project_id=project_id,
+                metadata={"tags": [self.AGENT_NAME]},
             )
+        )
+        final_result = self._terminating_tool_result(result)
+        if final_result is not None:
+            iterations = self._iteration_count(result)
+            final_result["iterations"] = iterations
+            final_result["usage"] = result.usage.model_dump(mode="json")
+            logger.info("Completed in %d iterations", iterations)
+            self._save_execution(
+                project_id,
+                execution_id,
+                job_id,
+                self._execution_messages(result, user_message),
+                final_result,
+                started_at,
+                source_id,
+            )
+            return final_result
 
-            total_input_tokens += response["usage"]["input_tokens"]
-            total_output_tokens += response["usage"]["output_tokens"]
-
-            content_blocks = response.get("content_blocks", [])
-            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
-            messages.append({"role": "assistant", "content": serialized_content})
-
-            # Process tool calls
-            tool_results = []
-
-            for block in content_blocks:
-                block_type = getattr(block, "type", None) if hasattr(block, "type") else block.get("type")
-
-                if block_type == "tool_use":
-                    tool_name = getattr(block, "name", "") if hasattr(block, "name") else block.get("name", "")
-                    tool_input = getattr(block, "input", {}) if hasattr(block, "input") else block.get("input", {})
-                    tool_id = getattr(block, "id", "") if hasattr(block, "id") else block.get("id", "")
-
-                    # Build execution context
-                    context = {
-                        "project_id": project_id,
-                        "job_id": job_id,
-                        "source_id": source_id,
-                        "created_files": created_files,
-                        "slides_info": slides_info,
-                        "iterations": iteration,
-                        "input_tokens": total_input_tokens,
-                        "output_tokens": total_output_tokens
-                    }
-
-                    # Execute tool via executor
-                    result, is_termination = presentation_tool_executor.dispatch(
-                        tool_name, tool_input, context
-                    )
-
-                    # Update state from executor result
-                    if result.get("created_files"):
-                        created_files = result["created_files"]
-                    if result.get("slides_info"):
-                        slides_info = result["slides_info"]
-
-                    if is_termination:
-                        logger.info("Completed in %d iterations", iteration)
-                        self._save_execution(
-                            project_id, execution_id, job_id, messages,
-                            result, started_at, source_id
-                        )
-                        return result
-
-                    # Add tool result
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": result.get("message", str(result))
-                    })
-
-            if tool_results:
-                messages.append({"role": "user", "content": tool_results})
-
-        # Max iterations reached
-        logger.warning("Max iterations reached (%d)", self.MAX_ITERATIONS)
+        logger.warning("Presentation agent completed without finalize_presentation")
         error_result = {
             "success": False,
-            "error_message": f"Agent reached maximum iterations ({self.MAX_ITERATIONS})",
-            "iterations": self.MAX_ITERATIONS,
-            "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
+            "error_message": "Agent completed without finalizing the presentation",
+            "iterations": self._iteration_count(result),
+            "usage": result.usage.model_dump(mode="json"),
         }
 
         studio_index_service.update_presentation_job(
@@ -206,11 +177,44 @@ class PresentationComposer:
         )
 
         self._save_execution(
-            project_id, execution_id, job_id, messages,
+            project_id, execution_id, job_id,
+            self._execution_messages(result, user_message),
             error_result, started_at, source_id
         )
 
         return error_result
+
+    def _terminating_tool_result(self, result: Any) -> Optional[Dict[str, Any]]:
+        for tool_result in reversed(result.tool_results):
+            if tool_result.name == "finalize_presentation" and isinstance(tool_result.content, dict):
+                return tool_result.content
+        return None
+
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
+
+    def _execution_messages(
+        self,
+        result: Any,
+        user_message: str,
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
+        for message in result.generated_messages:
+            messages.append(
+                {
+                    "role": "user" if message.role == "tool" else message.role,
+                    "content": [
+                        part.model_dump(mode="json")
+                        for part in message.content
+                    ],
+                }
+            )
+        return messages
 
     def _save_execution(
         self,
@@ -223,6 +227,8 @@ class PresentationComposer:
         source_id: str
     ) -> None:
         """Save execution log for debugging."""
+        from app.chat.message import message_service
+
         message_service.save_agent_execution(
             project_id=project_id,
             agent_name=self.AGENT_NAME,

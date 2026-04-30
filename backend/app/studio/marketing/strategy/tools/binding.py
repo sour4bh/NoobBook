@@ -1,0 +1,58 @@
+"""Executable tool bindings for the marketing strategy agent."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Any
+
+from pydantic import BaseModel
+
+from app.agents.runtime.binding import bind_local_tools
+from app.agents.runtime.tool import ToolOutput, ToolSpec
+from app.studio.marketing.strategy.tool import marketing_strategy_tool_executor
+
+
+def bind_marketing_strategy_tools(
+    specs: Iterable[ToolSpec],
+    *,
+    project_id: str,
+    job_id: str,
+    source_id: str | None,
+    sections_written: list[int],
+) -> list[ToolSpec]:
+    """Attach marketing strategy handlers and section-count state."""
+
+    def dispatch(tool_name: str):
+        def handler(value: BaseModel, _context: Any) -> ToolOutput | dict[str, Any]:
+            tool_input = value.model_dump(mode="json", exclude_none=True)
+            result, is_termination = marketing_strategy_tool_executor.dispatch(
+                tool_name,
+                tool_input,
+                {
+                    "project_id": project_id,
+                    "job_id": job_id,
+                    "source_id": source_id,
+                    "sections_written": sections_written[0],
+                    "iterations": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                },
+            )
+            if tool_name == "write_marketing_section":
+                sections_written[0] += 1
+            if is_termination:
+                return result
+            return ToolOutput(
+                content=result.get("message", str(result)),
+                is_error=isinstance(result, dict) and not result.get("success", True),
+            )
+
+        return handler
+
+    return bind_local_tools(
+        specs,
+        {
+            "plan_marketing_strategy": dispatch("plan_marketing_strategy"),
+            "write_marketing_section": dispatch("write_marketing_section"),
+        },
+    )

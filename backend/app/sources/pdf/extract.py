@@ -2,7 +2,7 @@
 PDF Service - Manages PDF processing and text extraction using tool-based approach.
 
 Educational Note: This service uses a TOOL-BASED extraction approach where:
-- Multiple PDF pages are sent to Claude in a single API call (batch)
+- Multiple PDF pages are sent to the model in a single API call (batch)
 - Claude sees all pages in the batch for context awareness
 - Claude uses the submit_page_extraction tool to return per-page extractions
 - This solves the "page boundary" problem (headings on page 1, content on page 2)
@@ -28,19 +28,28 @@ from typing import Dict, Any, List, Tuple
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from app.providers.anthropic import claude_service
 from app.providers.supabase import storage_service
 from app.config.tool import tool_loader
-from app.config.prompt import prompt_loader
-from app.config.provider import get_anthropic_config
+from app.config.prompt import render_prompt
+from app.config.provider import get_generation_config
 from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE
-from app.providers.anthropic.media import encode_bytes_to_base64
+from app.sources.extract.media import pdf_page_part
 from app.sources.pdf.ops import get_page_count, get_all_page_bytes
-from app.providers.anthropic.rate import RateLimiter
+from app.sources.extract.rate import RateLimiter
 from app.sources.text import build_processed_output
 from app.sources.tokens import count_tokens
 from app.background.tasks import task_service
-import app.providers.anthropic.response_parser
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    bind_local_tools,
+    echo_input,
+    run_with_provider,
+    tool_result_payloads,
+)
 
 # Note: Processed output is uploaded to Supabase Storage, not saved locally
 
@@ -58,7 +67,7 @@ class PDFService:
 
     Educational Note: This service orchestrates PDF processing:
     1. Splits PDF into batches of pages (max 5 per batch)
-    2. Sends each batch to Claude API with all pages visible
+    2. Sends each batch to the model API with all pages visible
     3. Claude uses submit_page_extraction tool for each page (with context!)
     4. Collects results, writes to file in page order
     5. For large PDFs, processes batches in parallel
@@ -78,7 +87,7 @@ class PDFService:
         - That it should be called once per page
         """
         if self._tool_definition is None:
-            self._tool_definition = tool_loader.load_tool("pdf_tools", "pdf_extraction")
+            self._tool_definition = tool_loader.load_tool_spec("pdf_tools", "pdf_extraction")
         return self._tool_definition
 
     def _extract_batch_with_tools(
@@ -86,7 +95,6 @@ class PDFService:
         batch: List[Tuple[int, bytes]],
         total_pages: int,
         pdf_name: str,
-        prompt_config: Dict[str, Any],
         tool_def: Dict[str, Any],
         rate_limiter: RateLimiter,
         project_id: str,
@@ -101,13 +109,12 @@ class PDFService:
         3. Claude can see all pages → understands cross-page context
         4. Force tool use with tool_choice={"type": "tool", "name": "..."}
         5. Claude calls submit_page_extraction once per page
-        6. We parse tool calls to get per-page extracted text
+        6. We parse validated tool results to get per-page extracted text
 
         Args:
             batch: List of (page_number, page_bytes) tuples
             total_pages: Total pages in the entire PDF (for context)
             pdf_name: Original PDF filename (e.g., "8page.pdf") for document titles
-            prompt_config: Prompt configuration dict
             tool_def: Tool definition for submit_page_extraction
             rate_limiter: RateLimiter instance for API rate limiting
             project_id: Project ID for cost tracking
@@ -119,29 +126,11 @@ class PDFService:
         batch_start_page = batch[0][0]
         batch_page_numbers = [p[0] for p in batch]
 
-        model = prompt_config.get("model", "claude-haiku-4-5-20251001")
-        system_prompt = prompt_config.get("system_prompt", "")
-        user_message_template = prompt_config.get("user_message", "")
-        max_tokens = prompt_config.get("max_tokens", 16000)
-        temperature = prompt_config.get("temperature", 0)
-
-        # Build content blocks: one document block per page in batch
-        # Each document has a title field to identify which page it is
-        # This follows Anthropic's recommended pattern for multi-document messages
-        content_blocks = []
+        content_parts = []
         for page_num, page_bytes in batch:
-            page_base64 = encode_bytes_to_base64(page_bytes)
-            content_blocks.append({
-                "type": "document",
-                "source": {
-                    "type": "base64",
-                    "media_type": "application/pdf",
-                    "data": page_base64
-                },
-                # Title identifies which page this document represents
-                # Claude uses this to know which page_number to use in tool calls
-                "title": f"{pdf_name} - Page {page_num}",
-            })
+            content_parts.append(
+                pdf_page_part(filename=pdf_name, page_number=page_num, data=page_bytes)
+            )
 
         # Build user message describing what to extract
         # IMPORTANT: Explicitly list the page numbers so Claude uses correct numbering
@@ -152,19 +141,20 @@ class PDFService:
             extraction_desc = f"pages {batch[0][0]} to {batch[-1][0]}"
             page_list = ", ".join(str(p) for p in batch_page_numbers)
 
-        user_message = user_message_template.format(
-            total_pages=total_pages,
-            extraction_description=extraction_desc,
-            expected_tool_calls=len(batch),
-            page_numbers=page_list
+        prompt = render_prompt(
+            "pdf_extraction",
+            {
+                "total_pages": total_pages,
+                "extraction_description": extraction_desc,
+                "expected_tool_calls": len(batch),
+                "page_numbers": page_list,
+            },
+            project_id=project_id,
         )
 
-        content_blocks.append({
-            "type": "text",
-            "text": user_message
-        })
-
-        messages = [{"role": "user", "content": content_blocks}]
+        content_parts.append(TextPart(text=prompt.user_message or ""))
+        messages = [RunMessage(role="user", content=content_parts)]
+        tools = bind_local_tools([tool_def], {tool_def.name: echo_input})
 
         # Retry loop with rate limiting
         last_error = None
@@ -173,27 +163,32 @@ class PDFService:
                 # Apply rate limiting before each API call
                 rate_limiter.wait_if_needed()
 
-                # Call Claude API with tool and forced tool use
-                response = claude_service.send_message(
-                    messages=messages,
-                    system_prompt=system_prompt,
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    tools=[tool_def],
-                    # Force Claude to use this specific tool (not just "any" tool)
-                    tool_choice={"type": "tool", "name": "submit_page_extraction"},
-                    project_id=project_id
+                result = run_with_provider(
+                    RunRequest(
+                        provider=prompt.provider,
+                        model=prompt.model,
+                        purpose="pdf_extraction",
+                        messages=messages,
+                        system_prompt=prompt.system_prompt,
+                        tools=tools,
+                        tool_choice=ToolChoice(type="tool", name="submit_page_extraction"),
+                        limits=RunLimits(
+                            max_tool_turns=1,
+                            max_output_tokens=prompt.max_tokens,
+                            temperature=prompt.temperature,
+                        ),
+                        project_id=project_id,
+                    )
                 )
 
-                # Parse tool calls from response
-                page_results = self._parse_tool_calls(response, batch_page_numbers)
+                # Parse validated runtime tool results from the shared runner.
+                page_results = self._parse_tool_results(result, batch_page_numbers)
 
                 return (batch_start_page, {
                     "success": True,
                     "page_results": page_results,
-                    "token_usage": response["usage"],
-                    "model": response["model"]
+                    "token_usage": result.usage.model_dump(mode="json"),
+                    "model": result.model
                 })
 
             except Exception as e:
@@ -219,20 +214,20 @@ class PDFService:
             "failed_pages": batch_page_numbers
         })
 
-    def _parse_tool_calls(
+    def _parse_tool_results(
         self,
-        response: Dict[str, Any],
+        response: Any,
         expected_pages: List[int]
     ) -> Dict[int, Dict[str, Any]]:
         """
-        Parse PDF extraction tool calls from Claude's response.
+        Parse PDF extraction tool results from the runtime response.
 
-        Educational Note: Uses claude_parsing_utils.extract_tool_inputs() for
-        generic tool parsing, then processes the PDF-specific fields (page_number,
-        extracted_text). Each extraction is self-contained with context included.
+        Educational Note: Uses runtime-validated tool results, then processes the
+        PDF-specific fields (page_number, extracted_text). Each extraction is
+        self-contained with context included.
 
         Args:
-            response: Response dict from claude_service
+            response: Runtime result from the provider adapter
             expected_pages: List of page numbers we expected extractions for
 
         Returns:
@@ -240,13 +235,10 @@ class PDFService:
         """
         page_results = {}
 
-        # Use claude_parsing_utils for generic tool parsing
-        tool_inputs = app.providers.anthropic.response_parser.extract_tool_inputs(response, "submit_page_extraction")
-
-        # Process PDF-specific fields from each tool call
-        for inputs in tool_inputs:
-            page_num = inputs.get("page_number")
-            extracted_text = inputs.get("extracted_text", "")
+        # Process PDF-specific fields from validated runtime tool results.
+        for tool_input in tool_result_payloads(response, "submit_page_extraction", dict):
+            page_num = tool_input.get("page_number")
+            extracted_text = tool_input.get("extracted_text", "")
 
             if page_num is not None:
                 page_results[page_num] = {
@@ -300,21 +292,37 @@ class PDFService:
 
         try:
             # Step 1: Load configurations using centralized loaders
-            prompt_config = prompt_loader.get_prompt_config("pdf_extraction")
             tool_def = self._load_tool_definition()
-            model = prompt_config.get("model", "claude-haiku-4-5-20251001")
-            tier_config = get_anthropic_config(project_id=project_id)
-            max_workers = tier_config["max_workers"]
+            prompt = render_prompt(
+                "pdf_extraction",
+                {
+                    "total_pages": 1,
+                    "extraction_description": "configuration probe",
+                    "expected_tool_calls": 1,
+                    "page_numbers": "1",
+                },
+                project_id=project_id,
+            )
+            generation_config = get_generation_config(
+                prompt.provider,
+                project_id=project_id,
+            )
+            max_workers = generation_config["max_workers"]
             # For batched approach, rate limit is per batch (API call), not per page
             # Divide pages_per_minute by batch size to get batches_per_minute
-            pages_per_minute = tier_config["pages_per_minute"]
-            batches_per_minute = max(1, pages_per_minute // DEFAULT_BATCH_SIZE)
+            requests_per_minute = generation_config["requests_per_minute"]
+            batches_per_minute = max(1, requests_per_minute // DEFAULT_BATCH_SIZE)
 
             # Create rate limiter for this extraction session
             rate_limiter = RateLimiter(batches_per_minute)
 
-            logger.info("PDF config: model=%s, workers=%d, ~%d batches/min",
-                        model, max_workers, batches_per_minute)
+            logger.info(
+                "PDF config: provider=%s model=%s workers=%d ~%d batches/min",
+                prompt.provider,
+                prompt.model,
+                max_workers,
+                batches_per_minute,
+            )
 
             # Step 2: Get page count and extract all page bytes
             total_pages = get_page_count(pdf_path)
@@ -341,7 +349,6 @@ class PDFService:
                     batches[0],
                     total_pages,
                     pdf_name,
-                    prompt_config,
                     tool_def,
                     rate_limiter,
                     project_id
@@ -364,7 +371,6 @@ class PDFService:
                             batch,
                             total_pages,
                             pdf_name,
-                            prompt_config,
                             tool_def,
                             rate_limiter,
                             project_id
@@ -439,7 +445,7 @@ class PDFService:
 
             # Build metadata for PDF type
             metadata = {
-                "model_used": model,
+                "model_used": prompt.model,
                 "character_count": total_characters,
                 "token_count": token_count
             }
@@ -476,7 +482,7 @@ class PDFService:
                     "input_tokens": total_input_tokens,
                     "output_tokens": total_output_tokens
                 },
-                "model_used": model,
+                "model_used": prompt.model,
                 "extracted_at": datetime.now().isoformat(),
                 "extraction_method": "batched_tool_based",
                 "batch_size": DEFAULT_BATCH_SIZE,

@@ -176,15 +176,15 @@ DB_RETURN_RESULT = ToolCapability(
 
 # Freshdesk uses the same query-runner/schema-info pattern as the
 # database agent. Tool names happen to overlap with database tools at
-# the JSON level (different files, different categories), so we expose
+# the tool-spec level (different directories, different categories), so we expose
 # Freshdesk-suffixed names through registration. The agent calls the
-# tools by their JSON ``name`` field, which we treat as the registry
-# key. Inspect the JSONs for actual names — the agent loop loads them
-# via ``tool_loader.load_tool``.
+# tools by their provider-visible ``name`` field, which we treat as the
+# registry key. Inspect the ToolSpecs for actual names; the agent loop loads
+# them via ``tool_loader.load_tool_specs_for_agent``.
 
-# Each Freshdesk tool JSON has a unique ``name`` (different from the
+# Each Freshdesk ToolSpec has a unique ``name`` (different from the
 # database equivalents); register them as separate entries. We pick
-# descriptive identifiers that match the JSON ``name`` keys.
+# descriptive identifiers that match the provider-visible ``name`` keys.
 FD_QUERY_RUNNER = ToolCapability(
     name="freshdesk_query_runner",
     owner="sources/analysis/freshdesk/tools/",

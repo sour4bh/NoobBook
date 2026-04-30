@@ -19,7 +19,7 @@ page marker - token-based chunking handles the splitting for embeddings.
 Modules:
 - cleaning: Text cleaning functions for embeddings
 - page_markers: Shared page marker format and patterns
-- processed_output: Build and save standardized processed text output
+- processed_output: Build standardized processed text output
 - chunking: Parse processed text into chunks for embeddings
 """
 # Cleaning utilities
@@ -45,15 +45,12 @@ from app.sources.text.page_markers import (
 from app.sources.text.processed_output import (
     SOURCE_METADATA_KEYS,
     build_processed_output,
-    save_processed_text,
-    build_and_save_processed_output
 )
 
 # Chunking utilities
 from app.sources.text.chunking import (
     Chunk,
     parse_processed_text,
-    parse_extracted_text,  # Backward compatibility alias
     chunks_to_pinecone_format,
 )
 
@@ -74,11 +71,8 @@ __all__ = [
     # Processed output
     "SOURCE_METADATA_KEYS",
     "build_processed_output",
-    "save_processed_text",
-    "build_and_save_processed_output",
     # Chunking
     "Chunk",
     "parse_processed_text",
-    "parse_extracted_text",
     "chunks_to_pinecone_format",
 ]

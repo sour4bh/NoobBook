@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-from app.connectors.database.connection.store import database_connection_service, DEFAULT_USER_ID
+from app.connectors.database.store import database_connection_service, DEFAULT_USER_ID
 from app.providers.supabase import storage_service
 from app.background.tasks import task_service
 from app.sources import index

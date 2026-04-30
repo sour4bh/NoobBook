@@ -15,12 +15,17 @@ import uuid
 from typing import Dict, Any, List
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
-from app.sources.analysis.research.tool import deep_research_executor
-from app.chat.store import message_service
-import app.providers.anthropic.content
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.sources.analysis.research.tools.binding import bind_research_tools
 
 logger = logging.getLogger(__name__)
 
@@ -41,19 +46,12 @@ class DeepResearchAgent:
 
     def __init__(self):
         """Initialize agent with lazy-loaded config and tools."""
-        self._prompt_config = None
         self._tools = None
 
-    def _load_config(self) -> Dict[str, Any]:
-        """Lazy load prompt configuration."""
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("deep_research_agent")
-        return self._prompt_config
-
-    def _load_tools(self) -> Dict[str, List[Dict[str, Any]]]:
+    def _load_tools(self) -> tuple:
         """Load agent tools from deep_research category."""
         if self._tools is None:
-            self._tools = tool_loader.load_tools_for_agent(self.AGENT_NAME)
+            self._tools = tool_loader.load_tool_specs_for_agent(self.AGENT_NAME)
         return self._tools
 
     def research(
@@ -87,127 +85,98 @@ class DeepResearchAgent:
         if not output_path:
             raise ValueError("output_path is required")
 
-        config = self._load_config()
-        tools_config = self._load_tools()
+        tools = self._load_tools()
 
         execution_id = str(uuid.uuid4())
         started_at = datetime.now().isoformat()
         links = links or []
 
-        # Build user message from template
         links_context = "\n".join([f"- {link}" for link in links]) if links else "No specific links provided."
-        user_message = config.get("user_message_template", "Research this topic: {topic}").format(
-            topic=topic,
-            description=description,
-            links_context=links_context
+        prompt = render_prompt(
+            "deep_research_agent",
+            {
+                "topic": topic,
+                "description": description,
+                "links_context": links_context,
+            },
+            project_id=project_id,
         )
+        user_message = prompt.user_message or f"Research this topic: {topic}"
 
-        # Initialize messages
-        messages = [{"role": "user", "content": user_message}]
-
-        # Get tools
-        all_tools = tools_config["all_tools"]
-
-        total_input_tokens = 0
-        total_output_tokens = 0
-        segments_written = 0
+        segments_written = [0]
 
         logger.info("Starting deep research on: %s (id: %s)", topic, execution_id[:8])
 
-        for iteration in range(1, self.MAX_ITERATIONS + 1):
-
-            # Call Claude API
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=config["system_prompt"],
-                model=config["model"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-                tools=all_tools,
-                tool_choice={"type": "any"},
-                project_id=project_id
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose=self.AGENT_NAME,
+                system_prompt=prompt.system_prompt,
+                messages=[RunMessage(role="user", content=[TextPart(text=user_message)])],
+                tools=bind_research_tools(
+                    tools,
+                    project_id=project_id,
+                    output_path=output_path,
+                    segments_written=segments_written,
+                ),
+                tool_choice=ToolChoice(type="any"),
+                limits=RunLimits(
+                    max_tool_turns=self.MAX_ITERATIONS,
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
+                project_id=project_id,
+                metadata={"tags": [self.AGENT_NAME]},
             )
-
-            # Track token usage
-            total_input_tokens += response["usage"]["input_tokens"]
-            total_output_tokens += response["usage"]["output_tokens"]
-
-            # Serialize and add assistant response to messages
-            content_blocks = response.get("content_blocks", [])
-            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
-            messages.append({"role": "assistant", "content": serialized_content})
-
-            # Process tool calls via executor
-            tool_results = []
-            research_complete = False
-
-            for block in content_blocks:
-                block_type = getattr(block, "type", None) if hasattr(block, "type") else block.get("type")
-
-                if block_type == "tool_use":
-                    tool_name = getattr(block, "name", "") if hasattr(block, "name") else block.get("name", "")
-                    tool_input = getattr(block, "input", {}) if hasattr(block, "input") else block.get("input", {})
-                    tool_id = getattr(block, "id", "") if hasattr(block, "id") else block.get("id", "")
-
-                    # Track segments for write tool
-                    if tool_name == "write_research_to_file":
-                        segments_written += 1
-
-                    # Execute via executor
-                    result_message, is_termination = deep_research_executor.research(
-                        tool_name=tool_name,
-                        tool_input=tool_input,
-                        output_path=output_path,
-                        project_id=project_id,
-                    )
-
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": result_message
-                    })
-
-                    if is_termination:
-                        research_complete = True
-
-                elif block_type == "server_tool_use":
-                    # Server tools (web_search) - Claude handles execution
-                    pass
-
-            # Add tool results to messages if any
-            if tool_results:
-                messages.append({"role": "user", "content": tool_results})
-
-            # Check if research is complete
-            if research_complete:
-                logger.info("Research completed in %d iterations", iteration)
-                final_result = {
-                    "success": True,
-                    "output_path": output_path,
-                    "segments_written": segments_written,
-                    "iterations": iteration,
-                    "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens},
-                    "completed_at": datetime.now().isoformat()
-                }
-                self._save_execution(
-                    project_id, execution_id, topic, messages, final_result, started_at, source_id
-                )
-                return final_result
-
-        # Max iterations reached
-        logger.warning("Max iterations reached (%d)", self.MAX_ITERATIONS)
-        error_result = {
-            "success": False,
-            "output_path": output_path,
-            "segments_written": segments_written,
-            "error": f"Research reached maximum iterations ({self.MAX_ITERATIONS})",
-            "iterations": self.MAX_ITERATIONS,
-            "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
-        }
-        self._save_execution(
-            project_id, execution_id, topic, messages, error_result, started_at, source_id
         )
-        return error_result
+        completed = "write_research_to_file" in result.terminated_by_tools
+        final_result = {
+            "success": completed,
+            "output_path": output_path,
+            "segments_written": segments_written[0],
+            "iterations": self._iteration_count(result),
+            "usage": result.usage.model_dump(mode="json"),
+            "completed_at": datetime.now().isoformat(),
+        }
+        if not completed:
+            final_result["error"] = "Research completed without final segment"
+        self._save_execution(
+            project_id,
+            execution_id,
+            topic,
+            self._execution_messages(result, user_message),
+            final_result,
+            started_at,
+            source_id,
+        )
+        return final_result
+
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
+
+    def _execution_messages(
+        self,
+        result: Any,
+        user_message: str,
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
+        for message in result.generated_messages:
+            messages.append(
+                {
+                    "role": "user" if message.role == "tool" else message.role,
+                    "content": [
+                        part.model_dump(mode="json")
+                        for part in message.content
+                    ],
+                }
+            )
+        return messages
 
     def _save_execution(
         self,
@@ -224,6 +193,8 @@ class DeepResearchAgent:
             return
 
         try:
+            from app.chat.message import message_service
+
             log_data = {
                 "execution_id": execution_id,
                 "agent": self.AGENT_NAME,

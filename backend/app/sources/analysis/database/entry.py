@@ -1,8 +1,4 @@
-"""
-Database Analyzer Agent Executor - Executes analyze_database_agent tool calls from main chat.
-
-Educational Note: This executor bridges main_chat_service and database_analyzer_agent.
-"""
+"""Chat-facing entrypoint for the database analyzer source tool."""
 
 from typing import Any, Dict, Optional
 

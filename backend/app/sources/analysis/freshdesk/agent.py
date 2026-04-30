@@ -10,11 +10,18 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional
 
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
-from app.providers.anthropic import claude_service
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.sources.analysis.freshdesk.tools.binding import bind_freshdesk_tools
 from app.sources.analysis.freshdesk.tool import freshdesk_executor
-import app.providers.anthropic.response_parser
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +36,7 @@ class FreshdeskAnalyzerAgent:
 
     def _load_tools(self) -> List[Dict[str, Any]]:
         if self._tools is None:
-            self._tools = tool_loader.load_tools_from_category("freshdesk_agent")
+            self._tools = list(tool_loader.load_tool_specs_for_agent("freshdesk_agent"))
         return self._tools
 
     def run(self, project_id: str, source_id: str, query: str, chat_id: Optional[str] = None, user_id: Optional[str] = None) -> Dict[str, Any]:
@@ -42,122 +49,84 @@ class FreshdeskAnalyzerAgent:
         if not freshdesk_executor.validate_connection():
             return {"success": False, "error": "Cannot connect to database"}
 
-        # Load config
-        prompt_config = prompt_loader.get_prompt_config(self.AGENT_NAME)
+        prompt = render_prompt(self.AGENT_NAME, project_id=project_id)
         tools = self._load_tools()
 
         # Ground the agent in today's date so "yesterday", "last 7 days", etc.
         # map to concrete timestamp filters on ticket_created_at.
         from datetime import date
         today_line = f"Today's date: {date.today().isoformat()}"
-        system_prompt = f"{today_line}\n\n{prompt_config.get('system_prompt', '')}"
-        model = prompt_config.get("model", "claude-sonnet-4-6")
-        max_tokens = prompt_config.get("max_tokens", 4096)
-        temperature = prompt_config.get("temperature", 0.0)
+        system_prompt = f"{today_line}\n\n{prompt.system_prompt}"
 
-        messages = [{"role": "user", "content": f"Freshdesk source ID: {source_id}\n\nUser question: {query}"}]
-
-        total_usage = {"input_tokens": 0, "output_tokens": 0}
+        user_message = f"Freshdesk source ID: {source_id}\n\nUser question: {query}"
         all_queries: List[str] = []
-        consecutive_errors = 0
 
         try:
-            for iteration in range(1, self.MAX_ITERATIONS + 1):
-                logger.info("[FreshdeskAgent:%s] Iteration %d", execution_id, iteration)
-
-                response = claude_service.send_message(
-                    messages=messages,
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose=self.AGENT_NAME,
                     system_prompt=system_prompt,
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    tools=tools,
+                    messages=[RunMessage(role="user", content=[TextPart(text=user_message)])],
+                    tools=bind_freshdesk_tools(
+                        tools,
+                        project_id=project_id,
+                        source_id=source_id,
+                        executed_queries=all_queries,
+                    ),
+                    tool_choice=ToolChoice(type="any"),
+                    limits=RunLimits(
+                        max_tool_turns=self.MAX_ITERATIONS,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
                     project_id=project_id,
-                    tags=["query"],
                     chat_id=chat_id,
                     user_id=user_id,
+                    metadata={"tags": ["query"]},
                 )
-
-                # Track usage
-                usage = response.get("usage", {})
-                total_usage["input_tokens"] += usage.get("input_tokens", 0)
-                total_usage["output_tokens"] += usage.get("output_tokens", 0)
-
-                if app.providers.anthropic.response_parser.is_end_turn(response):
-                    text = app.providers.anthropic.response_parser.extract_text(response)
-                    return {
-                        "success": True,
-                        "content": text,
-                        "summary": text,
-                        "findings": [],
-                        "recommendations": [],
-                        "sql_queries": all_queries,
-                        "iterations": iteration,
-                        "usage": total_usage,
-                    }
-
-                if not app.providers.anthropic.response_parser.is_tool_use(response):
-                    text = app.providers.anthropic.response_parser.extract_text(response)
-                    return {"success": True, "content": text, "iterations": iteration, "usage": total_usage}
-
-                # Process tool calls
-                tool_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
-                content_blocks = response.get("content_blocks", [])
-                messages.append({"role": "assistant", "content": content_blocks})
-
-                tool_results = []
-                terminated = False
-                termination_result = None
-
-                for block in tool_blocks:
-                    tool_name = block.get("name", "")
-                    tool_input = block.get("input", {})
-                    tool_id = block.get("id", "")
-
-                    result, is_term = freshdesk_executor.fetch(
-                        tool_name, tool_input, project_id, source_id,
-                    )
-
-                    if tool_name == "query_runner" and tool_input.get("sql_query"):
-                        all_queries.append(tool_input["sql_query"])
-
-                    if not result.get("success", True) if isinstance(result, dict) else False:
-                        consecutive_errors += 1
-                    else:
-                        consecutive_errors = 0
-
-                    if consecutive_errors >= 3:
-                        return {"success": False, "error": "Too many consecutive tool errors", "sql_queries": all_queries}
-
-                    if is_term:
-                        terminated = True
-                        termination_result = result
-
-                    import json
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": json.dumps(result) if isinstance(result, dict) else str(result),
-                    })
-
-                messages.append({"role": "user", "content": tool_results})
-
-                if terminated and termination_result:
-                    return {
-                        "success": True,
-                        "content": termination_result.get("summary", ""),
-                        "summary": termination_result.get("summary", ""),
-                        "findings": termination_result.get("findings", []),
-                        "recommendations": termination_result.get("recommendations", []),
-                        "sql_queries": all_queries,
-                        "iterations": iteration,
-                        "usage": total_usage,
-                    }
-
-            # Max iterations reached
-            return {"success": False, "error": f"Max iterations ({self.MAX_ITERATIONS}) reached", "sql_queries": all_queries}
+            )
+            termination_result = self._terminating_tool_result(result)
+            iterations = self._iteration_count(result)
+            if termination_result is not None:
+                return {
+                    "success": True,
+                    "content": termination_result.get("summary", ""),
+                    "summary": termination_result.get("summary", ""),
+                    "findings": termination_result.get("findings", []),
+                    "recommendations": termination_result.get("recommendations", []),
+                    "sql_queries": all_queries,
+                    "iterations": iterations,
+                    "usage": result.usage.model_dump(mode="json"),
+                }
+            text = result.text
+            return {
+                "success": bool(text),
+                "content": text,
+                "summary": text,
+                "findings": [],
+                "recommendations": [],
+                "sql_queries": all_queries,
+                "iterations": iterations,
+                "usage": result.usage.model_dump(mode="json"),
+            }
         finally:
             freshdesk_executor.close()
+
+    def _terminating_tool_result(self, result: Any) -> Optional[Dict[str, Any]]:
+        for tool_result in reversed(result.tool_results):
+            if tool_result.name == self.TERMINATION_TOOL and isinstance(tool_result.content, dict):
+                return tool_result.content
+        return None
+
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
 
 
 freshdesk_analyzer_agent = FreshdeskAnalyzerAgent()

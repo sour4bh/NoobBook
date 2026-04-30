@@ -7,7 +7,7 @@ Educational Note: This module handles PDF operations like:
 - Creating temporary single-page PDFs for API calls
 
 Why split PDFs into pages?
-- Claude API has a 100-page limit per request
+- the selected model has a 100-page limit per request
 - Processing page-by-page allows handling PDFs of any size
 - Enables progress tracking for large documents
 - Each page's extracted text can be appended with page markers
@@ -49,7 +49,7 @@ def extract_single_page_bytes(pdf_path: Union[str, Path], page_number: int) -> b
 
     Educational Note: We create a new PDF with just the one page,
     then return it as bytes for base64 encoding. This allows
-    sending individual pages to Claude API.
+    sending individual pages to the model API.
 
     Args:
         pdf_path: Path to the source PDF file

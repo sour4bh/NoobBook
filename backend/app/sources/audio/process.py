@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from app.providers.supabase import storage_service
-from app.sources.tokens import count_tokens, needs_embedding
+from app.sources.tokens import count_tokens, get_embedding_info
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary
 from app.sources.text import build_processed_output
@@ -149,7 +149,7 @@ def _process_embeddings(
     """
     try:
         # Get embedding info (always embeds, token count used for chunking)
-        _, token_count, reason = needs_embedding(text=processed_text)
+        _, token_count, reason = get_embedding_info(text=processed_text)
 
         # Update status to "embedding" before starting
         source_service.update_source(project_id, source_id, status="embedding")

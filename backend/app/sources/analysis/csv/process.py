@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.providers.supabase import storage_service
 from app.sources.analysis.csv.summarize import csv_service
 
@@ -105,10 +105,9 @@ def process_csv(
         "extracted_at": datetime.now().isoformat()
     }
 
-    # CSV files are NOT embedded - we analyze them on-demand.
-    # We must preserve file_extension/mime_type because main_chat_service
-    # routes CSV sources to the csv_analyzer_agent tool by checking
-    # embedding_info["file_extension"] == ".csv".
+    # CSV files are NOT embedded - chat analyzes them on demand through the
+    # CSV analysis tool. Keep file_extension/mime_type so source catalog and
+    # chat tool policy can recognize CSV sources without inspecting raw files.
     embedding_info = {
         "file_extension": ".csv",
         "mime_type": "text/csv",
@@ -123,10 +122,11 @@ def process_csv(
     # Pull the label from the live prompt config so the stored metadata
     # reflects admin model overrides (extraction category) and stays accurate
     # if the prompt's own model changes.
-    csv_prompt_config = prompt_loader.get_prompt_config("csv_processor")
-    summary_model = (
-        csv_prompt_config.get("model") if csv_prompt_config else "unknown"
-    )
+    summary_model = render_prompt(
+        "csv_processor",
+        {"filename": f"{source_id}.csv"},
+        project_id=project_id,
+    ).model
     summary_info = {
         "summary": analysis_result.get("summary", ""),
         "model": summary_model,

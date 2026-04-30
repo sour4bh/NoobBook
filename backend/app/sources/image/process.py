@@ -1,7 +1,7 @@
 """
 Image Processor - Handles image file processing.
 
-Educational Note: image_service uses Claude's vision capability to
+Educational Note: image processing uses the selected provider's vision capability to
 analyze images and extract structured content including text, visual
 descriptions, data from charts/tables, and summaries.
 
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from app.providers.supabase import storage_service
-from app.sources.tokens import needs_embedding
+from app.sources.tokens import get_embedding_info
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary
 
@@ -28,7 +28,7 @@ def process_image(
     source_service
 ) -> Dict[str, Any]:
     """
-    Process an image file - extract content using Claude vision.
+    Process an image file - extract content using the selected vision model.
 
     Args:
         project_id: The project UUID
@@ -128,7 +128,7 @@ def _process_embeddings(
     """
     try:
         # Get embedding info (always embeds, token count used for chunking)
-        _, token_count, reason = needs_embedding(text=processed_text)
+        _, token_count, reason = get_embedding_info(text=processed_text)
 
         # Update status to "embedding" before starting
         source_service.update_source(project_id, source_id, status="embedding")

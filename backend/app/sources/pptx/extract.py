@@ -1,16 +1,16 @@
 """
-PPTX Service - Manages PowerPoint presentation processing using LibreOffice and Claude vision.
+PPTX Service - Manages PowerPoint presentation processing using LibreOffice and the selected vision model.
 
 Educational Note: This service processes PPTX files in three stages:
 1. Convert PPTX to PDF using LibreOffice headless mode (via pptx_utils)
 2. Extract PDF pages as base64 (reusing existing `app.sources.pdf.ops`)
-3. Send to Claude vision for slide analysis
+3. Send to the model vision for slide analysis
 
 The conversion approach allows us to leverage the existing PDF infrastructure
 while providing presentation-specific prompts that understand slides, not documents.
 
 Processing Flow:
-    PPTX → PDF (LibreOffice) → base64 pages → Claude vision → extracted content
+    PPTX → PDF (LibreOffice) → base64 pages → the selected vision model → extracted content
 """
 import logging
 import tempfile
@@ -20,19 +20,28 @@ from typing import Dict, Any, List, Tuple
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from app.providers.anthropic import claude_service
 from app.config.tool import tool_loader
-from app.config.prompt import prompt_loader
-from app.config.provider import get_anthropic_config
+from app.config.prompt import render_prompt
+from app.config.provider import get_generation_config
 from app.sources.extract.batching import create_batches, DEFAULT_BATCH_SIZE
-from app.providers.anthropic.media import encode_bytes_to_base64
+from app.sources.extract.media import pptx_slide_part
 from app.sources.pdf.ops import get_page_count, get_all_page_bytes
 from app.sources.pptx.ops import convert_pptx_to_pdf
-from app.providers.anthropic.rate import RateLimiter
+from app.sources.extract.rate import RateLimiter
 from app.sources.text import build_processed_output
 from app.sources.tokens import count_tokens
 from app.background.tasks import task_service
-import app.providers.anthropic.response_parser
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    bind_local_tools,
+    echo_input,
+    run_with_provider,
+    tool_result_payloads,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +58,7 @@ class PPTXService:
     Educational Note: This service orchestrates PPTX processing:
     1. Converts PPTX to PDF using LibreOffice headless (via pptx_utils)
     2. Splits PDF into batches of slides (max 5 per batch)
-    3. Sends each batch to Claude API for visual analysis
+    3. Sends each batch to the model API for visual analysis
     4. Claude uses submit_slide_extraction tool for each slide
     5. Collects results, writes to file in slide order
     """
@@ -61,7 +70,7 @@ class PPTXService:
     def _load_tool_definition(self) -> Dict[str, Any]:
         """Load the slide extraction tool definition."""
         if self._tool_definition is None:
-            self._tool_definition = tool_loader.load_tool("pptx_tools", "pptx_extraction")
+            self._tool_definition = tool_loader.load_tool_spec("pptx_tools", "pptx_extraction")
         return self._tool_definition
 
     def extract_content_from_pptx(
@@ -77,7 +86,7 @@ class PPTXService:
         It orchestrates the full pipeline:
         1. Convert PPTX to PDF (via pptx_utils)
         2. Extract slides in batches
-        3. Process with Claude vision
+        3. Process with the selected vision model
         4. Save extracted content
 
         Args:
@@ -107,14 +116,26 @@ class PPTXService:
                     }
 
                 # Step 3: Load configurations using centralized loaders
-                prompt_config = prompt_loader.get_prompt_config("pptx_extraction")
                 tool_def = self._load_tool_definition()
-                tier_config = get_anthropic_config(project_id=project_id)
-                max_workers = tier_config["max_workers"]
+                prompt = render_prompt(
+                    "pptx_extraction",
+                    {
+                        "total_pages": total_slides,
+                        "extraction_description": "configuration probe",
+                        "expected_tool_calls": 1,
+                        "page_numbers": "1",
+                    },
+                    project_id=project_id,
+                )
+                generation_config = get_generation_config(
+                    prompt.provider,
+                    project_id=project_id,
+                )
+                max_workers = generation_config["max_workers"]
 
                 # Calculate batches per minute for rate limiting
-                pages_per_minute = tier_config["pages_per_minute"]
-                batches_per_minute = max(1, pages_per_minute // DEFAULT_BATCH_SIZE)
+                requests_per_minute = generation_config["requests_per_minute"]
+                batches_per_minute = max(1, requests_per_minute // DEFAULT_BATCH_SIZE)
                 rate_limiter = RateLimiter(batches_per_minute)
 
                 # Step 4: Extract all slide bytes and create batches
@@ -131,7 +152,6 @@ class PPTXService:
                         batch=batches[0],
                         total_slides=total_slides,
                         pptx_name=pptx_path.name,
-                        prompt_config=prompt_config,
                         tool_def=tool_def,
                         rate_limiter=rate_limiter,
                         source_id=source_id,
@@ -152,7 +172,6 @@ class PPTXService:
                                 batch=batch,
                                 total_slides=total_slides,
                                 pptx_name=pptx_path.name,
-                                prompt_config=prompt_config,
                                 tool_def=tool_def,
                                 rate_limiter=rate_limiter,
                                 source_id=source_id,
@@ -176,6 +195,23 @@ class PPTXService:
                             except Exception as e:
                                 return {"success": False, "error": f"Batch {batch_start} failed: {str(e)}"}
 
+                failed_slides = [
+                    slide_num
+                    for slide_num, result in all_results.items()
+                    if result.get("error")
+                ]
+                if failed_slides:
+                    return {
+                        "success": False,
+                        "status": "error",
+                        "error": (
+                            f"Failed to extract {len(failed_slides)} slide(s): "
+                            f"{sorted(failed_slides)[:5]}"
+                        ),
+                        "total_slides": total_slides,
+                        "failed_slides": sorted(failed_slides),
+                    }
+
                 # Step 6: Build slide pages and use centralized output format
                 pages = self._build_slide_pages(all_results)
 
@@ -185,9 +221,8 @@ class PPTXService:
                 token_count = count_tokens(full_text)
 
                 # Build metadata for PPTX type
-                model = prompt_config.get("model")
                 metadata = {
-                    "model_used": model,
+                    "model_used": prompt.model,
                     "slides_processed": len(all_results),
                     "character_count": character_count,
                     "token_count": token_count
@@ -212,7 +247,7 @@ class PPTXService:
                     "character_count": character_count,
                     "token_count": token_count,
                     "token_usage": total_tokens,
-                    "model_used": model,
+                    "model_used": prompt.model,
                     "extracted_at": datetime.now().isoformat()
                 }
 
@@ -228,7 +263,6 @@ class PPTXService:
         batch: List[Tuple[int, bytes]],
         total_slides: int,
         pptx_name: str,
-        prompt_config: Dict[str, Any],
         tool_def: Dict[str, Any],
         rate_limiter: RateLimiter,
         source_id: str,
@@ -236,13 +270,12 @@ class PPTXService:
         max_retries: int = 3
     ) -> Tuple[int, Dict[str, Any]]:
         """
-        Process a batch of slides with Claude vision.
+        Process a batch of slides with the selected vision model.
 
         Args:
             batch: List of (slide_number, slide_bytes) tuples
             total_slides: Total slides in presentation
             pptx_name: Original PPTX filename
-            prompt_config: Prompt configuration
             tool_def: Tool definition
             rate_limiter: RateLimiter instance for API rate limiting
             source_id: Source UUID for cancellation check
@@ -259,25 +292,15 @@ class PPTXService:
         batch_start_slide = batch[0][0]
         batch_slide_numbers = [s[0] for s in batch]
 
-        model = prompt_config.get("model", "claude-haiku-4-5-20251001")
-        system_prompt = prompt_config.get("system_prompt", "")
-        user_message_template = prompt_config.get("user_message", "")
-        max_tokens = prompt_config.get("max_tokens", 16000)
-        temperature = prompt_config.get("temperature", 0)
-
-        # Build content blocks: one document block per slide
-        content_blocks = []
+        content_parts = []
         for slide_num, slide_bytes in batch:
-            slide_base64 = encode_bytes_to_base64(slide_bytes)
-            content_blocks.append({
-                "type": "document",
-                "source": {
-                    "type": "base64",
-                    "media_type": "application/pdf",
-                    "data": slide_base64
-                },
-                "title": f"{pptx_name} - Slide {slide_num}",
-            })
+            content_parts.append(
+                pptx_slide_part(
+                    filename=pptx_name,
+                    slide_number=slide_num,
+                    data=slide_bytes,
+                )
+            )
 
         # Build user message
         if len(batch) == 1:
@@ -287,19 +310,20 @@ class PPTXService:
 
         slide_list = ", ".join(str(s) for s in batch_slide_numbers)
 
-        user_message = user_message_template.format(
-            total_pages=total_slides,
-            extraction_description=extraction_desc,
-            expected_tool_calls=len(batch),
-            page_numbers=slide_list
+        prompt = render_prompt(
+            "pptx_extraction",
+            {
+                "total_pages": total_slides,
+                "extraction_description": extraction_desc,
+                "expected_tool_calls": len(batch),
+                "page_numbers": slide_list,
+            },
+            project_id=project_id,
         )
 
-        content_blocks.append({
-            "type": "text",
-            "text": user_message
-        })
-
-        messages = [{"role": "user", "content": content_blocks}]
+        content_parts.append(TextPart(text=prompt.user_message or ""))
+        messages = [RunMessage(role="user", content=content_parts)]
+        tools = bind_local_tools([tool_def], {tool_def.name: echo_input})
 
         # Retry loop with rate limiting
         last_error = None
@@ -308,24 +332,31 @@ class PPTXService:
                 # Apply rate limiting before each API call
                 rate_limiter.wait_if_needed()
 
-                response = claude_service.send_message(
-                    messages=messages,
-                    system_prompt=system_prompt,
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    tools=[tool_def],
-                    tool_choice={"type": "tool", "name": "submit_slide_extraction"},
-                    project_id=project_id
+                result = run_with_provider(
+                    RunRequest(
+                        provider=prompt.provider,
+                        model=prompt.model,
+                        purpose="pptx_extraction",
+                        messages=messages,
+                        system_prompt=prompt.system_prompt,
+                        tools=tools,
+                        tool_choice=ToolChoice(type="tool", name="submit_slide_extraction"),
+                        limits=RunLimits(
+                            max_tool_turns=1,
+                            max_output_tokens=prompt.max_tokens,
+                            temperature=prompt.temperature,
+                        ),
+                        project_id=project_id,
+                    )
                 )
 
-                slide_results = self._parse_tool_calls(response, batch_slide_numbers)
+                slide_results = self._parse_tool_results(result, batch_slide_numbers)
 
                 return (batch_start_slide, {
                     "success": True,
                     "slide_results": slide_results,
-                    "token_usage": response["usage"],
-                    "model": response["model"]
+                    "token_usage": result.usage.model_dump(mode="json"),
+                    "model": result.model
                 })
 
             except Exception as e:
@@ -347,20 +378,20 @@ class PPTXService:
             "error": str(last_error)
         })
 
-    def _parse_tool_calls(
+    def _parse_tool_results(
         self,
-        response: Dict[str, Any],
+        response: Any,
         expected_slide_numbers: List[int]
     ) -> Dict[int, Dict[str, Any]]:
         """
-        Parse slide extraction tool calls from Claude's response.
+        Parse slide extraction tool results from the runtime response.
 
-        Educational Note: Uses claude_parsing_utils.extract_tool_inputs() for
-        generic tool parsing, then processes the PPTX-specific fields (slide_number,
+        Educational Note: The runtime returns validated tool results; this method
+        processes the PPTX-specific fields (slide_number,
         slide_title, text_content, visual_elements, layout_notes).
 
         Args:
-            response: Claude API response
+            response: Runtime result from the provider adapter
             expected_slide_numbers: List of slide numbers we expect
 
         Returns:
@@ -368,11 +399,8 @@ class PPTXService:
         """
         results = {}
 
-        # Use claude_parsing_utils for generic tool parsing
-        tool_inputs = app.providers.anthropic.response_parser.extract_tool_inputs(response, "submit_slide_extraction")
-
-        # Process PPTX-specific fields from each tool call
-        for input_data in tool_inputs:
+        # Process PPTX-specific fields from validated runtime tool results.
+        for input_data in tool_result_payloads(response, "submit_slide_extraction", dict):
             slide_num = input_data.get("slide_number")
 
             if slide_num in expected_slide_numbers:
@@ -381,6 +409,18 @@ class PPTXService:
                     "text_content": input_data.get("text_content", "[NO TEXT CONTENT]"),
                     "visual_elements": input_data.get("visual_elements", "[NO VISUAL ELEMENTS]"),
                     "layout_notes": input_data.get("layout_notes", "")
+                }
+
+        missing_slides = set(expected_slide_numbers) - set(results.keys())
+        if missing_slides:
+            logger.warning("Missing extractions for slides: %s", sorted(missing_slides))
+            for slide_num in missing_slides:
+                results[slide_num] = {
+                    "slide_title": "[EXTRACTION FAILED]",
+                    "text_content": "[EXTRACTION FAILED - No tool call received]",
+                    "visual_elements": "",
+                    "layout_notes": "",
+                    "error": "No tool call received for this slide",
                 }
 
         return results

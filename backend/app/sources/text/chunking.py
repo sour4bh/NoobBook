@@ -327,7 +327,3 @@ def chunks_to_pinecone_format(
         })
 
     return vectors
-
-
-# Backward compatibility alias
-parse_extracted_text = parse_processed_text

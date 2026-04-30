@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from app.connectors.mcp.connection.store import mcp_connection_service
+from app.connectors.mcp.store import mcp_connection_service
 from app.providers.supabase import storage_service
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary

@@ -6,8 +6,8 @@
 
 Connector territory:
 - User/project connector state (stored credentials, selected Notion databases, Jira projects, MCP server URLs, Google Drive tokens, etc.).
-- Permission-gated tool schemas exposed to Claude (Notion, Jira, Mixpanel, MCP dynamic tools).
-- Chat-invokable adapters that translate Claude tool calls into provider SDK calls.
+- Permission-gated typed tool contracts exposed to model providers (Notion, Jira, Mixpanel, MCP dynamic tools).
+- Chat-invokable adapters that translate typed runtime tool calls into provider SDK calls.
 - Formatting policies that turn provider responses into a shape the chat/studio domains can present.
 - Per-connector validation that requires a real product call (not just an SDK ping).
 
@@ -26,7 +26,7 @@ Connector territory:
 - `connectors/` may import from `providers/`, `auth/`, and `projects/`.
 - Domains (`chat/`, `sources/`, `studio/`, `brand/`, `settings/`, `background/`) import connector **public surfaces** only. They must not reach into `connectors/<name>/` internals.
 - Connectors must not import from `api/` or from any domain's internals.
-- Chat-invokable tool schemas live under `connectors/<name>/tools/`; the chat loop reads them through the loader registry (`NBB-207A`) and executes them through the ToolCapabilityPolicy seam (`NBB-202B`).
+- Chat-invokable tool contracts live beside the connector behavior. After `NBB-011`, Pydantic `ToolSpec`s are the source of truth and execute through the ToolCapabilityPolicy seam (`NBB-202B`); generated Anthropic/OpenAI tool schemas are adapter outputs, not checked-in connector source.
 - Connector stores (database connection, MCP connection) are connector-owned state per `NBB-209E`. Data-bearing RLS/guard invariants remain governed by `NBB-204`.
 
 Rich import-direction enforcement lands in `NBB-704A` and `NBB-704B`.
@@ -39,20 +39,20 @@ callback contract.
 
 ## Current-code inventory
 
-Classification of connector-owned modules after `NBB-807`, plus the former `backend/app/services/data_services/` connector stores, against the providers/connectors split. Static tool schemas were moved by `NBB-810` and now resolve through domain-owned `tools/` directories.
+Classification of connector-owned modules after `NBB-807`, plus the former `backend/app/services/data_services/` connector stores, against the providers/connectors split. Static tool schemas were moved by `NBB-810` and replaced by typed domain-owned `ToolSpec`s in `NBB-1104`.
 
 | Current path | Classification | Rationale |
 |---|---|---|
-| `connectors/notion/client.py` | connector | Product-configured Notion integration with cached config and `reload_config()`; tool-visible via `chat_tools/notion_*.json`. |
-| `connectors/jira/client.py` | connector | Product-configured Jira integration with cached config and `reload_config()`; tool-visible via `chat_tools/jira_*.json`. |
-| `connectors/mixpanel/client.py` | connector | Product-configured Mixpanel integration with cached config and `reload_config()`; tool-visible via `chat_tools/mixpanel_*.json`. |
+| `connectors/notion/client.py` | connector | Product-configured Notion integration with cached config and `reload_config()`; tool-visible via connector-owned `ToolSpec`s. |
+| `connectors/jira/client.py` | connector | Product-configured Jira integration with cached config and `reload_config()`; tool-visible via connector-owned `ToolSpec`s. |
+| `connectors/mixpanel/client.py` | connector | Product-configured Mixpanel integration with cached config and `reload_config()`; tool-visible via connector-owned `ToolSpec`s. |
 | `connectors/knowledge.py` | connector (facade) | Loads tool definitions for configured knowledge-base integrations only; a connector-composition facade, not a raw client. |
 | `connectors/freshdesk/client.py` | connector | Product-configured Freshdesk integration with `reload_config()`; matches the `FRESHDESK_*` → `connectors/` row in the NBB-208A validator map. |
 | `connectors/freshdesk/sync.py` | connector | Freshdesk project-scoped sync behavior; connector-owned. |
 | `connectors/google_drive/files.py` | connector | Google Drive is a user/project product capability (OAuth-scoped file listing, download, Workspace export). OAuth primitives stay in `providers/google/`. |
 | `connectors/mcp/tools.py` | connector | Discovers MCP tools from user connections, namespaces them (`mcp_{slug}_*`), and routes Claude tool calls to the right MCP server. |
-| `services/data_services/database_connection_service.py` | connector (store) | Per-user database connection credentials. `NBB-209E` moved it to `connectors/database/connection/store.py` as `DatabaseConnectionStore`; `NBB-802` removed the dead residue. |
-| `services/data_services/mcp_connection_service.py` | connector (store) | Per-user MCP connection config. `NBB-209E` moved it to `connectors/mcp/connection/store.py` as `McpConnectionStore`; `NBB-802` removed the dead residue. |
+| `services/data_services/database_connection_service.py` | connector (store) | Per-user database connection credentials. `NBB-209E` moved it under `connectors/database/`; `NBB-1114` collapsed the temporary one-child `connection/store.py` layer to `connectors/database/store.py`. |
+| `services/data_services/mcp_connection_service.py` | connector (store) | Per-user MCP connection config. `NBB-209E` moved it under `connectors/mcp/`; `NBB-1114` collapsed the temporary one-child `connection/store.py` layer to `connectors/mcp/store.py`. |
 
 Tool-schema rows pulled from the NBB-207C decision map that resolve to connector ownership:
 
@@ -62,13 +62,17 @@ Tool-schema rows pulled from the NBB-207C decision map that resolve to connector
 | `chat_tools/notion_*.json` | `connectors/notion/tools/` |
 | `chat_tools/mixpanel_*.json` | `connectors/mixpanel/tools/` |
 
-All tool-schema families resolve to domain roots (`chat/`, `sources/`, `studio/`, `connectors/`) through the asset registry; MCP-sourced tools are registered dynamically at runtime and keep their MCP registration path.
+All static tool-schema families now resolve to typed domain roots (`chat/`, `sources/`, `studio/`, `connectors/`) through the asset registry; MCP-sourced tools are registered dynamically at runtime and keep their MCP registration path.
 
 ## Tool-schema mapping cross-reference
 
-The authoritative per-family mapping for every static tool JSON file lives in the `NBB-207C` decision map: `docs/tickets/epics/NBB-002.md#nbb-207c`. This charter does not duplicate that table. The rule for connectors: any Claude-visible tool whose execution requires per-user or per-project credentials for an external product (Notion, Jira, Mixpanel, MCP) lives under `connectors/<name>/tools/`. Tools whose execution depends on a domain's data (source search, memory, studio signals, analysis over project-owned data) remain domain-owned even if they call a provider SDK transitively.
-
-Tool moves were gated on `NBB-207A` loader compatibility and the static connector schemas were completed by `NBB-810`; this charter does not move JSON.
+The authoritative current mapping lives in domain-owned `tools/specs.py`
+modules registered through `app.config.asset`. Any model-visible tool whose
+execution requires per-user or per-project credentials for an external product
+(Notion, Jira, Mixpanel, MCP) exposes a connector-owned typed `ToolSpec`. Tools
+whose execution depends on a domain's data (source search, memory, studio
+signals, analysis over project-owned data) remain domain-owned even if they
+call a provider SDK transitively.
 
 ## Connector-store mapping
 
@@ -76,8 +80,8 @@ Tool moves were gated on `NBB-207A` loader compatibility and the static connecto
 
 | Former file | Target | Public name |
 |---|---|---|
-| former `services/data_services/database_connection_service.py` | `connectors/database/connection/store.py` | `DatabaseConnectionStore` |
-| former `services/data_services/mcp_connection_service.py` | `connectors/mcp/connection/store.py` | `McpConnectionStore` |
+| former `services/data_services/database_connection_service.py` | `connectors/database/store.py` | `DatabaseConnectionStore` |
+| former `services/data_services/mcp_connection_service.py` | `connectors/mcp/store.py` | `McpConnectionStore` |
 
 Schema/RLS implications stay with `NBB-204`; the `*Service → *Store` rename is a refactory `rename_symbol` step recorded in `move-plan.csv` by `NBB-209E`.
 

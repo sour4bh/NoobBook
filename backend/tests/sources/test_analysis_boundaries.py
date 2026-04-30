@@ -82,8 +82,10 @@ class TestAnalysisCapabilityClassification:
     """The capability registry is the policy surface for analysis tools."""
 
     def _ensure_loaded(self):
-        # The chat loop normally calls this once at startup; tests call it
-        # explicitly so the registry is populated regardless of test order.
+        # Chat imports the source-owned registration module before exposing
+        # analyzer tools. Tests do the same explicitly so auth does not need
+        # to import from the sources domain.
+        import app.sources.analysis.tool_capabilities as analysis_caps  # noqa: F401
         from app.auth.tool_policy import tool_capability_policy
 
         tool_capability_policy.ensure_capabilities_loaded()

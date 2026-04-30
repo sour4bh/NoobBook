@@ -1,1 +1,1 @@
-"""Source analysis slices: csv, database, freshdesk, research (NBB-403)."""
+"""Source analysis slices for CSV, connectors, and research workflows."""

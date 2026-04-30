@@ -1,12 +1,4 @@
-"""
-CSV Analyzer Agent Executor - Executes analyze_csv_agent tool calls from main chat.
-
-Educational Note: This executor bridges main_chat and csv_analyzer_agent.
-When main chat calls analyze_csv_agent tool, this executor:
-1. Receives source_id and query from tool input
-2. Calls csv_analyzer_agent.run() with the parameters
-3. Formats and returns the result for main chat
-"""
+"""Chat-facing entrypoint for the CSV analyzer source tool."""
 
 from typing import Any, Dict, Optional
 
@@ -22,9 +14,6 @@ def execute(
 ) -> Dict[str, Any]:
     """
     Execute CSV analyzer agent for a user query.
-
-    Educational Note: This function is called by main_chat_service
-    when Claude uses the analyze_csv_agent tool.
 
     Args:
         project_id: Project ID for file paths and cost tracking

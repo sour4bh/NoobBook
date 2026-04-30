@@ -8,19 +8,23 @@ It uses tool-calling to:
 3) Return a final answer via return_database_result (termination tool)
 """
 
-import json
 import logging
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from app.providers.anthropic import claude_service
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
 from app.sources.analysis.database.tool import DatabaseExecutor
-from app.chat.store import message_service
-import app.providers.anthropic.response_parser
-import app.providers.anthropic.content
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.sources.analysis.database.tools.binding import bind_database_tools
 
 logger = logging.getLogger(__name__)
 
@@ -35,52 +39,35 @@ class DatabaseAnalyzerAgent:
     TERMINATION_TOOL = "return_database_result"
 
     def __init__(self) -> None:
-        self._prompt_config: Dict[str, Any] | None = None
         self._tools: List[Dict[str, Any]] | None = None
-
-    def _load_config(self) -> Dict[str, Any]:
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("database_analyzer_agent")
-        return self._prompt_config or {}
 
     def _load_tools(self) -> List[Dict[str, Any]]:
         if self._tools is None:
-            tools_config = tool_loader.load_tools_for_agent("database_agent")
-            self._tools = tools_config["all_tools"]
+            self._tools = list(tool_loader.load_tool_specs_for_agent("database_agent"))
         return self._tools or []
 
     def run(self, project_id: str, source_id: str, query: str, chat_id: Optional[str] = None, user_id: Optional[str] = None) -> Dict[str, Any]:
-        config = self._load_config()
         tools = self._load_tools()
 
         execution_id = str(uuid.uuid4())
         started_at = datetime.now().isoformat()
 
-        # Defensive defaults: prompt configs live in a writable volume in Docker,
-        # so a missing/new prompt file shouldn't crash the agent.
-        model = config.get("model") or "claude-sonnet-4-6"
-        max_tokens = config.get("max_tokens")
-        if not isinstance(max_tokens, int) or max_tokens <= 0:
-            max_tokens = 4500
-        temperature = config.get("temperature")
-        if not isinstance(temperature, (int, float)):
-            temperature = 0.0
         # Ground the agent in today's date so "yesterday", "last 7 days", etc.
         # in the user's question map to concrete YYYY-MM-DD values.
         from datetime import date
         today_line = f"Today's date: {date.today().isoformat()}"
-        system_prompt = f"{today_line}\n\n{config.get('system_prompt') or ''}"
-
-        user_message_template = config.get("user_message") or "Database source ID: {source_id}\n\nUser question: {query}"
-        user_message = user_message_template.format(
-            source_id=source_id,
-            query=query,
+        prompt = render_prompt(
+            "database_analyzer_agent",
+            {"source_id": source_id, "query": query},
+            project_id=project_id,
+        )
+        system_prompt = f"{today_line}\n\n{prompt.system_prompt}"
+        user_message = (
+            prompt.user_message
+            or f"Database source ID: {source_id}\n\nUser question: {query}"
         )
 
         messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
-
-        total_input_tokens = 0
-        total_output_tokens = 0
 
         executed_queries: List[str] = []
 
@@ -120,137 +107,67 @@ class DatabaseAnalyzerAgent:
             )
             return error_result
 
-        # Track consecutive tool errors to bail out early instead of
-        # burning through all MAX_ITERATIONS on repeated failures.
-        consecutive_errors = 0
-        MAX_CONSECUTIVE_ERRORS = 3
-
         try:
-            for iteration in range(1, self.MAX_ITERATIONS + 1):
-                response = claude_service.send_message(
-                    messages=messages,
+            run_result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose=self.AGENT_NAME,
                     system_prompt=system_prompt,
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    tools=tools,
-                    tool_choice={"type": "any"},
-                    extra_headers={"anthropic-beta": "context-1m-2025-08-07"},
+                    messages=[
+                        RunMessage(role="user", content=[TextPart(text=user_message)])
+                    ],
+                    tools=bind_database_tools(
+                        tools,
+                        executor=executor,
+                        project_id=project_id,
+                        source_id=source_id,
+                        executed_queries=executed_queries,
+                    ),
+                    tool_choice=ToolChoice(type="any"),
+                    limits=RunLimits(
+                        max_tool_turns=self.MAX_ITERATIONS,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
                     project_id=project_id,
-                    tags=["query"],
                     chat_id=chat_id,
                     user_id=user_id,
+                    metadata={
+                        "tags": ["query"],
+                        "extra_headers": {"anthropic-beta": "context-1m-2025-08-07"},
+                    },
                 )
-
-                total_input_tokens += response["usage"]["input_tokens"]
-                total_output_tokens += response["usage"]["output_tokens"]
-
-                content_blocks = response.get("content_blocks", [])
-                tool_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
-
-                # Check for tool blocks BEFORE appending to messages.
-                # Appending first then doing `continue` would leave messages ending
-                # with an assistant role, causing a prefill API error on the next iteration.
-                if not tool_blocks:
-                    continue
-
-                serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
-                messages.append({"role": "assistant", "content": serialized_content})
-
-                tool_results_data = []
-                iteration_had_error = False
-
-                for tool_block in tool_blocks:
-                    tool_name = tool_block.get("name")
-                    tool_input = tool_block.get("input", {}) or {}
-                    tool_id = tool_block.get("id")
-
-                    result, is_termination = executor.query(
-                        tool_name, tool_input, project_id, source_id
-                    )
-
-                    if tool_name == "query_runner" and isinstance(tool_input.get("query"), str):
-                        executed_queries.append(tool_input["query"])
-
-                    # Track errors for early bail-out
-                    if isinstance(result, dict) and not result.get("success", True):
-                        iteration_had_error = True
-
-                    if is_termination:
-                        # Ensure we preserve executed queries for debugging.
-                        if isinstance(result, dict) and not result.get("sql_queries"):
-                            result["sql_queries"] = executed_queries
-
-                        final_result = self._build_result(
-                            result,
-                            iteration,
-                            total_input_tokens,
-                            total_output_tokens,
-                        )
-
-                        self._save_execution(
-                            project_id=project_id,
-                            execution_id=execution_id,
-                            query=query,
-                            messages=messages,
-                            result=final_result,
-                            started_at=started_at,
-                            source_id=source_id,
-                        )
-                        return final_result
-
-                    tool_results_data.append(
-                        {
-                            "tool_use_id": tool_id,
-                            "result": self._format_tool_result(result),
-                        }
-                    )
-
-                if tool_results_data:
-                    tool_results_content = app.providers.anthropic.content.build_tool_result_content(tool_results_data)
-                    messages.append({"role": "user", "content": tool_results_content})
-
-                # Early bail-out: if we get the same type of error repeatedly,
-                # stop wasting API calls and return immediately.
-                if iteration_had_error:
-                    consecutive_errors += 1
-                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                        logger.warning(
-                            "DB agent: %d consecutive tool errors, bailing out early "
-                            "(source_id=%s, iteration=%d)",
-                            consecutive_errors, source_id, iteration,
-                        )
-                        error_result = {
-                            "success": False,
-                            "error": (
-                                f"Database query failed after {consecutive_errors} consecutive errors. "
-                                f"The database may be unreachable or the connection may have expired."
-                            ),
-                            "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens},
-                        }
-                        self._save_execution(
-                            project_id=project_id,
-                            execution_id=execution_id,
-                            query=query,
-                            messages=messages,
-                            result=error_result,
-                            started_at=started_at,
-                            source_id=source_id,
-                        )
-                        return error_result
-                else:
-                    consecutive_errors = 0
+            )
+            final_payload = self._terminating_tool_result(run_result)
+            if final_payload is not None:
+                final_result = self._build_result(
+                    final_payload,
+                    self._iteration_count(run_result),
+                    run_result.usage.input_tokens,
+                    run_result.usage.output_tokens,
+                )
+                self._save_execution(
+                    project_id=project_id,
+                    execution_id=execution_id,
+                    query=query,
+                    messages=self._execution_messages(run_result, user_message),
+                    result=final_result,
+                    started_at=started_at,
+                    source_id=source_id,
+                )
+                return final_result
 
             error_result = {
                 "success": False,
-                "error": f"Analysis did not complete within {self.MAX_ITERATIONS} iterations",
-                "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens},
+                "error": "Analysis completed without returning a final answer",
+                "usage": run_result.usage.model_dump(mode="json"),
             }
             self._save_execution(
                 project_id=project_id,
                 execution_id=execution_id,
                 query=query,
-                messages=messages,
+                messages=self._execution_messages(run_result, user_message),
                 result=error_result,
                 started_at=started_at,
                 source_id=source_id,
@@ -260,15 +177,37 @@ class DatabaseAnalyzerAgent:
         finally:
             executor.close_connections()
 
-    @staticmethod
-    def _format_tool_result(result: Dict[str, Any]) -> str:
-        if not result.get("success"):
-            return f"Error: {result.get('error', 'Unknown error')}"
+    def _terminating_tool_result(self, result: Any) -> Optional[Dict[str, Any]]:
+        for tool_result in reversed(result.tool_results):
+            if tool_result.name == self.TERMINATION_TOOL and isinstance(tool_result.content, dict):
+                return tool_result.content
+        return None
 
-        try:
-            return json.dumps(result, indent=2, ensure_ascii=False)
-        except Exception:
-            return str(result)
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
+
+    def _execution_messages(
+        self,
+        result: Any,
+        user_message: str,
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
+        for message in result.generated_messages:
+            messages.append(
+                {
+                    "role": "user" if message.role == "tool" else message.role,
+                    "content": [
+                        part.model_dump(mode="json")
+                        for part in message.content
+                    ],
+                }
+            )
+        return messages
 
     @staticmethod
     def _build_result(
@@ -297,6 +236,8 @@ class DatabaseAnalyzerAgent:
         started_at: str,
         source_id: str,
     ) -> None:
+        from app.chat.message import message_service
+
         message_service.save_agent_execution(
             project_id=project_id,
             agent_name=self.AGENT_NAME,

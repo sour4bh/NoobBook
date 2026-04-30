@@ -1,14 +1,12 @@
 """
-Knowledge Base Service - Orchestrates all external knowledge base integrations.
+Knowledge base connector tool catalog and dispatch.
 
-Educational Note: This service acts as the single entry point for all knowledge
-base tools (Jira, Notion, GitHub, etc.). It handles:
-- Loading tool definitions for configured integrations only
-- Calling service methods directly for simple integrations
-- Formatting results consistently
-
-This keeps main_chat_service.py clean by centralizing all KB integration logic.
+This module is the chat-facing connector seam for typed knowledge-base tools
+such as Jira, Notion, and Mixpanel. It decides which connector ToolSpecs are
+available for a project and routes validated runtime tool inputs to the owning
+connector clients.
 """
+import json
 from typing import Dict, Any, List, Callable, Optional
 
 from app.config.tool import tool_loader
@@ -19,16 +17,11 @@ from app.connectors.notion import client as notion_client
 
 class KnowledgeBaseService:
     """
-    Orchestrator for all knowledge base integration tools.
+    Project-aware catalog and dispatcher for knowledge-base connector tools.
 
-    Educational Note: This service checks which integrations are configured
-    and dynamically provides only available tools to Claude. For example:
-    - If Jira is configured: Adds 4 Jira tools
-    - If Notion is configured: Adds Notion tools
-    - If GitHub is configured: Adds GitHub tools
-
-    This allows seamless addition of new integrations without touching
-    main_chat_service.py.
+    The chat tool policy asks this service for provider-neutral ToolSpecs. The
+    runtime/provider layer compiles those specs to the selected model provider;
+    this module only owns connector availability and execution dispatch.
     """
 
     # Tool name prefixes for routing
@@ -48,7 +41,7 @@ class KnowledgeBaseService:
     def __init__(self):
         """Initialize the service with lazy-loaded tool definitions and dispatch table."""
         # Single cache for all tool definitions (lazy-loaded)
-        self._tool_cache: Dict[str, Dict[str, Any]] = {}
+        self._tool_cache: Dict[str, Any] = {}
 
         # Dispatch table: maps tool name -> (executor_method, )
         # Each executor handles calling the service + formatting the result
@@ -73,20 +66,21 @@ class KnowledgeBaseService:
             "notion_query_database": self._execute_notion_query_database,
         }
 
-    def _get_tool(self, tool_name: str) -> Dict[str, Any]:
+    def _get_tool(self, tool_name: str) -> Any:
         """
         Load a tool definition by name (cached).
 
-        All knowledge base tools live in the 'chat_tools' category.
+        Knowledge-base tools keep their historical catalog keys so existing
+        capability and settings policy can keep addressing the same tool names.
         """
         if tool_name not in self._tool_cache:
-            self._tool_cache[tool_name] = tool_loader.load_tool("chat_tools", tool_name)
+            self._tool_cache[tool_name] = tool_loader.load_tool_spec("chat_tools", tool_name)
         return self._tool_cache[tool_name]
 
     def get_available_tools(
         self,
         project_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Any]:
         """
         Get non-Jira knowledge base tools (Notion, GitHub, etc.).
 
@@ -95,7 +89,7 @@ class KnowledgeBaseService:
         Jira-specific tools. This method returns everything else.
 
         Returns:
-            List of tool definitions ready for Claude API
+            List of tool definitions ready for the selected model
         """
         tools = []
 
@@ -115,7 +109,7 @@ class KnowledgeBaseService:
     def get_jira_tools(
         self,
         project_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Any]:
         """
         Get Jira-specific tools if Jira is configured.
 
@@ -133,7 +127,7 @@ class KnowledgeBaseService:
     def get_mixpanel_tools(
         self,
         project_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Any]:
         """
         Get Mixpanel-specific tools if Mixpanel is configured.
 
@@ -605,7 +599,12 @@ class KnowledgeBaseService:
     ) -> str:
         """Query database pages."""
         database_id = tool_input.get("database_id")
-        filter_conditions = tool_input.get("filter_conditions")
+        filter_conditions, filter_error = _parse_optional_object_json(
+            tool_input.get("filter_json"),
+            field_name="filter_json",
+        )
+        if filter_error:
+            return filter_error
         limit = tool_input.get("limit", 20)
 
         if not database_id:
@@ -640,6 +639,24 @@ class KnowledgeBaseService:
                 lines.append("")
 
         return "\n".join(lines)
+
+
+def _parse_optional_object_json(
+    value: Any,
+    *,
+    field_name: str,
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    if value in (None, ""):
+        return None, None
+    if not isinstance(value, str):
+        return None, f"Error: {field_name} must be a JSON object string"
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        return None, f"Error: {field_name} must be valid JSON: {exc.msg}"
+    if not isinstance(parsed, dict):
+        return None, f"Error: {field_name} must decode to a JSON object"
+    return parsed, None
 
 
 # Singleton instance

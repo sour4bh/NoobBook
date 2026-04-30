@@ -1,1 +1,1 @@
-"""Audio source skeleton; owner NBB-402 lands transcription orchestration."""
+"""Audio source processing and transcription orchestration."""

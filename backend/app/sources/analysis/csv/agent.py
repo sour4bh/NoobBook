@@ -16,20 +16,23 @@ Security Note:
     Python source.
 """
 
+import json
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
-from app.sources.analysis.csv.run import (
-    analysis_executor,
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
 )
-from app.chat.store import message_service
-import app.providers.anthropic.response_parser
-import app.providers.anthropic.content
+from app.sources.analysis.csv.raw_tools.binding import bind_csv_analysis_tools
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +51,9 @@ class CSVAnalyzerAgent:
 
     def __init__(self):
         """Initialize agent with lazy-loaded config and tools."""
-        self._prompt_config = None
         self._tools = None
 
-    def _load_config(self) -> Dict[str, Any]:
-        """Lazy load prompt configuration."""
-        if self._prompt_config is None:
-            self._prompt_config = prompt_loader.get_prompt_config("csv_analyzer_agent")
-        return self._prompt_config
-
-    def _load_tools(self) -> List[Dict[str, Any]]:
+    def _load_tools(self) -> tuple:
         """
         Load tools for data analysis.
 
@@ -66,8 +62,7 @@ class CSVAnalyzerAgent:
         - return_analysis: Return final answer with optional plots
         """
         if self._tools is None:
-            tools_config = tool_loader.load_tools_for_agent("analysis_agent")
-            self._tools = tools_config["all_tools"]
+            self._tools = tool_loader.load_tool_specs_for_agent("analysis_agent")
         return self._tools
 
     def run(
@@ -93,127 +88,114 @@ class CSVAnalyzerAgent:
         Returns:
             Dict with success status, summary, and optional image_paths
         """
-        config = self._load_config()
         tools = self._load_tools()
 
         execution_id = str(uuid.uuid4())
         started_at = datetime.now().isoformat()
 
-        # Build user message with query
-        user_message = config.get("user_message", "Analyze this data.").format(
-            filename=f"{source_id}.csv",
-            query=query
+        prompt = render_prompt(
+            "csv_analyzer_agent",
+            {"filename": f"{source_id}.csv", "query": query},
+            project_id=project_id,
         )
-
-        messages = [{"role": "user", "content": user_message}]
-
-        total_input_tokens = 0
-        total_output_tokens = 0
+        user_message = prompt.user_message or "Analyze this data."
 
         # Track generated plot paths across iterations
         generated_plots = []
 
         logger.info("Starting CSV analysis for: %s", query[:50])
 
-        for iteration in range(1, self.MAX_ITERATIONS + 1):
-
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=config.get("system_prompt", ""),
-                model=config.get("model"),
-                max_tokens=config.get("max_tokens"),
-                temperature=config.get("temperature"),
-                tools=tools,
-                tool_choice={"type": "any"},
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose=self.AGENT_NAME,
+                system_prompt=prompt.system_prompt,
+                messages=[RunMessage(role="user", content=[TextPart(text=user_message)])],
+                tools=bind_csv_analysis_tools(
+                    tools,
+                    project_id=project_id,
+                    source_id=source_id,
+                    generated_plots=generated_plots,
+                ),
+                tool_choice=ToolChoice(type="any"),
+                limits=RunLimits(
+                    max_tool_turns=self.MAX_ITERATIONS,
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
                 project_id=project_id,
-                tags=["query"],
                 chat_id=chat_id,
                 user_id=user_id,
+                metadata={"tags": ["query"]},
             )
+        )
 
-            total_input_tokens += response["usage"]["input_tokens"]
-            total_output_tokens += response["usage"]["output_tokens"]
+        final_tool_result = self._terminating_tool_result(result)
+        if final_tool_result is not None:
+            iterations = self._iteration_count(result)
+            logger.info("Completed in %d iterations", iterations)
+            final_result = self._build_result(
+                final_tool_result,
+                iterations,
+                result.usage.input_tokens,
+                result.usage.output_tokens,
+            )
+            self._save_execution(
+                project_id, execution_id, query,
+                self._execution_messages(result, user_message),
+                final_result, started_at, source_id
+            )
+            return final_result
 
-            content_blocks = response.get("content_blocks", [])
-            tool_blocks = app.providers.anthropic.response_parser.extract_tool_use_blocks(response)
-
-            # Check for tool blocks BEFORE appending to messages.
-            # Appending first then doing `continue` would leave messages ending
-            # with an assistant role, causing a prefill API error on the next iteration.
-            if not tool_blocks:
-                if app.providers.anthropic.response_parser.is_end_turn(response):
-                    logger.warning("End turn without return_analysis tool")
-                continue
-
-            serialized_content = app.providers.anthropic.content.serialize_content_blocks(content_blocks)
-            messages.append({"role": "assistant", "content": serialized_content})
-
-            tool_results_data = []
-
-            for tool_block in tool_blocks:
-                tool_name = tool_block["name"]
-                tool_input = tool_block["input"]
-                tool_id = tool_block["id"]
-
-                # Execute tool via analysis_executor
-                result, is_termination = analysis_executor.dispatch(
-                    tool_name, tool_input, project_id, source_id
-                )
-
-                if is_termination:
-                    logger.info("Completed in %d iterations", iteration)
-
-                    # Add any plots generated during this session
-                    if generated_plots:
-                        result["image_paths"] = generated_plots
-
-                    final_result = self._build_result(
-                        result,
-                        iteration,
-                        total_input_tokens,
-                        total_output_tokens
-                    )
-
-                    self._save_execution(
-                        project_id, execution_id, query, messages,
-                        final_result, started_at, source_id
-                    )
-                    return final_result
-
-                # Track any plot filenames from run_analysis
-                if result.get("plot_filenames"):
-                    generated_plots.extend(result["plot_filenames"])
-
-                # Format result for Claude
-                content = self._format_tool_result(result)
-                tool_results_data.append({
-                    "tool_use_id": tool_id,
-                    "result": content
-                })
-
-            if tool_results_data:
-                tool_results_content = app.providers.anthropic.content.build_tool_result_content(tool_results_data)
-                messages.append({"role": "user", "content": tool_results_content})
-
-        logger.warning("Max iterations reached (%d)", self.MAX_ITERATIONS)
+        logger.warning("CSV analysis completed without return_analysis")
         error_result = {
             "success": False,
-            "error": f"Analysis did not complete within {self.MAX_ITERATIONS} iterations",
-            "usage": {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
+            "error": "Analysis completed without returning a final answer",
+            "usage": result.usage.model_dump(mode="json"),
         }
 
         self._save_execution(
-            project_id, execution_id, query, messages,
+            project_id, execution_id, query,
+            self._execution_messages(result, user_message),
             error_result, started_at, source_id
         )
         return error_result
 
-    def _format_tool_result(self, result: Dict[str, Any]) -> str:
-        """Format tool result for Claude."""
-        if not result.get("success"):
-            return f"Error: {result.get('error', 'Unknown error')}"
+    def _terminating_tool_result(self, result: Any) -> Optional[Dict[str, Any]]:
+        """Return the validated terminating tool payload, if present."""
+        for tool_result in reversed(result.tool_results):
+            if tool_result.name != self.TERMINATION_TOOL:
+                continue
+            if isinstance(tool_result.content, dict):
+                return tool_result.content
+        return None
 
-        return result.get("output", "Code executed successfully")
+    def _iteration_count(self, result: Any) -> int:
+        assistant_turns = [
+            message
+            for message in result.generated_messages
+            if getattr(message, "role", None) == "assistant"
+        ]
+        return len(assistant_turns) or 1
+
+    def _execution_messages(
+        self,
+        result: Any,
+        user_message: str,
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_message}]
+        for message in result.generated_messages:
+            messages.append(
+                {
+                    "role": "user" if message.role == "tool" else message.role,
+                    "content": [
+                        part.model_dump(mode="json")
+                        for part in message.content
+                    ],
+                }
+            )
+        return messages
 
     def _build_result(
         self,
@@ -233,7 +215,7 @@ class CSVAnalyzerAgent:
         return {
             "success": True,
             "summary": tool_input.get("summary", ""),
-            "data": tool_input.get("data"),
+            "data": _parse_data_json(tool_input.get("data_json")),
             "image_paths": tool_input.get("image_paths", []),
             "iterations": iterations,
             "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
@@ -251,6 +233,8 @@ class CSVAnalyzerAgent:
         source_id: str
     ) -> None:
         """Save execution log for debugging."""
+        from app.chat.message import message_service
+
         message_service.save_agent_execution(
             project_id=project_id,
             agent_name=self.AGENT_NAME,
@@ -264,3 +248,15 @@ class CSVAnalyzerAgent:
 
 
 csv_analyzer_agent = CSVAnalyzerAgent()
+
+
+def _parse_data_json(value: Any) -> Optional[Dict[str, Any]]:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None

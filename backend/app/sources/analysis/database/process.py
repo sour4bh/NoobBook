@@ -22,7 +22,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import pymysql
 
-from app.connectors.database.connection.store import database_connection_service
+from app.connectors.database.store import database_connection_service
 from app.providers.supabase import storage_service
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary

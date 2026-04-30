@@ -59,7 +59,7 @@ Package markers present today: `sources/upload/__init__.py`, `sources/pdf/__init
 
 - Moving implementations. `NBB-402` and `NBB-403` own mechanical moves via refactory; this ticket only creates skeleton markers and documents destinations.
 - Changing extraction behavior.
-- Prompt and tool JSON ownership. Those follow `NBB-207B` (prompts) and `NBB-207C` (tools).
+- Prompt ownership and typed tool-contract ownership. Prompts follow `NBB-207B`; live tools are now `ToolSpec`s after `NBB-1104`, with the original ownership map from `NBB-207C`.
 - Store moves. Chat/message/project/brand/connector stores follow `NBB-209A`–`NBB-209E`; source-adjacent store movement (if discovered) is coordinated through `NBB-402` and the NBB-204 data-bearing charter above.
 
 ## Cross-reference

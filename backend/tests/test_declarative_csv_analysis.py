@@ -22,6 +22,9 @@ _supabase_client._initialized = True
 
 from app.sources.analysis.csv.run import analysis_executor  # noqa: E402
 from app.sources.analysis.csv.agent import csv_analyzer_agent  # noqa: E402
+from app.sources.analysis.csv.raw_tools.specs import RunAnalysisInput  # noqa: E402
+from app.agents.runtime.contract import RunResult, Usage  # noqa: E402
+from app.config.prompt import RenderedPrompt  # noqa: E402
 
 
 @pytest.fixture
@@ -66,6 +69,23 @@ def test_filter_sort_and_limit(dataframe):
 
     assert result["success"] is True
     assert result["data"] == [{"region": "west", "revenue": 15, "orders": 3}]
+
+
+def test_raw_tool_contract_validates_multi_operation_items():
+    parsed = RunAnalysisInput.model_validate(
+        {
+            "operations": [
+                {"kind": "filter", "filters": [{"column": "region", "operator": "eq", "value": "west"}]},
+                {"kind": "sort", "sort": [{"column": "revenue", "direction": "desc"}], "limit": 1},
+            ]
+        }
+    )
+
+    assert parsed.operations is not None
+    assert parsed.operations[0].kind == "filter"
+
+    with pytest.raises(ValueError):
+        RunAnalysisInput.model_validate({"operations": [{"filters": []}]})
 
 
 def test_aggregate_groups_metrics(dataframe):
@@ -137,29 +157,31 @@ def test_return_analysis_tool_still_terminates():
 def test_csv_analyzer_calls_claude_without_raw_gate():
     with patch.object(
         csv_analyzer_agent,
-        "_load_config",
-        return_value={
-            "system_prompt": "Analyze CSV data.",
-            "user_message": "Analyze {filename}: {query}",
-            "model": "claude-3-haiku-20240307",
-            "max_tokens": 100,
-            "temperature": 0,
-        },
-    ), patch.object(
-        csv_analyzer_agent,
         "_load_tools",
         return_value=[],
-    ), patch("app.sources.analysis.csv.agent.claude_service.send_message") as send_message:
-        send_message.return_value = {
-            "usage": {"input_tokens": 1, "output_tokens": 1},
-            "content_blocks": [],
-            "stop_reason": "end_turn",
-        }
+    ), patch(
+        "app.sources.analysis.csv.agent.render_prompt",
+        return_value=RenderedPrompt(
+            name="csv_analyzer_agent",
+            provider="anthropic",
+            model="claude-3-haiku-20240307",
+            max_tokens=100,
+            temperature=0,
+            system_prompt="Analyze CSV data.",
+            user_message="Analyze src-1.csv: what is the mean?",
+        ),
+    ), patch("app.sources.analysis.csv.agent.run_with_provider") as run_provider:
+        run_provider.return_value = RunResult(
+            provider="anthropic",
+            model="claude-3-haiku-20240307",
+            status="complete",
+            usage=Usage(input_tokens=1, output_tokens=1),
+        )
         result = csv_analyzer_agent.run(
             project_id="proj-1",
             source_id="src-1",
             query="what is the mean?",
         )
 
-    send_message.assert_called()
+    run_provider.assert_called()
     assert result["success"] is False

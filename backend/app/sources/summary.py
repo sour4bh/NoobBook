@@ -18,29 +18,20 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import app.providers.anthropic.response_parser
-from app.config.prompt import prompt_loader
-from app.providers.anthropic import claude_service
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    run_with_provider,
+)
+from app.config.prompt import render_prompt
 from app.providers.supabase import storage_service
 
 logger = logging.getLogger(__name__)
 
 # Maximum chunks to send for summarization (budget: ~20k tokens).
 MAX_CHUNKS = 8
-
-_prompt_config: Optional[Dict[str, Any]] = None
-
-
-def _get_prompt_config() -> Dict[str, Any]:
-    """Load and cache the summary prompt config."""
-    global _prompt_config
-    if _prompt_config is None:
-        cfg = prompt_loader.get_prompt_config("summary")
-        if cfg is None:
-            raise ValueError("summary_prompt.json not registered or missing")
-        _prompt_config = cfg
-    return _prompt_config
-
 
 def _get_chunk_indices(total_chunks: int, chunks_to_select: int) -> List[int]:
     """Evenly distributed chunk indices, always including first and last."""
@@ -75,15 +66,14 @@ def _load_selected_chunks(project_id: str, source_id: str) -> Optional[str]:
     return "\n\n---\n\n".join(content_parts)
 
 
-def _build_user_message(
-    config: Dict[str, Any],
+def _summary_context(
     content: str,
     source_metadata: Dict[str, Any],
     is_sampled: bool,
     total_pages: int,
     pages_sent: int,
-) -> str:
-    """Format the prompt-config user_message template with source metadata."""
+) -> Dict[str, Any]:
+    """Build the prompt render context for source summaries."""
     category = source_metadata.get("category", "document")
     name = source_metadata.get("name", "Unknown")
     file_ext = source_metadata.get("file_extension", "")
@@ -94,15 +84,14 @@ def _build_user_message(
         )
     else:
         content_info = f"Content Provided: Full document ({pages_sent} pages)"
-    template = config.get("user_message", "")
-    return template.format(
-        document_type=category.upper(),
-        file_extension=file_ext,
-        document_name=name,
-        total_pages=total_pages,
-        content_info=content_info,
-        content=content,
-    )
+    return {
+        "document_type": category.upper(),
+        "file_extension": file_ext,
+        "document_name": name,
+        "total_pages": total_pages,
+        "content_info": content_info,
+        "content": content,
+    }
 
 
 def generate_summary(
@@ -115,8 +104,6 @@ def generate_summary(
     Returns the summary dict (`summary`, `model`, `usage`, `generated_at`,
     `strategy`, `pages_used`, `total_pages`) or `None` on failure.
     """
-    config = _get_prompt_config()
-
     embedding_info = source_metadata.get("embedding_info", {})
     is_embedded = embedding_info.get("is_embedded", False)
     chunk_count = embedding_info.get("chunk_count", 0)
@@ -137,34 +124,46 @@ def generate_summary(
         logger.warning("No content found for source %s", source_id[:8])
         return None
 
-    user_message = _build_user_message(
-        config=config,
-        content=content,
-        source_metadata=source_metadata,
-        is_sampled=is_sampled,
-        total_pages=total_pages,
-        pages_sent=pages_sent,
+    prompt = render_prompt(
+        "summary",
+        _summary_context(
+            content=content,
+            source_metadata=source_metadata,
+            is_sampled=is_sampled,
+            total_pages=total_pages,
+            pages_sent=pages_sent,
+        ),
+        project_id=project_id,
     )
 
     try:
-        response = claude_service.send_message(
-            messages=[{"role": "user", "content": user_message}],
-            system_prompt=config.get("system_prompt", ""),
-            model=config.get("model"),
-            max_tokens=config.get("max_tokens"),
-            temperature=config.get("temperature"),
-            project_id=project_id,
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose="source_summary",
+                messages=[
+                    RunMessage(
+                        role="user",
+                        content=[TextPart(text=prompt.user_message or "")],
+                    )
+                ],
+                system_prompt=prompt.system_prompt,
+                limits=RunLimits(
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
+                project_id=project_id,
+            )
         )
-        summary_text = (
-            app.providers.anthropic.response_parser.extract_text(response).strip()
-        )
+        summary_text = result.text.strip()
         if not summary_text:
             logger.warning("Empty summary returned for source %s", source_id[:8])
             return None
         return {
             "summary": summary_text,
-            "model": response.get("model"),
-            "usage": response.get("usage"),
+            "model": result.model,
+            "usage": result.usage.model_dump(mode="json"),
             "generated_at": datetime.now().isoformat(),
             "strategy": "sampled" if is_sampled else "full",
             "pages_used": pages_sent,

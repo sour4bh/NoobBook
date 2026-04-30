@@ -15,16 +15,26 @@ from pathlib import Path
 from typing import Dict, Any, List
 from datetime import datetime
 
-from app.providers.anthropic import claude_service
 from app.config.tool import tool_loader
-from app.config.prompt import prompt_loader
-from app.config.provider import get_anthropic_config
-from app.providers.anthropic.media import encode_file_to_base64, get_media_type
-from app.providers.anthropic.rate import RateLimiter
+from app.config.prompt import render_prompt
+from app.config.provider import get_generation_config
+from app.base.media import get_media_type
+from app.sources.extract.rate import RateLimiter
+from app.sources.extract.media import image_part
 from app.sources.text import build_processed_output
 from app.sources.tokens import count_tokens
 from app.background.tasks import task_service
-import app.providers.anthropic.response_parser
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    bind_local_tools,
+    echo_input,
+    run_with_provider,
+    require_tool_result_payload,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +45,7 @@ class ImageService:
 
     Educational Note: This service handles image analysis:
     1. Reads image file and encodes to base64
-    2. Sends to Claude with submit_image_extraction tool
+    2. Sends to the model with submit_image_extraction tool
     3. Parses structured response (subject, text, visuals, data, etc.)
     4. Saves combined content as text file for chat context
     """
@@ -47,25 +57,27 @@ class ImageService:
     def _load_tool_definition(self) -> Dict[str, Any]:
         """Load the image extraction tool definition."""
         if self._tool_definition is None:
-            self._tool_definition = tool_loader.load_tool("image_tools", "image_extraction")
+            self._tool_definition = tool_loader.load_tool_spec("image_tools", "image_extraction")
         return self._tool_definition
 
-    def _parse_tool_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_tool_response(self, response: Any) -> Dict[str, Any]:
         """
-        Parse image extraction tool response from Claude.
+        Parse image extraction tool response from the provider adapter.
 
-        Educational Note: Uses claude_parsing_utils for generic tool parsing,
-        then extracts image-specific fields.
+        Educational Note: The runtime returns validated tool results;
+        this method extracts image-specific fields from the first matching result.
         """
-        tool_inputs = app.providers.anthropic.response_parser.extract_tool_inputs(response, "submit_image_extraction")
-
-        if not tool_inputs:
+        try:
+            inputs = require_tool_result_payload(
+                response,
+                "submit_image_extraction",
+                dict,
+            )
+        except Exception as exc:
             return {
                 "success": False,
-                "error": "No tool call received from Claude"
+                "error": str(exc),
             }
-
-        inputs = tool_inputs[0]
         return {
             "success": True,
             "subject": inputs.get("subject", ""),
@@ -119,7 +131,7 @@ class ImageService:
 
         Educational Note: This is the main entry point for image processing.
         1. Loads image and encodes to base64
-        2. Sends to Claude with image content block
+        2. Sends to the model with image content block
         3. Forces tool use for structured extraction
         4. Saves result as text file
 
@@ -135,55 +147,56 @@ class ImageService:
 
         try:
             # Load configurations using centralized loaders
-            prompt_config = prompt_loader.get_prompt_config("image_extraction")
+            prompt = render_prompt("image_extraction", project_id=project_id)
             tool_def = self._load_tool_definition()
-            tier_config = get_anthropic_config(project_id=project_id)
 
-            model = prompt_config.get("model", "claude-haiku-4-5-20251001")
-            system_prompt = prompt_config.get("system_prompt", "")
-            user_message = prompt_config.get("user_message", "")
-            max_tokens = prompt_config.get("max_tokens", 4000)
-            temperature = prompt_config.get("temperature", 0.2)
+            generation_config = get_generation_config(
+                prompt.provider,
+                project_id=project_id,
+            )
 
             # Create rate limiter for this extraction
-            requests_per_minute = tier_config.get("pages_per_minute", 100)
+            requests_per_minute = generation_config["requests_per_minute"]
             rate_limiter = RateLimiter(requests_per_minute)
 
-            image_base64 = encode_file_to_base64(image_path)
             media_type = get_media_type(image_path)
-
-            content_blocks = [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": media_type,
-                        "data": image_base64
-                    }
-                },
-                {
-                    "type": "text",
-                    "text": user_message
-                }
+            messages = [
+                RunMessage(
+                    role="user",
+                    content=[
+                        image_part(
+                            filename=image_path.name,
+                            media_type=media_type,
+                            data=image_path.read_bytes(),
+                        ),
+                        TextPart(text=prompt.user_message or ""),
+                    ],
+                )
             ]
-
-            messages = [{"role": "user", "content": content_blocks}]
+            tools = bind_local_tools([tool_def], {tool_def.name: echo_input})
 
             # Apply rate limiting before API call
             rate_limiter.wait_if_needed()
 
-            response = claude_service.send_message(
-                messages=messages,
-                system_prompt=system_prompt,
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                tools=[tool_def],
-                tool_choice={"type": "tool", "name": "submit_image_extraction"},
-                project_id=project_id
+            result = run_with_provider(
+                RunRequest(
+                    provider=prompt.provider,
+                    model=prompt.model,
+                    purpose="image_extraction",
+                    messages=messages,
+                    system_prompt=prompt.system_prompt,
+                    tools=tools,
+                    tool_choice=ToolChoice(type="tool", name="submit_image_extraction"),
+                    limits=RunLimits(
+                        max_tool_turns=1,
+                        max_output_tokens=prompt.max_tokens,
+                        temperature=prompt.temperature,
+                    ),
+                    project_id=project_id,
+                )
             )
 
-            extraction = self._parse_tool_response(response)
+            extraction = self._parse_tool_response(result)
 
             if not extraction.get("success"):
                 raise Exception(extraction.get("error", "Extraction failed"))
@@ -199,7 +212,7 @@ class ImageService:
             # Build metadata for IMAGE type
             content_type = extraction.get("content_type", "other")
             metadata = {
-                "model_used": model,
+                "model_used": prompt.model,
                 "content_type": content_type,
                 "character_count": character_count,
                 "token_count": token_count
@@ -224,8 +237,8 @@ class ImageService:
                 "token_count": token_count,
                 "content_type": content_type,
                 "summary": extraction.get("summary"),
-                "token_usage": response.get("usage", {}),
-                "model_used": model,
+                "token_usage": result.usage.model_dump(mode="json"),
+                "model_used": prompt.model,
                 "extracted_at": datetime.now().isoformat()
             }
 
@@ -261,17 +274,16 @@ class ImageService:
 
         try:
             # Load configurations using centralized loaders
-            prompt_config = prompt_loader.get_prompt_config("image_extraction")
+            prompt = render_prompt("image_extraction", project_id=project_id)
             tool_def = self._load_tool_definition()
-            tier_config = get_anthropic_config(project_id=project_id)
 
-            model = prompt_config.get("model", "claude-haiku-4-5-20251001")
-            system_prompt = prompt_config.get("system_prompt", "")
-            max_tokens = prompt_config.get("max_tokens", 4000)
-            temperature = prompt_config.get("temperature", 0.2)
+            generation_config = get_generation_config(
+                prompt.provider,
+                project_id=project_id,
+            )
 
             # Create rate limiter for batch processing
-            requests_per_minute = tier_config.get("pages_per_minute", 100)
+            requests_per_minute = generation_config["requests_per_minute"]
             rate_limiter = RateLimiter(requests_per_minute)
 
             all_extractions = []
@@ -285,49 +297,51 @@ class ImageService:
                 ):
                     raise Exception("Processing cancelled by user")
 
-                image_base64 = encode_file_to_base64(image_path)
                 media_type = get_media_type(image_path)
 
-                user_message = prompt_config.get("user_message", "")
-
-                content_blocks = [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_base64
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": user_message
-                    }
+                messages = [
+                    RunMessage(
+                        role="user",
+                        content=[
+                            image_part(
+                                filename=image_path.name,
+                                media_type=media_type,
+                                data=image_path.read_bytes(),
+                            ),
+                            TextPart(text=prompt.user_message or ""),
+                        ],
+                    )
                 ]
-
-                messages = [{"role": "user", "content": content_blocks}]
+                tools = bind_local_tools([tool_def], {tool_def.name: echo_input})
 
                 # Apply rate limiting before each API call
                 rate_limiter.wait_if_needed()
 
-                response = claude_service.send_message(
-                    messages=messages,
-                    system_prompt=system_prompt,
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    tools=[tool_def],
-                    tool_choice={"type": "tool", "name": "submit_image_extraction"},
-                    project_id=project_id
+                result = run_with_provider(
+                    RunRequest(
+                        provider=prompt.provider,
+                        model=prompt.model,
+                        purpose="image_extraction",
+                        messages=messages,
+                        system_prompt=prompt.system_prompt,
+                        tools=tools,
+                        tool_choice=ToolChoice(type="tool", name="submit_image_extraction"),
+                        limits=RunLimits(
+                            max_tool_turns=1,
+                            max_output_tokens=prompt.max_tokens,
+                            temperature=prompt.temperature,
+                        ),
+                        project_id=project_id,
+                    )
                 )
 
-                extraction = self._parse_tool_response(response)
+                extraction = self._parse_tool_response(result)
                 extraction["image_name"] = image_path.name
 
                 all_extractions.append(extraction)
 
-                total_input_tokens += response.get("usage", {}).get("input_tokens", 0)
-                total_output_tokens += response.get("usage", {}).get("output_tokens", 0)
+                total_input_tokens += result.usage.input_tokens
+                total_output_tokens += result.usage.output_tokens
 
             # Build pages list (one page per image)
             pages = []
@@ -345,7 +359,7 @@ class ImageService:
 
             # Build metadata for IMAGE type (batch)
             metadata = {
-                "model_used": model,
+                "model_used": prompt.model,
                 "content_type": "batch",
                 "character_count": character_count,
                 "token_count": token_count
@@ -374,7 +388,7 @@ class ImageService:
                     "input_tokens": total_input_tokens,
                     "output_tokens": total_output_tokens
                 },
-                "model_used": model,
+                "model_used": prompt.model,
                 "extracted_at": datetime.now().isoformat()
             }
 

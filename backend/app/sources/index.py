@@ -11,7 +11,6 @@ Source status flow: uploaded → processing → [embedding] → ready
 - ready: Fully processed and searchable
 - error: Processing failed
 """
-from datetime import datetime
 from typing import Dict, List, Any, Optional
 
 from app.providers.supabase import get_supabase, is_supabase_enabled
@@ -26,53 +25,6 @@ def _get_client():
             "SUPABASE_ANON_KEY to your .env file."
         )
     return get_supabase()
-
-
-def load_index(project_id: str) -> Dict[str, Any]:
-    """
-    Load the sources index for a project.
-
-    Educational Note: Fetches source metadata from Supabase sources table
-    and returns it as a dict keyed by source_id.
-
-    Args:
-        project_id: The project UUID
-
-    Returns:
-        Dict with "sources" list and "last_updated" timestamp
-    """
-    client = _get_client()
-
-    response = (
-        client.table("sources")
-        .select("*")
-        .eq("project_id", project_id)
-        .order("created_at", desc=True)
-        .execute()
-    )
-
-    # Map field names for frontend compatibility
-    sources = [_map_source_fields(source) for source in (response.data or [])]
-
-    return {
-        "sources": sources,
-        "last_updated": datetime.now().isoformat()
-    }
-
-
-def save_index(project_id: str, index_data: Dict[str, Any]) -> None:
-    """
-    Save the sources index for a project.
-
-    Educational Note: This is a no-op for Supabase - data is saved
-    immediately on insert/update. Kept for API compatibility.
-
-    Args:
-        project_id: The project UUID
-        index_data: The index data (ignored)
-    """
-    # No-op for Supabase - data is saved immediately
-    pass
 
 
 def add_source_to_index(project_id: str, source_metadata: Dict[str, Any]) -> None:

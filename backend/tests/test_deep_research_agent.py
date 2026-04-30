@@ -3,11 +3,13 @@ Tests for DeepResearchAgent.
 
 Covers:
 - Bug 4 regression: output_path is required
-- Smoke test with mocked Claude API
+- Smoke test with mocked runtime provider calls
 """
 import pytest
 from unittest.mock import patch, MagicMock
 
+from app.agents.runtime.contract import RunResult, TextPart, Usage
+from app.config.prompt import RenderedPrompt
 from app.sources.analysis.research.agent import DeepResearchAgent
 
 
@@ -39,28 +41,31 @@ class TestOutputPathRequired:
                 output_path="",
             )
 
-    @patch("app.sources.analysis.research.agent.message_service")
-    @patch("app.sources.analysis.research.agent.claude_service")
-    def test_works_with_output_path(self, mock_claude, mock_msg, agent):
-        """Smoke test: valid output_path proceeds to Claude API call."""
-        # Mock config loading
-        agent._prompt_config = {
-            "system_prompt": "You are a researcher.",
-            "model": "test-model",
-            "max_tokens": 100,
-            "temperature": 0.5,
-            "user_message_template": "Research: {topic}\n{description}\n{links_context}",
-        }
-        agent._tools = {
-            "all_tools": [{"name": "write_research_to_file"}],
-        }
+    @patch("app.chat.message.message_service")
+    @patch("app.sources.analysis.research.agent.run_with_provider")
+    @patch("app.sources.analysis.research.agent.render_prompt")
+    def test_works_with_output_path(self, render_prompt, run_provider, mock_msg, agent):
+        """Smoke test: valid output_path proceeds to the provider adapter."""
+        render_prompt.return_value = RenderedPrompt(
+            name="deep_research_agent",
+            provider="anthropic",
+            model="test-model",
+            max_tokens=100,
+            temperature=0.5,
+            system_prompt="You are a researcher.",
+            user_message="Research: AI\nResearch AI\nNo specific links provided.",
+        )
+        agent._tools = []
 
-        # Claude returns end_turn (no tool use) to exit the loop quickly
-        mock_claude.send_message.return_value = {
-            "content_blocks": [{"type": "text", "text": "Done"}],
-            "stop_reason": "end_turn",
-            "usage": {"input_tokens": 10, "output_tokens": 5},
-        }
+        # Provider returns no terminating tool call.
+        run_provider.return_value = RunResult(
+            provider="anthropic",
+            model="test-model",
+            status="complete",
+            text="Done",
+            content=[TextPart(text="Done")],
+            usage=Usage(input_tokens=10, output_tokens=5),
+        )
 
         result = agent.research(
             project_id="p1",
@@ -70,7 +75,6 @@ class TestOutputPathRequired:
             output_path="/tmp/test_output.md",
         )
 
-        # Should hit max iterations since no termination tool was called
         assert result["success"] is False
-        assert "maximum iterations" in result["error"]
-        mock_claude.send_message.assert_called()
+        assert "without final segment" in result["error"]
+        run_provider.assert_called()

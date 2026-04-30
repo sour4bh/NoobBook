@@ -22,11 +22,11 @@ from typing import Any, Dict, List, Optional
 from app.providers.openai import embeddings as openai_embeddings
 from app.providers.pinecone import pinecone_service
 from app.providers.supabase import storage_service
-from app.sources.tokens import needs_embedding
+from app.sources.tokens import get_embedding_info
 from app.sources.text import (
     clean_text_for_embedding,
     chunks_to_pinecone_format,
-    parse_extracted_text,
+    parse_processed_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def process_embeddings(
     Returns embedding_info with `is_embedded`, `embedded_at`, `token_count`,
     `chunk_count`, and `reason`.
     """
-    should_embed, token_count, reason = needs_embedding(text=processed_text)
+    should_embed, token_count, reason = get_embedding_info(text=processed_text)
     logger.info("Embedding check for %s: %s", source_name, reason)
 
     if not should_embed:
@@ -65,7 +65,7 @@ def process_embeddings(
         }
 
     try:
-        chunks = parse_extracted_text(
+        chunks = parse_processed_text(
             text=processed_text,
             source_id=source_id,
             source_name=source_name,

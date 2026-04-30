@@ -60,7 +60,7 @@ def _format_token_count(token_count: Any) -> str:
     """
     Format token count for header display.
 
-    Educational Note: Claude API has token limits. If a source is very large
+    Educational Note: model APIs have token limits. If a source is very large
     (>200k tokens) or the API returns an error, we display "200k+" instead
     of the exact count to indicate it's a large file.
 
@@ -150,73 +150,3 @@ def build_processed_output(
         content += "\n\n"
 
     return content
-
-
-def save_processed_text(
-    project_id: str,
-    source_id: str,
-    content: str
-) -> None:
-    """
-    No-op — processed files are saved to Supabase Storage by each processor.
-
-    Educational Note: Previously saved to local disk at
-    data/projects/{project_id}/sources/processed/{source_id}.txt.
-    Now all processors upload directly to Supabase Storage via
-    storage_service.upload_processed_file(), so this local save is unnecessary.
-
-    Args:
-        project_id: The project UUID
-        source_id: The source UUID
-        content: The processed text content (unused)
-
-    Returns:
-        None
-    """
-    return None
-
-
-def build_and_save_processed_output(
-    project_id: str,
-    source_id: str,
-    pages: List[str],
-    source_type: str,
-    source_name: str = "unknown",
-    metadata: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """
-    Build processed output and save to file in one step.
-
-    Educational Note: This is a convenience function that combines
-    build_processed_output() and save_processed_text(). Most processors
-    can use this single function to handle their output.
-
-    Args:
-        project_id: The project UUID
-        source_id: The source UUID
-        pages: List of page content strings
-        source_type: Type of source (PDF, TEXT, etc.)
-        source_name: Display name of the source
-        metadata: Optional additional metadata
-
-    Returns:
-        Dict with:
-        - content: The full processed text
-        - path: Path to the saved file
-        - total_pages: Number of pages
-        - character_count: Total character count
-    """
-    content = build_processed_output(
-        pages=pages,
-        source_type=source_type,
-        source_name=source_name,
-        metadata=metadata
-    )
-
-    # No local save — processors upload to Supabase Storage directly
-    return {
-        "content": content,
-        "path": None,
-        "total_pages": len(pages),
-        "character_count": len(content)
-    }

@@ -2,12 +2,10 @@
 Source Catalog - Business logic for managing project sources.
 
 Educational Note: This service provides the main interface for source operations.
-It delegates to specialized modules for cleaner code organization:
+It delegates to specialized modules owned by source subdomains:
 - sources.index: Index CRUD operations
 - sources.upload: Upload handling (file, URL, text)
 - sources.pipeline: Processing orchestration
-
-CRUD Operations are kept here for backwards compatibility with API routes.
 """
 import logging
 from pathlib import Path
@@ -467,28 +465,6 @@ class SourceCatalog:
                 user_id=user_id,
             )
         return add_mcp_source(project_id, connection_id, resource_uris, name, description)
-
-    # =========================================================================
-    # Processing Delegation (thin wrappers)
-    # =========================================================================
-
-    def cancel_processing(self, project_id: str, source_id: str) -> bool:
-        """
-        Cancel processing for a source.
-
-        Delegates to sources.pipeline.
-        """
-        from app.sources.pipeline import source_pipeline
-        return source_pipeline.cancel_processing(project_id, source_id)
-
-    def retry_processing(self, project_id: str, source_id: str) -> Dict[str, Any]:
-        """
-        Retry processing for a source that failed or was cancelled.
-
-        Delegates to sources.pipeline.
-        """
-        from app.sources.pipeline import source_pipeline
-        return source_pipeline.retry_processing(project_id, source_id)
 
     # =========================================================================
     # Path helpers retained for source processing callers.

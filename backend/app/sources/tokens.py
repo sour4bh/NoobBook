@@ -16,7 +16,7 @@ Every source gets chunked and embedded - no exceptions (for now).
 Token Counting Strategy:
 - Local counting (tiktoken): Used for chunking operations where speed matters
   and thousands of calls are made. tiktoken uses cl100k_base encoding which
-  closely matches Claude's tokenizer for most text.
+  closely matches provider tokenizer for most text.
 - API counting (exact Claude tokenizer) lives in
   ``app.providers.anthropic.token_count`` for billing/quota cases.
 
@@ -30,7 +30,7 @@ import tiktoken
 
 logger = logging.getLogger(__name__)
 
-# Initialize tiktoken encoder once (cl100k_base is closest to Claude's tokenizer)
+# Initialize tiktoken encoder once (cl100k_base is closest to the model's tokenizer)
 # Educational Note: cl100k_base is used by GPT-4 and Claude uses a similar
 # byte-pair encoding. The counts are close enough for chunking purposes.
 _encoder = tiktoken.get_encoding("cl100k_base")
@@ -115,7 +115,3 @@ def get_chunk_config() -> dict:
         "max_tokens": CHUNK_MAX_TOKENS,
         "always_embed": ALWAYS_EMBED,
     }
-
-
-# Alias for backward compatibility during transition
-needs_embedding = get_embedding_info

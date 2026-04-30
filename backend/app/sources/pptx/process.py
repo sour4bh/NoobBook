@@ -4,7 +4,7 @@ PPTX Processor - Handles PowerPoint presentation processing.
 Educational Note: PPTX files are processed in three stages:
 1. Convert PPTX to PDF using LibreOffice headless
 2. Extract PDF pages as base64 (reusing existing infrastructure)
-3. Send to Claude vision with presentation-specific prompts
+3. Send to the model vision with presentation-specific prompts
 
 Storage: Processed content is stored in Supabase Storage. Chunks are also
 stored in Supabase Storage for RAG retrieval.
@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from app.providers.supabase import storage_service
-from app.sources.tokens import needs_embedding
+from app.sources.tokens import get_embedding_info
 from app.sources.embedding import process_embeddings
 from app.sources.summary import generate_summary
 
@@ -29,7 +29,7 @@ def process_pptx(
     source_service
 ) -> Dict[str, Any]:
     """
-    Process a PPTX file - convert to PDF, analyze slides with Claude vision.
+    Process a PPTX file - convert to PDF, analyze slides with the selected vision model.
 
     Args:
         project_id: The project UUID
@@ -131,7 +131,7 @@ def _process_embeddings(
     """
     try:
         # Get embedding info (always embeds, token count used for chunking)
-        _, token_count, reason = needs_embedding(text=processed_text)
+        _, token_count, reason = get_embedding_info(text=processed_text)
 
         # Update status to "embedding" before starting
         source_service.update_source(project_id, source_id, status="embedding")

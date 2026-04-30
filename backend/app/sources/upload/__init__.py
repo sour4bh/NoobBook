@@ -1,1 +1,1 @@
-"""Source upload skeleton; owner NBB-402 lands `sources/upload/file.py`."""
+"""Source upload entry points for files, URLs, text, and existing files."""

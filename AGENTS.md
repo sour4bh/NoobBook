@@ -301,9 +301,10 @@ tables must stay behind project/workspace route guards.
 
 Paths below describe current on-disk locations after the structure migration.
 `backend/data/prompts/`, `backend/app/services/`, and `backend/app/utils/` are
-retired no-return roots in `STRUCTURE.md`; do not add files there. Prompt JSON
-lives in domain-owned `prompts/` directories. Tool contracts are Python
-`ToolSpec`s in domain-owned `tools/specs.py` modules. Both resolve through
+retired no-return roots in `STRUCTURE.md`; do not add files there. Built-in
+prompts live as Python `PromptSpec`s in domain-owned `prompt.py` modules and
+render through `backend/app/config/prompt.py`. Tool contracts are Python
+`ToolSpec`s in domain-owned `tools/specs.py` modules and resolve through
 `backend/app/config/asset.py`.
 
 ```
@@ -311,12 +312,12 @@ data/
 └── projects/{id}/agents/         # Debug logs only (optional)
     └── web_agent/{execution_id}.json
 
-app/**/prompts/                   # Domain-owned prompt configurations
-├── chat/prompts/default_prompt.json
-├── chat/memory/prompts/memory_prompt.json
-├── sources/{pdf,pptx,image,link}/prompts/
-├── sources/analysis/{csv,database,freshdesk,jira,mcp,mixpanel,research}/prompts/
-└── studio/**/prompts/
+app/**/prompt.py                  # Domain-owned typed prompt definitions
+├── chat/prompt.py
+├── chat/memory/prompt.py
+├── sources/{prompt.py,pdf/prompt.py,pptx/prompt.py,image/prompt.py,link/prompt.py}
+├── sources/analysis/{csv,database,freshdesk,research}/prompt.py
+└── studio/**/prompt.py
 
 app/**/tools/specs.py             # Domain-owned typed tool definitions
 ├── chat/tools/specs.py
@@ -668,8 +669,9 @@ code must target that runtime boundary instead of importing raw Claude service
 methods, Anthropic response parsers, or static tool JSON from domain code.
 
 New tools are domain-owned Pydantic `ToolSpec`s; provider adapters compile
-those specs to Anthropic/OpenAI schemas. Prompt JSON remains content/config
-data, but its loaded shape is validated through typed prompt specs.
+those specs to Anthropic/OpenAI schemas. Built-in prompts are domain-owned
+Python `PromptSpec`s rendered through `app.config.prompt`; JSON is allowed only
+for external or persisted user data such as project custom prompts.
 
 New integrations must live in domain-owned homes such as `sources/`, `chat/`,
 `studio/`, `providers/`, or `connectors/`, not former mechanism buckets under
@@ -727,7 +729,7 @@ FOR FILE-TYPE SPECIFIC:
 ### Runtime Template
 
 ```python
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.agents.runtime import (
     RunLimits,
     RunMessage,
@@ -739,18 +741,18 @@ from app.chat.tools.specs import source_search_tool
 
 
 def answer(project_id: str, user_text: str) -> str:
-    prompt = prompt_loader.get_prompt_config("default")
+    prompt = render_prompt("default", project_id=project_id)
     result = run_with_provider(
         RunRequest(
-            provider=prompt["provider"],
-            model=prompt["model"],
+            provider=prompt.provider,
+            model=prompt.model,
             purpose="chat",
-            system_prompt=prompt["system_prompt"],
+            system_prompt=prompt.system_prompt,
             messages=[RunMessage(role="user", content=[TextPart(text=user_text)])],
             tools=[source_search_tool()],
             limits=RunLimits(
-                max_output_tokens=prompt["max_tokens"],
-                temperature=prompt["temperature"],
+                max_output_tokens=prompt.max_tokens,
+                temperature=prompt.temperature,
             ),
             project_id=project_id,
         )

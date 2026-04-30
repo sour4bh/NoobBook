@@ -19,6 +19,7 @@ The backend root list is finalized. Every backend file belongs under exactly one
 | `backend/app/workspaces/` | Workspace ownership, workspace membership, invite/session context, and workspace-scoped capability checks. |
 | `backend/app/projects/` | Project domain behavior and project store. |
 | `backend/app/chat/` | Chat loop, streaming, memory invocation, chat persistence coordination. |
+| `backend/app/agents/` | Typed model/tool runtime contracts and shared provider-neutral agent-loop mechanics. |
 | `backend/app/sources/` | Source ingestion, search, citation, extraction, indexing, and analysis. |
 | `backend/app/studio/` | Studio generation items and studio job/tool/run behavior. |
 | `backend/app/brand/` | Brand config and brand asset ownership. |
@@ -54,9 +55,10 @@ api/ -> domain public surfaces -> connector public surfaces -> provider clients
 ```
 
 - `api/` route modules may import domain public surfaces, not domain internals.
+- `agents/runtime` may import provider-neutral contracts, domain-provided tool handlers through explicit `ToolSpec`s, and provider adapters through the `ProviderAdapter` protocol. It must not own product tools, prompts, persistence, or provider SDK clients.
 - Domains may depend on other domains' public surfaces only when the ticket body calls for it. Domains must not reach into another domain's internals.
 - Connectors wrap providers into configured product capabilities and expose tool surfaces to domains.
-- Domains may depend on `providers/` directly only for provider-neutral runtime primitives (for example HTTP clients, storage adapters, Claude API primitives). Product-specific integrations must pass through `connectors/`.
+- Domains may depend on `providers/` directly only for provider-neutral runtime primitives (for example HTTP clients, storage adapters, and provider adapters behind `agents/runtime`). Product-specific integrations must pass through `connectors/`.
 - `providers/` does not import from `api/`, domains, or `connectors/`.
 - `base/` does not import from `api/`, any domain, `connectors/`, or `providers/`.
 
@@ -99,7 +101,7 @@ New backend behavior lands under its domain root from the Canonical Backend Root
 table above. Historical migration sources named in root charters are not live
 destinations; read the charter before adding or moving a file.
 
-External clients and SDK wrappers follow the providers/connectors split defined by `NBB-206`. Background task behavior lives under the background owner defined by `NBB-210`. Prompt JSON and tool JSON live in domain-owned directories and resolve through the asset registry; `backend/data/prompts/` and `backend/app/services/tools/` are retired.
+External clients and SDK wrappers follow the providers/connectors split defined by `NBB-206`. Background task behavior lives under the background owner defined by `NBB-210`. Built-in prompts live as typed `PromptSpec`s in domain-owned `prompt.py` modules, and tool contracts live as typed `ToolSpec`s in domain-owned `tools/specs.py` modules. Tool specs resolve through the asset registry; prompts resolve through `app.config.prompt` discovery. `backend/data/prompts/` and `backend/app/services/tools/` are retired.
 
 ## Placement Checklist (canonical)
 
@@ -107,12 +109,13 @@ Reviewers and authors run this checklist for every new file. If any row fails, t
 
 1. **Domain ownership is identifiable.** The file has exactly one domain owner (chat, sources, studio, auth, projects, brand, settings, background, connectors, providers). "Utilities" is not a domain.
 2. **Not in a frozen destination.** The target path is not inside any directory in the frozen list above, and is not a new file directly under `backend/app/services/` or `backend/app/utils/`.
-3. **Path reflects the owning concept, not the mechanism.** Name the directory after what the code is *about* (`chat/`, `sources/ingestion/`, `studio/<category>/`), not after how it is implemented (`agents/`, `ai_services/`, `executors/`).
+3. **Path reflects the owning concept, not the mechanism.** Name the directory after what the code is *about* (`chat/`, `sources/ingestion/`, `studio/<category>/`), not after how it is implemented (`ai_services/`, `executors/`). The only approved `agents/` root is `backend/app/agents/runtime`, which is a contract boundary for model/tool orchestration, not a product-behavior bucket.
 4. **External edge respected.** Low-level external clients sit under `providers/`; product-configured capabilities sit under `connectors/`; domain behavior does not reach into another domain's internals.
 5. **Shared or base boundaries are earned.** New `base/` or `<domain>/shared/` files cite the `NBB-104` charter rule (3+ concrete consumers, no better owner). Preemptive `shared/` directories are not created.
-6. **Prompt/tool JSON follows owning domains.** New prompt JSON is not added under frozen `backend/data/prompts/`; new tool JSON is not added under retired `backend/app/services/tools/`. Tool JSON now lives in domain-owned `tools/` directories and resolves through the asset registry.
-7. **Frontend features land under owning subtrees.** New feature-specific React code lives under its feature subtree (for example `frontend/src/components/chat/`, `frontend/src/components/sources/`, `frontend/src/components/studio/`), not in shell buckets such as `frontend/src/components/`, `frontend/src/hooks/`, `frontend/src/lib/`, or `frontend/src/contexts/` whose meaning `NBB-105` tightens. The legacy `frontend/src/components/hooks/` directory was removed by `NBB-602`; it remains in the frozen list above only as a CI guardrail entry.
-8. **Refactory used for moves.** If this file is reached by moving or renaming an existing module, the movement ticket uses the refactory MCP plugin and records the operation in `docs/tickets/move-plan.csv` per `docs/tickets/README.md`.
+6. **Prompt and tool contracts follow owning domains.** New built-in prompts are Python `PromptSpec`s in the owning domain's `prompt.py`, not checked-in JSON files. New tool contracts are Python `ToolSpec`s in the owning domain's `tools/specs.py`, not checked-in JSON files under retired `backend/app/services/tools/`.
+7. **Agent runtime remains contract-only.** New model/tool loop mechanics may land under `backend/app/agents/runtime`; product tools, prompt text, source/studio/chat behavior, persistence, and raw SDK clients stay in their owning domains or providers.
+8. **Frontend features land under owning subtrees.** New feature-specific React code lives under its feature subtree (for example `frontend/src/components/chat/`, `frontend/src/components/sources/`, `frontend/src/components/studio/`), not in shell buckets such as `frontend/src/components/`, `frontend/src/hooks/`, `frontend/src/lib/`, or `frontend/src/contexts/` whose meaning `NBB-105` tightens. The legacy `frontend/src/components/hooks/` directory was removed by `NBB-602`; it remains in the frozen list above only as a CI guardrail entry.
+9. **Refactory used for moves.** If this file is reached by moving or renaming an existing module, the movement ticket uses the refactory MCP plugin and records the operation in `docs/tickets/move-plan.csv` per `docs/tickets/README.md`.
 
 If the answer to any row is "I am not sure," stop and check the owning ticket in `docs/tickets/epics/*.md` instead of guessing a path.
 

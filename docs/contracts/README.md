@@ -93,7 +93,7 @@ acceptance, and project sharing.
 
 **Backend owner:**
 - Transport: `backend/app/api/messages/routes.py::stream_message` (framing via `_format_sse`)
-- Event producer: `app.chat.loop.ChatLoop._run_message_flow` and streaming bridge `app.chat.streaming.iter_chat_events` / `app.chat.streaming.call_claude`; emit machinery `app.chat.persistence.emit_event`
+- Event producer: `app.chat.loop.ChatLoop._run_message_flow` and streaming bridge `app.chat.streaming.iter_chat_events` / `app.chat.streaming.call_model`; emit machinery `app.chat.persistence.emit_event`
 - DTO: `backend/app/chat/contracts.py::ChatStreamEvent`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts` (SSE reader used by the chat view)
@@ -155,8 +155,8 @@ through `ChatStreamEvent` before writing the SSE frame. Unknown event names, non
   assert every emitted chunk starts with `event: <name>\ndata: ` and ends with `\n\n`;
   assert the event sequence always begins with `user_message` and terminates with
   either `assistant_done` or `error`.
-- Piggyback on `backend/tests/conftest.py` Claude mock fixture used by
-  NBB-106 route smokes and NBB-109 cost tests; mock `app.chat.loop.ChatLoop._call_claude`
+- Piggyback on `backend/tests/conftest.py` provider mock fixture used by
+  NBB-106 route smokes and NBB-109 cost tests; mock `app.chat.streaming.call_model`
   to emit known deltas.
 
 ---
@@ -164,7 +164,7 @@ through `ChatStreamEvent` before writing the SSE frame. Unknown event names, non
 ## Contract 2 - Citation marker and lookup format
 
 **Backend owner:**
-- Marker producer: Claude model output (system prompt in registered default prompt JSON)
+- Marker producer: model output (system prompt rendered from the default chat `PromptSpec`)
 - Chunk ID format: `backend/app/sources/citations.py::parse_chunk_id` (regex `^(.+)_page_(\d+)_chunk_(\d+)$`)
 - Lookup endpoint: `backend/app/api/sources/content.py::get_citation_content` at
   `GET /api/v1/projects/<project_id>/citations/<chunk_id>`
@@ -235,47 +235,47 @@ GET /api/v1/projects/p1/citations/abc_chunk_2
 ## Contract 3 - Chat tool invocation/result wire format
 
 **Backend owner:**
-- Serialization: `backend/app/providers/anthropic/content.py::serialize_content_blocks` and
-  `::build_tool_result_content`
-- Schema loading: `backend/app/config/tool.py`
+- Runtime parts: `backend/app/agents/runtime/contract.py::ContentPart`
+- Storage validation: `backend/app/chat/contracts.py::MessageContent`
+- Legacy row migration: `backend/app/chat/message/store.py`
 
 **Frontend consumer:** The chat renderer indirectly via `messages.content` blocks
-returned inside the saved message row. No direct tool-call UI today.
+returned inside the saved message row. No direct tool-call UI today; raw-message
+debug UI displays the same neutral parts.
 
-**Compatibility expectation:** Six discriminated `type` values are frozen:
-`text`, `tool_use`, `tool_result`, `server_tool_use`, `web_search_tool_result`,
-`web_fetch_tool_result`. The `tool_use_id` field pairs `tool_use` blocks to their
-matching `tool_result` block.
+**Compatibility expectation:** Five runtime discriminated `type` values are the
+current internal contract: `text`, `media`, `tool_call`, `tool_result`, and
+`provider_metadata`. `tool_result.call_id` pairs a result to the matching
+`tool_call.call_id`. Old Anthropic block names (`tool_use`, `server_tool_use`,
+provider web result blocks) are accepted only as storage-edge migration input.
 
-**Block union (from `serialize_content_blocks`):**
+**Block union:**
 
 ```jsonc
-// tool_use (client-side tool, e.g. search_sources)
-{"type": "tool_use", "id": "toolu_01", "name": "search_sources",
- "input": {"source_id": "abc", "query": "revenue"}}
+// local tool call, e.g. search_sources
+{"type": "tool_call", "call_id": "toolu_01", "name": "search_sources",
+ "arguments": {"source_id": "abc", "query": "revenue"}}
 
-// tool_result paired by tool_use_id
-{"type": "tool_result", "tool_use_id": "toolu_01",
+// tool_result paired by call_id
+{"type": "tool_result", "call_id": "toolu_01", "name": "search_sources",
  "content": "<JSON or text payload>", "is_error": false}
 
-// server_tool_use (Claude-side, e.g. web_fetch/web_search)
-{"type": "server_tool_use", "id": "srvu_01", "name": "web_fetch",
- "input": {"url": "https://example.com"}}
+// provider-specific continuation or hosted-tool metadata
+{"type": "provider_metadata", "provider": "openai",
+ "values": {"type": "reasoning", "encrypted_content": "..."}}
 
-// server-side results
-{"type": "web_search_tool_result", "tool_use_id": "srvu_01",
- "content": [{"url": "...", "title": "...", "cited_text": "..."}]}
-{"type": "web_fetch_tool_result", "tool_use_id": "srvu_01",
- "content": {"type": "...", "url": "...", "content": {...}}}
+// source media passed through the runtime
+{"type": "media", "kind": "document", "media_type": "application/pdf",
+ "title": "deck.pdf - Page 3", "data": "..."}
 ```
 
 **Minimal valid example:**
 
 ```json
 [
-  {"type": "tool_use", "id": "toolu_01", "name": "search_sources",
-   "input": {"source_id": "abc"}},
-  {"type": "tool_result", "tool_use_id": "toolu_01",
+  {"type": "tool_call", "call_id": "toolu_01", "name": "search_sources",
+   "arguments": {"source_id": "abc"}},
+  {"type": "tool_result", "call_id": "toolu_01", "name": "search_sources",
    "content": "[{\"chunk_id\":\"abc_page_1_chunk_0\",\"content\":\"...\"}]"}
 ]
 ```
@@ -283,20 +283,18 @@ matching `tool_result` block.
 **Realistic current-production example:** See Contract 9 (`messages.content`) for a
 realistic multi-block conversation snippet.
 
-**Invalid example:** `build_tool_result_content` coerces non-string `result` values via
-`str(result)`, so a bad payload is not hard-rejected; however, the Anthropic API will
-400 on an orphaned `tool_use` without a matching `tool_result`. The message_service
-error path in `app.chat.loop.ChatLoop._run_message_flow` always writes a
-`tool_result` even on tool failure. An invalid sequence — `tool_use` stored without a
-following `tool_result` — breaks the next Claude call and is therefore the observed
-failure mode.
+**Invalid example:** New writes with unknown discriminators fail
+`MessageContent` validation before reaching the database. Tool sequence validity
+still matters: an assistant `tool_call` without a paired user `tool_result` breaks
+the next provider replay. The runtime/chat loop therefore writes a paired
+`tool_result` even on recoverable tool failure.
 
 **Test plan:**
-- Extend `backend/tests/test_claude_parsing_utils.py` (existing; maps to `app.providers.anthropic.response_parser`) to unit-cover
-  each of the six block types through `serialize_content_blocks` and
-  `build_tool_result_content`.
-- Integration case in the NBB-106 test app: send a mocked `tool_use` response, verify
-  the stored message row contains `[tool_use, tool_result]` in order and matching ids.
+- Cover persisted message normalization in `backend/tests/chat/`, including
+  legacy Anthropic-shaped rows at the storage edge.
+- Integration case in the NBB-106 test app: send a mocked tool-call response,
+  verify the stored message row contains paired runtime `tool_call` and
+  `tool_result` parts in order and with matching ids.
 
 ---
 
@@ -544,7 +542,7 @@ creation flips it.
 **Invalid example (runtime validation exists):** Any signal with a `studio_item` outside
 the enum is dropped by `StudioSignalExecutor.emit` with a warning log; the row is
 never written. An all-invalid input returns
-`{"success": false, "message": "No valid signals to store"}` to Claude.
+`{"success": false, "message": "No valid signals to store"}` to the model.
 
 **Test plan:**
 - `backend/tests/test_studio_signal_executor.py` (new): call `.emit(...)` with (a)
@@ -558,28 +556,26 @@ never written. An all-invalid input returns
 ## Contract 8 - `projects.costs` JSONB shape
 
 **Backend owner:**
-- Writer: `backend/app/providers/anthropic/cost.py::_apply_usage` and `::update_project_costs`
-- Default/ensure: `::_get_default_costs`, `::_ensure_cost_structure`
+- Writer: `backend/app/agents/runtime/cost.py::record_result_usage` and `::add_usage`
+- Default/ensure: `::get_default_costs`, `::ensure_cost_structure`
 - Read endpoint: `backend/app/api/projects/costs.py::get_project_costs_endpoint`
 - DTO: `backend/app/projects/contracts.py::ProjectCostsResponse`
 
 **Frontend consumer:** `frontend/src/lib/api/projects.ts` (ProjectHeader tooltip)
 
 **Compatibility expectation:** Top-level keys `total_cost` and `by_model` are frozen.
-Every model bucket key in `_MODEL_KEYS = ("opus", "sonnet", "haiku")` is always
-initialized, even if never used. Per-bucket keys `input_tokens`, `output_tokens`,
-`cost` are frozen. `chats.costs` mirrors this shape (see `backend/app/chat/CHARTER.md`).
+`by_model` is keyed by `"{provider}:{model}"` and may start empty. Per-bucket
+keys `provider`, `model`, `input_tokens`, `output_tokens`,
+`cache_creation_input_tokens`, `cache_read_input_tokens`, `provider_units`, and
+`cost` are frozen. `chats.costs` mirrors this shape (see
+`backend/app/chat/CHARTER.md`).
 
 **Minimal valid example:**
 
 ```json
 {
   "total_cost": 0.0,
-  "by_model": {
-    "opus":   {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-    "sonnet": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-    "haiku":  {"input_tokens": 0, "output_tokens": 0, "cost": 0.0}
-  }
+  "by_model": {}
 }
 ```
 
@@ -589,24 +585,43 @@ initialized, even if never used. Per-bucket keys `input_tokens`, `output_tokens`
 {
   "total_cost": 0.0234,
   "by_model": {
-    "opus":   {"input_tokens": 0,    "output_tokens": 0,    "cost": 0.0},
-    "sonnet": {"input_tokens": 5000, "output_tokens": 1500, "cost": 0.0225},
-    "haiku":  {"input_tokens": 2000, "output_tokens": 500,  "cost": 0.0009}
+    "anthropic:claude-sonnet-4-6": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 5000,
+      "output_tokens": 1500,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "provider_units": {},
+      "cost": 0.0225
+    },
+    "openai:gpt-5-mini": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "input_tokens": 2000,
+      "output_tokens": 500,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 1200,
+      "provider_units": {"cached_tokens": 1200, "reasoning_tokens": 100},
+      "cost": 0.0009
+    }
   }
 }
 ```
 
-**Invalid example (runtime validation exists):** `_ensure_cost_structure` repairs any
-JSONB read whose `total_cost` or `by_model` keys are missing (zero-fills). Unknown
-model strings collapse to `"sonnet"` via `_get_model_key`. The read endpoint validates
-the public payload through `ProjectCostsResponse`; malformed buckets fail before
-crossing the API boundary.
+**Invalid example (runtime validation exists):** `ensure_cost_structure` repairs
+any JSONB read whose `total_cost` or `by_model` keys are missing. Legacy
+`opus`/`sonnet`/`haiku` buckets normalize to `anthropic:<bucket>`, but new
+runtime writes always use complete provider/model keys. The read endpoint
+validates the public payload through `ProjectCostsResponse`; malformed buckets
+fail before crossing the API boundary.
 
 **Test plan:**
-- Reuse `backend/tests/test_claude_cost_tracking.py` and `test_cost_tracking.py` from
-  `NBB-109`. Add a contract assertion: given a project with empty costs, after a call
-  with `model="claude-sonnet-4-5-20250929"` the persisted row has exactly the three
-  `by_model` keys above and `total_cost == sonnet.cost`.
+- Reuse `backend/tests/test_claude_cost_tracking.py` and
+  `backend/tests/test_cost_tracking.py`. Add a contract assertion: given a
+  project with empty costs, after an Anthropic or OpenAI runtime call the
+  persisted row contains a single `provider:model` bucket and `total_cost`
+  equals that bucket's cost.
 
 ---
 
@@ -614,19 +629,18 @@ crossing the API boundary.
 
 **Backend owner:**
 - Writer: `backend/app/chat/message/store.py` (via
-  `app.providers.anthropic.content.serialize_content_blocks` and `build_tool_result_content`)
+  provider-neutral runtime content parts)
 - Reader: `backend/app/chat/message/store.py::build_api_messages`
 - DTO: `backend/app/chat/contracts.py::MessageContent`
 
 **Frontend consumer:** `frontend/src/lib/api/chats.ts`; the chat renderer parses
-`text` blocks for `[[cite:...]]` markers and ignores `tool_use`/`tool_result` blocks.
+`text` blocks for `[[cite:...]]` markers and ignores `tool_call`/`tool_result` parts.
 
-**Compatibility expectation:** `messages.content` is an array of Claude content blocks.
-The accepted `type` discriminators are identical to Contract 3 (`text`, `tool_use`,
-`tool_result`, `server_tool_use`, `web_search_tool_result`, `web_fetch_tool_result`).
-Role is `"user" | "assistant"`. `tool_result` blocks are stored on `user`-role rows;
-`tool_use` blocks are stored on `assistant`-role rows. This pairing is what
-`build_api_messages` replays to Claude.
+**Compatibility expectation:** `messages.content` is an array of neutral runtime
+content parts. The accepted `type` discriminators are identical to Contract 3
+(`text`, `media`, `tool_call`, `tool_result`, `provider_metadata`). Role is
+`"user" | "assistant"`. Old Anthropic-shaped rows are normalized at the chat
+storage edge before API serialization or provider replay.
 
 **Minimal valid example:**
 
@@ -637,16 +651,16 @@ Role is `"user" | "assistant"`. `tool_result` blocks are stored on `user`-role r
 **Realistic current-production example (full turn with tool use):**
 
 ```json
-// assistant row #1: text + tool_use in same turn
+// assistant row #1: text + tool_call in same turn
 [
   {"type": "text", "text": "Let me search the sources."},
-  {"type": "tool_use", "id": "toolu_01", "name": "search_sources",
-   "input": {"source_id": "a1b2", "query": "revenue Q3"}}
+  {"type": "tool_call", "call_id": "toolu_01", "name": "search_sources",
+   "arguments": {"source_id": "a1b2", "query": "revenue Q3"}}
 ]
 
-// user row #2: tool_result paired by tool_use_id
+// user row #2: tool_result paired by call_id
 [
-  {"type": "tool_result", "tool_use_id": "toolu_01",
+  {"type": "tool_result", "call_id": "toolu_01", "name": "search_sources",
    "content": "[{\"chunk_id\":\"a1b2_page_5_chunk_2\",\"content\":\"...\"}]"}
 ]
 
@@ -666,7 +680,7 @@ on tool exceptions.
 **Test plan:**
 - Shared with Contract 3. Add one round-trip assertion: write a message row with each
   block-type via `message_service.add_message`, then call `build_api_messages` and
-  assert the replay matches the Anthropic message-sequence rules
+  assert replay preserves tool-call/result pairing for provider adapters.
   (user/assistant alternation, paired ids). File: `backend/tests/test_messages_content_contract.py` (new).
 
 ---
@@ -729,58 +743,57 @@ Partial-fetch failures are still swallowed per existing behavior.
 
 ---
 
-## Contract 11 - Tool-schema JSON contract
+## Contract 11 - Typed tool contract
 
 **Backend owner:**
-- Loader: `backend/app/config/tool.py` (NBB-207A)
-- Registered asset paths: domain-owned `tools/` directories mapped by
+- Loader: `backend/app/config/tool.py`
+- Contract type: `backend/app/agents/runtime/tool.py::ToolSpec`
+- Registered asset paths: domain-owned `tools/specs.py` modules mapped by
   `backend/app/config/asset.py`
 
-**Frontend consumer:** None directly. Tool schemas are consumed by Claude; the
-frontend sees their effects through `tool_use` / `tool_result` blocks (Contract 3).
+**Frontend consumer:** None directly. Tool specs are consumed by provider
+adapters; the frontend sees their effects through runtime `tool_call` /
+`tool_result` parts (Contract 3).
 
-**Compatibility expectation:** Each file is a single JSON object conforming to
-Anthropic's tool schema: `{"name": str, "description": str, "input_schema":
-{"type": "object", "properties": {...}, "required": [...]}}`. Schema versioning is by
-filename and directory; the loader registry in NBB-207A governs path portability
-during migration.
+**Compatibility expectation:** Each tool is a domain-owned Python `ToolSpec`
+with a stable registry name, model-visible name, description, Pydantic input
+model, optional Pydantic output model, and handler or provider-hosted metadata.
+Provider adapters compile the same spec to Anthropic tool schemas or OpenAI
+strict function schemas. Static JSON under `backend/app/**/tools/*.json` is not
+the source of truth.
 
-**Minimal valid example (from `chat_tools/source_search_tool.json`):**
+**Minimal valid example (from `backend/app/chat/tools/specs.py`):**
 
-```json
-{
-  "name": "search_sources",
-  "description": "Search for information in ...",
-  "input_schema": {
-    "type": "object",
-    "properties": {
-      "source_id": {"type": "string", "description": "..."},
-      "keywords": {"type": "array", "items": {"type": "string"}},
-      "query":    {"type": "string"}
-    },
-    "required": ["source_id"]
-  }
-}
+```python
+ToolSpec(
+    name="search_sources",
+    description="Search project sources.",
+    input_model=SourceSearchInput,
+    output_model=SourceSearchOutput,
+    handler=search_sources,
+)
 ```
 
-**Realistic current-production example:** tool JSON files live beside their
-owning domains, such as `backend/app/chat/tools/source_search_tool.json`,
-`backend/app/chat/memory/tools/memory_tool.json`,
-`backend/app/connectors/jira/tools/jira_search_issues.json`, and
-`backend/app/studio/signal/tools/studio_signal_tool.json`. Legacy loader
-category keys are preserved by registry mappings, not by directory layout.
+**Realistic current-production example:** typed specs live beside their owning
+domains, such as `backend/app/chat/tools/specs.py`,
+`backend/app/chat/memory/tools/specs.py`,
+`backend/app/connectors/jira/tools/specs.py`, and
+`backend/app/studio/signal/tools/specs.py`. Legacy loader category keys are
+preserved by registry mappings, not by directory layout.
 
-**Invalid example (runtime validation exists):** The Anthropic API rejects any request
-whose `tools[]` array fails JSON-schema validation against its `input_schema`. A
-missing `name` or malformed `input_schema` surfaces as a 400 from Claude on the first
-call that includes the tool; our loader does not currently pre-validate shape.
+**Invalid example (runtime validation exists):** Runtime tool execution validates
+model arguments against the `ToolSpec.input_model` before calling the handler.
+Provider compilation tests assert Anthropic and OpenAI schemas come from the
+same Pydantic source and reject extra properties where the provider supports
+strict mode.
 
 **Test plan:**
-- Extend `backend/tests/config/test_tool_loader_registry.py` (owned by NBB-207A) with a per-file
-  structural check: every registered tool `*.json` must parse as JSON and carry
-  `name`, `description`, and `input_schema.type == "object"`. Place
-  the NBB-205-owned assertion in `backend/tests/test_tool_schema_contract.py` (new) so
-  ownership is clear.
+- `backend/tests/config/test_tool_loader_registry.py` verifies registry coverage
+  and hosted/local splits.
+- `backend/tests/agents/test_runtime_contracts.py` verifies Pydantic schema
+  strictness and invalid input rejection.
+- `backend/tests/agents/test_provider_selection.py` verifies one `ToolSpec`
+  compiles for Anthropic and OpenAI.
 
 ---
 
@@ -1046,7 +1059,7 @@ non-list + non-null as a bug and will raise. In practice the upstream writers
   (b) `[]` stored -> zero sources in context;
   (c) `["<id>"]` stored -> exactly that subset reaches `app.config.context.context_loader`.
   Reuse the NBB-106 route-smoke test app + a mock for
-  `app.chat.loop.ChatLoop._call_claude`.
+  `app.chat.streaming.call_model`.
 
 ---
 

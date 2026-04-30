@@ -492,3 +492,4 @@ NBB-902,python,backend/app/config/tier_loader.py,backend/app/config/provider.py,
 NBB-902,python,backend/app/config/tool_loader.py,backend/app/config/tool.py,,,python_module_move,manual
 NBB-902,python,backend/tests/config/test_asset_registry.py,backend/tests/config/test_asset.py,,,python_module_move,manual
 NBB-1007,typescript,frontend/src/components/settings/sections/TeamSection.tsx,frontend/src/components/settings/sections/WorkspaceMembersSection.tsx,,,typescript_module_move,manual
+NBB-1110,python,backend/app/providers/anthropic/cost.py,backend/app/agents/runtime/cost.py,,,python_module_move,manual

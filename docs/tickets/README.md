@@ -1,6 +1,6 @@
 # NoobBook Structure Migration Backlog
 
-This backlog is organized as ten epics with embedded child tickets. Epic files are the human-readable source of truth. `tickets.csv` is the machine-readable index for planning views and validation scripts.
+This backlog is organized as eleven epics with embedded child tickets. Epic files are the human-readable source of truth. `tickets.csv` is the machine-readable index for planning views and validation scripts.
 
 The previous flat ticket set has been archived under `docs/tickets/archive/legacy-flat/` before the new overlapping epic IDs were introduced.
 
@@ -10,7 +10,7 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 
 | Range | Meaning |
 |---|---|
-| `NBB-001` through `NBB-010` | Epics |
+| `NBB-001` through `NBB-011` | Epics |
 | `NBB-101` through `NBB-109`, including `NBB-108A/B` | Foundation tasks |
 | `NBB-201` through `NBB-210`, including split tasks `NBB-202A/B`, `NBB-207A/B/C`, `NBB-208A/B`, and `NBB-209A-E` | Central policy, safety, and boundary tasks |
 | `NBB-301` through `NBB-304` | Chat migration tasks |
@@ -21,12 +21,16 @@ Ticket bodies are the implementation source of truth. Audit files, archived tick
 | `NBB-801` through `NBB-813` | Post-sprint services eradication and final frozen-root enforcement tasks |
 | `NBB-901` through `NBB-918` | Deferred closure and runtime/security/contract hardening tasks |
 | `NBB-1001` through `NBB-1008` | Workspace membership and private-project sharing tasks |
+| `NBB-1101` through `NBB-1113` | Typed agent runtime and multi-provider LLM layer tasks |
 
 ## Core Policies
 
 - `backend/app/api` remains the transport boundary in this migration. Route files parse HTTP, run guards, call domain public surfaces, and format responses. Route movement is tracked in `DEFERRED.md`.
 - New backend code should move toward domain roots rather than mechanism buckets such as `services/`, `utils/`, `ai_agents/`, `ai_services/`, `tool_executors/`, `services/tools/`, or `backend/data/prompts/`.
-- Prompt JSON and tool JSON live in domain-owned directories and resolve through the asset registry. `backend/data/prompts/` and `backend/app/services/tools/` are retired no-return roots.
+- Built-in prompts live as domain-owned typed Python `PromptSpec` modules with
+  centralized rendering. Tool contracts live as typed Python `ToolSpec`s in
+  domain-owned `tools/specs.py` modules. `backend/data/prompts/` and
+  `backend/app/services/tools/` are retired no-return roots.
 - `platform/files/` and `providers/files/` are not dumping grounds. Low-level external API clients and SDK wrappers belong under `providers/`; configured product capabilities belong under `connectors/`; source format operations belong under `sources/`; studio export/screenshot support belongs under `studio/`.
 - `base/` and every `shared/` family require narrow charters from `NBB-104`.
 - Temporary shims are allowed during migration, but `NBB-706` must remove forwarding-only modules unless a documented compatibility boundary remains.
@@ -70,6 +74,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | Epic 008 Services eradication | Starts after `NBB-706`; drains every remaining tracked `backend/app/services/` resident and ends with verifier rules that reject retired services/utils/prompt roots and `app.services.*` / `app.utils.*` imports |
 | Epic 009 Deferred closure | Starts after `NBB-813`; closes selected runtime/auth/project/frontend/source-analysis risks, then resolves or narrows the remaining security and cross-stack contract risks through the `NBB-910`-`NBB-918` wave |
 | Epic 010 Workspace membership | Starts after `NBB-918`; resolves the narrowed `D-005` residual by adding workspaces, signed invites, private project membership, workspace-scoped settings, and frontend membership flows; reconciled by `NBB-1008` |
+| Epic 011 Typed agent runtime | Starts after `NBB-1008`; replaces Anthropic-shaped AI integration with typed runtime contracts, Anthropic/OpenAI provider adapters, Pydantic tool specs, and no-duplication guardrails |
 
 ## Epics
 
@@ -85,6 +90,7 @@ See `GRAPH.md` for execution waves generated from the machine-readable graph.
 | `NBB-008` | Services Eradication and Final Boundary Enforcement | `docs/tickets/epics/NBB-008.md` |
 | `NBB-009` | Deferred Closure and Runtime Hardening | `docs/tickets/epics/NBB-009.md` |
 | `NBB-010` | Workspace Membership and Project Sharing | `docs/tickets/epics/NBB-010.md` |
+| `NBB-011` | Typed Agent Runtime and Multi-Provider LLM Layer | `docs/tickets/epics/NBB-011.md` |
 
 ## Graph Generation and Validation
 
@@ -109,7 +115,7 @@ python docs/tickets/dag.py --check --write
 `dag.py --check` automates the machine-checkable CSV rules. Reviewers still verify manually:
 
 - old flat tickets are archived under `docs/tickets/archive/legacy-flat/`
-- exactly ten epic files exist
+- exactly eleven epic files exist
 - `D-002` states raw-code CSV analysis was replaced by `NBB-907`
 - `GRAPH.md` matches `dag.py --write` output
 - no stale branch-only or old-fork clone guidance remains in new ticket docs
@@ -120,7 +126,7 @@ python docs/tickets/dag.py --check --write
 - no empty-`utils/` criterion appears without approved exceptions
 - no unresolved studio category placeholder remains
 - no `base/` or `shared/` proposal appears without a linked charter
-- no prompt/tool JSON move lands outside a registered domain-owned prompt/tool directory
+- no built-in prompt spec or typed tool-spec move lands outside its owning domain directory
 - no permanent forwarding-only wrapper is accepted
 - every task body includes `**Primary write scope:**`
 

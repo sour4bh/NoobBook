@@ -53,6 +53,17 @@ Generated from `docs/tickets/tickets.csv` by `python docs/tickets/dag.py --write
 | 44 | `NBB-1006` |
 | 45 | `NBB-1007` |
 | 46 | `NBB-1008` |
+| 47 | `NBB-1101` |
+| 48 | `NBB-1102` |
+| 49 | `NBB-1103` |
+| 50 | `NBB-1104` |
+| 51 | `NBB-1105` |
+| 52 | `NBB-1106`, `NBB-1109` |
+| 53 | `NBB-1107`, `NBB-1108` |
+| 54 | `NBB-1110` |
+| 55 | `NBB-1111` |
+| 56 | `NBB-1112`, `NBB-1113` |
+| 57 | `NBB-1114` |
 
 ## Mermaid Task Dependency DAG
 
@@ -331,6 +342,37 @@ flowchart LR
   NBB1006 --> NBB1007
   NBB1008["NBB-1008"]:::p1
   NBB1007 --> NBB1008
+  NBB1101["NBB-1101"]:::p1
+  NBB1008 --> NBB1101
+  NBB1102["NBB-1102"]:::p1
+  NBB1101 --> NBB1102
+  NBB1103["NBB-1103"]:::p1
+  NBB1102 --> NBB1103
+  NBB1104["NBB-1104"]:::p1
+  NBB1103 --> NBB1104
+  NBB1105["NBB-1105"]:::p1
+  NBB1104 --> NBB1105
+  NBB1106["NBB-1106"]:::p1
+  NBB1105 --> NBB1106
+  NBB1107["NBB-1107"]:::p1
+  NBB1106 --> NBB1107
+  NBB1108["NBB-1108"]:::p1
+  NBB1106 --> NBB1108
+  NBB1109["NBB-1109"]:::p1
+  NBB1105 --> NBB1109
+  NBB1110["NBB-1110"]:::p1
+  NBB1107 --> NBB1110
+  NBB1108 --> NBB1110
+  NBB1109 --> NBB1110
+  NBB1111["NBB-1111"]:::p1
+  NBB1110 --> NBB1111
+  NBB1112["NBB-1112"]:::p1
+  NBB1111 --> NBB1112
+  NBB1113["NBB-1113"]:::p1
+  NBB1111 --> NBB1113
+  NBB1114["NBB-1114"]:::p1
+  NBB1112 --> NBB1114
+  NBB1113 --> NBB1114
 ```
 
 ## Mermaid Milestone Bar Chart
@@ -448,4 +490,19 @@ gantt
   NBB-1006 L :2026-02-14, 1d
   NBB-1007 L :2026-02-15, 1d
   NBB-1008 M :2026-02-16, 1d
+  section NBB-011
+  NBB-1101 S :2026-02-17, 1d
+  NBB-1102 M :2026-02-18, 1d
+  NBB-1103 L :2026-02-19, 1d
+  NBB-1104 XL :2026-02-20, 1d
+  NBB-1105 L :2026-02-21, 1d
+  NBB-1106 XL :2026-02-22, 1d
+  NBB-1109 L :2026-02-22, 1d
+  NBB-1107 XL :2026-02-23, 1d
+  NBB-1108 XL :2026-02-23, 1d
+  NBB-1110 L :2026-02-24, 1d
+  NBB-1111 M :2026-02-25, 1d
+  NBB-1112 M :2026-02-26, 1d
+  NBB-1113 L :2026-02-26, 1d
+  NBB-1114 L :2026-02-27, 1d
 ```

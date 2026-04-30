@@ -40,7 +40,8 @@ services:
       - backend
 
   # --- Database migration (runs once, then exits) ---
-  # Runs init.sql for base schema, then applies numbered migrations in order.
+  # Applies numbered migrations in order. The migration directory is the schema
+  # source of truth for fresh databases.
   # A schema_migrations table tracks which migrations have already been applied,
   # so re-running is safe (idempotent).
   migrate:
@@ -50,7 +51,6 @@ services:
     env_file:
       - ./docker/.env
     volumes:
-      - ./backend/supabase/init.sql:/init.sql:ro
       - ./backend/supabase/migrations:/migrations:ro
     entrypoint: >
       sh -c '
@@ -67,8 +67,9 @@ services:
         HAS_TABLES=$$($$PSQL -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='"'"'public'"'"' AND table_name='"'"'users'"'"')")
 
         if [ "$$HAS_TABLES" = "f" ]; then
-          echo "Fresh database — running init.sql..."
-          $$PSQL -f /init.sql
+          echo "Fresh database — applying migrations from scratch..."
+        else
+          echo "Existing database detected."
         fi
 
         echo "Creating migration tracker..."
@@ -78,8 +79,8 @@ services:
         );"
 
         ROW_COUNT=$$($$PSQL -tAc "SELECT count(*) FROM schema_migrations")
-        if [ "$$ROW_COUNT" = "0" ]; then
-          echo "  First run — seeding tracker with already-applied migrations..."
+        if [ "$$ROW_COUNT" = "0" ] && [ "$$HAS_TABLES" = "t" ]; then
+          echo "  Existing untracked database — seeding tracker with already-applied migrations..."
           for f in /migrations/*.sql; do
             [ -f "$$f" ] || continue
             name=$$(basename "$$f")
@@ -108,6 +109,18 @@ services:
             echo "  apply $$name ..."
             $$PSQL -f "$$f"
             $$PSQL -c "INSERT INTO schema_migrations (filename) VALUES ('"'"'$$name'"'"')"
+          fi
+        done
+
+        echo "Verifying migrated schema..."
+        REQUIRED_COLUMNS="users.permissions chats.costs projects.workspace_id background_tasks.project_id background_tasks.user_id brand_config.workspace_id brand_assets.workspace_id"
+        for spec in $$REQUIRED_COLUMNS; do
+          table=$${spec%.*}
+          column=$${spec#*.}
+          exists=$$($$PSQL -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = '"'"'public'"'"' AND table_name = '"'"'$$table'"'"' AND column_name = '"'"'$$column'"'"')")
+          if [ "$$exists" != "t" ]; then
+            echo "Missing migrated column: public.$$table.$$column" >&2
+            exit 1
           fi
         done
 

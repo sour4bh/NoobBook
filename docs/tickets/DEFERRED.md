@@ -109,3 +109,25 @@ only route that updates `last_accessed`.
 
 **Workspace completion:** `NBB-010` extends the pure access check into explicit
 private project membership roles, so the earlier owner-only residual is closed.
+
+## D-009 - Connector pagination completeness
+
+**Status:** Backlog
+
+**Context:** Jira and Notion connector clients currently return bounded first
+pages for some read operations. This is acceptable for the NBB-011 runtime
+migration because the issue is connector completeness, not a provider/runtime
+contract blocker.
+
+**Scope:** Add explicit pagination support for:
+
+- Jira issue search beyond the first `max_results <= 100` page in
+  `backend/app/connectors/jira/client.py`.
+- Notion workspace search using `has_more` / `start_cursor` in
+  `backend/app/connectors/notion/client.py`.
+- Notion page block reads using `has_more` / `next_cursor` for pages with more
+  than 100 top-level blocks.
+
+**Expected shape:** Keep pagination policy at the connector boundary. Do not
+silently fetch unbounded result sets; expose cursor/limit metadata or apply a
+clear bounded loop with tests so callers understand truncation and cost.

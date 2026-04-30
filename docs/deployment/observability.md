@@ -21,9 +21,9 @@ This inventory names the owner for each observability concern, calls out what lo
 | Concern | File | Notes |
 |---|---|---|
 | Opik wrapping of Anthropic client | `backend/app/providers/anthropic/messages.py` (`_get_client`, `_build_opik_kwargs`, `_run_tracked`) | Owned by `providers/` per `backend/app/providers/CHARTER.md`. `track_anthropic` wraps the client when `OPIK_API_KEY` is set; `@opik.track` adds a parent trace with `project_id`, `user_id`, `thread_id`, `tags` metadata. Graceful no-op when the key or package is absent. |
-| Opik env knobs | `OPIK_API_KEY`, `OPIK_URL_OVERRIDE`, `OPIK_WORKSPACE`, `OPIK_PROJECT_NAME` | Documented in `backend/app/api/settings/api_keys.py`. Reload hook: `claude_service.reload_config()` (added in `NBB-208A`). |
+| Opik env knobs | `OPIK_API_KEY`, `OPIK_URL_OVERRIDE`, `OPIK_WORKSPACE`, `OPIK_PROJECT_NAME` | Documented in `backend/app/api/settings/api_keys.py`. Reload hooks live with the provider settings update path. |
 | Opik key validator | `backend/app/providers/opik/validation.py` | Attempts `opik.configure(api_key=...)`. Remaining three OPIK\_\* keys are accepted-if-present. |
-| Spending-limit short-circuit log | `backend/app/providers/anthropic/cost.py` via `claude_service.send_message` | Raises before the API call; the warning path for missing `project_id` is emitted here, not in domain code. |
+| Spending-limit short-circuit log | `backend/app/agents/runtime/cost.py` via the runtime/native provider boundary | Raises before the API call. Missing `project_id` skips persistence and emits the warning from the runtime call boundary, not in domain code. |
 
 ### Background (task lifecycle)
 
@@ -38,7 +38,7 @@ This inventory names the owner for each observability concern, calls out what lo
 
 | Concern | File | Notes |
 |---|---|---|
-| SSE streaming | `backend/app/api/messages/routes.py` (`stream_message`) | Spawns a `threading.Thread` that runs `main_chat_service.stream_message` and pushes SSE events into a `queue.Queue`. Errors are emitted as `error` events and logged via `app.logger.error`. Response headers set `X-Accel-Buffering: no` to bypass nginx buffering. |
+| SSE streaming | `backend/app/api/messages/routes.py` (`stream_message`) | Runs through `app.chat.stream`, which delegates to the typed runtime and pushes SSE events into a `queue.Queue`. Errors are emitted as `error` events and logged via `app.logger.error`. Response headers set `X-Accel-Buffering: no` to bypass nginx buffering. |
 | Non-streaming path | `backend/app/api/chats/routes.py`, `.../messages/routes.py` | Uses `current_app.logger.error` / `.exception` for route-level failures. |
 | Socket.IO registration | `backend/app/__init__.py` (`socketio.init_app(app, async_mode=_async_mode)`) | `_async_mode` switches on `FLASK_ENV=production` (gevent) vs anything else (threading). Chat streaming uses SSE rather than Socket.IO events today; Socket.IO is wired but under-used by chat. |
 
@@ -57,7 +57,7 @@ This inventory names the owner for each observability concern, calls out what lo
 |---|---|
 | `backend/gunicorn.conf.py` | Binds `0.0.0.0:$PORT` (default 5001), one `GeventWebSocketWorker`, `timeout=300`, `graceful_timeout=30`, `keepalive=5`, `max_requests=5000` with `max_requests_jitter=200`, `accesslog/errorlog` to stdout/stderr. |
 | `frontend/nginx.conf` | Serves the Vite SPA bundle, proxies `/api/` to `noobbook-backend:5001`, streams `/api/v1/projects/*/chats/*/messages/stream` with `proxy_buffering off` + `X-Accel-Buffering: no`, upgrades `/socket.io/` for WebSocket with `proxy_read_timeout 86400s`, allows 100 MB uploads. |
-| `backend/entrypoint.sh` | Ensures runtime data directories exist, then chooses `gunicorn -c gunicorn.conf.py run:app` when `FLASK_ENV=production`, else `python run.py` (Werkzeug). Prompt JSON is loaded from domain-owned app paths through the asset registry, not from the data volume. |
+| `backend/entrypoint.sh` | Ensures runtime data directories exist, then chooses `gunicorn -c gunicorn.conf.py run:app` when `FLASK_ENV=production`, else `python run.py` (Werkzeug). Built-in prompts load from domain-owned Python `PromptSpec` modules, not from the data volume. |
 | `docker/` | Self-hosted Supabase stack plus backend/frontend images. See `docker/MAC_SETUP.md`. Not in the backend Python write scope. |
 
 ## Owner split for future migrations
@@ -83,7 +83,7 @@ These are the invariants encoded in `backend/gunicorn.conf.py`, `frontend/nginx.
 7. **`max_requests = 5000` drops active SSE/WebSocket streams when it trips.** With `workers=1` and gevent, a worker recycle kills every in-flight long-lived connection. Keep the threshold high enough that idle-reload is the dominant cause of recycling.
 8. **`client_max_body_size 100M`.** Upload ceiling for PDFs, PPTX, and audio sources. Any stricter nginx frontend will return 413 before the backend sees the request.
 9. **Opik attachment must stay lazy.** `claude_service._get_client` wraps the client on first use. Eager attachment would fail imports when `OPIK_API_KEY` is unset and no test covers the eager path. The `try/except ImportError` guard must stay.
-10. **Prompt JSON is registry-owned app code.** `backend/entrypoint.sh` must not recreate `data/prompts/`; prompt assets live under domain-owned `prompts/` directories and resolve through `backend/app/config/asset.py`.
+10. **Built-in prompts are typed app code.** `backend/entrypoint.sh` must not recreate `data/prompts/`; prompt specs live in domain-owned `prompt.py` modules and render through `backend/app/config/prompt.py`.
 
 ## Behavior local tests cannot prove
 

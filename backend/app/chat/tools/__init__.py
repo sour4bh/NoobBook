@@ -2,19 +2,19 @@
 Chat-owned tool registry surface.
 
 This is the public entry point that route- and domain-layer code uses to
-discover the tool JSON schemas chat exposes to Claude. It names the stable
-chat tool file keys and delegates loading to the asset registry.
+discover the typed tool contracts chat exposes to model providers. It names
+the stable chat tool keys and delegates loading to the asset registry.
 
-Trace: NBB-207C tool-schema ownership inventory + the tool-schema JSON
-contract in `docs/contracts/README.md` (NBB-205 Contract 11).
+Trace: NBB-207C tool-schema ownership inventory, NBB-810 services-tool drain,
+and NBB-1104 typed ToolSpec conversion.
 """
-from typing import Any, Dict, Tuple
+from typing import Tuple
 
 from app.config.tool import tool_loader
 
 
-# Static names of every chat-owned tool JSON loaded through the `chat_tools`
-# compatibility key. Order is informational, not contractual.
+# Static names of every chat-owned ToolSpec loaded through the `chat_tools`
+# catalog key. Order is informational, not contractual.
 CHAT_TOOL_NAMES: Tuple[str, ...] = (
     "source_search_tool",
     "memory_tool",
@@ -25,10 +25,10 @@ CHAT_TOOL_NAMES: Tuple[str, ...] = (
 )
 
 
-def get_tool(name: str) -> Dict[str, Any]:
-    """Load a chat-owned tool JSON by name through the asset registry.
+def get_tool(name: str):
+    """Load a chat-owned tool spec by name through the asset registry.
 
-    `tool_loader.load_tool` honors the registry mappings, so the legacy
-    category key remains stable while files live under domain-owned paths.
+    Provider adapters compile the spec into concrete provider schemas at the
+    runtime boundary.
     """
-    return tool_loader.load_tool("chat_tools", name)
+    return tool_loader.load_tool_spec("chat_tools", name)

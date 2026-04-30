@@ -19,8 +19,8 @@ class ContextLoader:
     """
     Loader for building source and memory context for chat prompts.
 
-    Educational Note: This loader is called by main_chat_service
-    before each API call to build up-to-date context including:
+    Educational Note: Chat builds this context before each runtime model call
+    so prompts reflect current project state, including:
     - Available sources with metadata
     - User memory (persistent across projects)
     - Project memory (specific to current project)
@@ -258,24 +258,28 @@ class ContextLoader:
         try:
             from app.connectors.mcp.tools import mcp_tool_service
 
-            tools, _ = mcp_tool_service.get_available_tools(user_id=user_id)
-            if not tools:
+            registry = mcp_tool_service.get_tool_catalog(user_id=user_id)
+            if not registry:
                 return ""
 
             lines = [
                 "",
                 "## MCP Tools (External Integrations)",
                 "",
-                "You have access to external tools from connected MCP servers.",
+                "You can call enabled external MCP tools through the call_mcp_tool tool.",
+                "Use the tool_id exactly as listed and pass the original tool arguments as an arguments_json JSON object string.",
                 "These tools can perform real actions (create tickets, search data, etc.).",
                 "Always confirm with the user before performing destructive or irreversible actions.",
                 "",
             ]
 
-            for tool in tools:
-                name = tool.get("name", "")
-                desc = tool.get("description", "")
-                lines.append(f"- **{name}**: {desc}")
+            for tool_id, entry in registry.items():
+                desc = entry.get("description", "")
+                connection = entry.get("connection_name", "MCP")
+                schema = entry.get("input_schema") or {}
+                lines.append(f"- **{tool_id}** ({connection}): {desc}")
+                if isinstance(schema, dict) and schema.get("properties"):
+                    lines.append(f"  Arguments schema: {schema}")
 
             lines.append("")
             return "\n".join(lines)

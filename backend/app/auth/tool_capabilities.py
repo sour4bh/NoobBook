@@ -1,22 +1,21 @@
 """
-Central ToolCapability declarations for Claude-visible tools.
+Central ToolCapability declarations for model-visible tools.
 
-This module classifies every Claude-visible tool from the NBB-207C
+This module classifies every model-visible tool from the NBB-207C
 inventory that does not have its own domain registration module.
 Analysis tools register themselves under
 ``app.sources.analysis.tool_capabilities`` per guardrail #3 (entries
 attach near tool-definition sites where the owning domain exists).
-Connector entries (Jira, Notion, Mixpanel) live here for now because
-``connectors/<name>/`` skeletons land in NBB-303 and per-connector
-migration tickets; the ``owner`` field still records the eventual
-domain path.
+Connector entries (Jira, Notion, Mixpanel) live here because the shared chat
+policy is still the central exposure gate; the ``owner`` field records the
+domain that owns execution.
 
 Source-processing tools (PDF/PPTX/image extraction, web_agent server
 tools) and studio-agent internals (blog, presentation, wireframe,
-component, website, etc.) are Claude-visible inside their own loops
+component, website, etc.) are model-visible inside their own loops
 rather than the chat tool list. Per the ticket scope they still need
-classification, but enforcement at those sites is out of scope for
-this ticket — only the chat caller-side gap is wired through
+classification, but enforcement at those sites is separate from chat
+tool exposure. The chat caller-side gate is wired through
 ``tool_capability_policy.is_exposable_for`` in NBB-202B.
 """
 from app.auth.tool_policy import (
@@ -355,10 +354,10 @@ def mcp_capability_for(tool_name: str) -> ToolCapability:
 
 
 # ---------------------------------------------------------------------------
-# Source-processing tools (Claude-visible inside source-processing loops)
+# Source-processing tools (model-visible inside source-processing loops)
 # ---------------------------------------------------------------------------
 
-# These tools are sent to Claude inside per-source extraction agents;
+# These tools are sent to the model inside per-source extraction agents;
 # they are not exposed by the chat ``_get_tools`` selection. They are
 # classified here so the AC#1 inventory test passes; wiring enforcement
 # into the source extractor loops is out of scope for NBB-202B.
@@ -651,7 +650,7 @@ FINALIZE_WEBSITE = _studio(
 
 
 # Learning + media (NBB-507).
-# Names follow the JSON ``name`` field (the value Claude actually sees
+# Names follow the JSON ``name`` field (the value the model actually sees
 # in ``tool_choice``), not the file name. The learning JSONs are
 # ``flash_cards_tool.json`` / ``mind_map_tool.json`` / ``quiz_tool.json``
 # but their declared names are ``generate_*``.
@@ -720,7 +719,7 @@ _CENTRAL_CAPABILITIES = (
     MIXPANEL_RETENTION,
     MIXPANEL_JQL,
     MCP_GENERIC,
-    # sources processing (Claude-visible in agent loops)
+    # sources processing (model-visible in agent loops)
     PDF_EXTRACTION,
     PPTX_EXTRACTION,
     IMAGE_EXTRACTION,

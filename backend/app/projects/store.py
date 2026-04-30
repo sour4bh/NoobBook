@@ -153,12 +153,7 @@ class ProjectStore:
             "description": description,
             "custom_prompt": None,
             "memory": {},
-            "costs": {
-                "total_input_tokens": 0,
-                "total_output_tokens": 0,
-                "total_cost_usd": 0,
-                "by_model": {}
-            }
+            "costs": {"total_cost": 0.0, "by_model": {}}
         }
 
         # Insert and return the new project
@@ -460,12 +455,7 @@ class ProjectStore:
         if not response.data:
             return None
 
-        return response.data[0].get("costs", {
-            "total_input_tokens": 0,
-            "total_output_tokens": 0,
-            "total_cost_usd": 0,
-            "by_model": {}
-        })
+        return response.data[0].get("costs", {"total_cost": 0.0, "by_model": {}})
 
     def update_project_costs(
         self,

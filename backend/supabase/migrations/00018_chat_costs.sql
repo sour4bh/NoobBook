@@ -7,13 +7,9 @@
 -- _ensure_cost_structure() in app/utils/cost_tracking.py.
 
 ALTER TABLE chats
-  ADD COLUMN IF NOT EXISTS costs JSONB DEFAULT '{
-    "total_cost": 0,
-    "by_model": {
-      "opus": {"input_tokens": 0, "output_tokens": 0, "cost": 0},
-      "sonnet": {"input_tokens": 0, "output_tokens": 0, "cost": 0},
-      "haiku": {"input_tokens": 0, "output_tokens": 0, "cost": 0}
-    }
-  }'::jsonb;
+ADD COLUMN IF NOT EXISTS costs JSONB DEFAULT '{
+  "total_cost": 0,
+  "by_model": {}
+}'::jsonb;
 
-COMMENT ON COLUMN chats.costs IS 'Per-chat cost tracking: total_cost + by_model breakdown (opus/sonnet/haiku)';
+COMMENT ON COLUMN chats.costs IS 'Per-chat cost tracking: total_cost + by_model provider:model breakdown';

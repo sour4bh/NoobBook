@@ -13,23 +13,23 @@ from app.chat.schemas import CHAT_EVENT_NAMES
 def test_chat_public_surface_exports():
     """Spec-required imports must resolve and bind to the right things."""
     from app import chat
-    from app.chat import memory, schemas, store, tools  # noqa: F401
+    from app.chat import memory, message, schemas, store, tools  # noqa: F401
     from app.chat import send, stream  # noqa: F401
 
     assert callable(chat.send), "chat.send must be callable"
     assert callable(chat.stream), "chat.stream must be callable"
     assert chat.tools is tools, "chat.tools attribute must be the tools module"
     assert chat.store is store, "chat.store attribute must be the store module"
+    assert chat.message is message, "chat.message attribute must be the message module"
     assert chat.memory is memory, "chat.memory attribute must be the memory module"
     assert chat.schemas is schemas, "chat.schemas attribute must be the schemas module"
 
 
-def test_chat_store_reexports_both_persistence_classes():
-    """`chat.store` must re-export ChatStore and MessageStore per spec."""
-    from app.chat.store import ChatStore, MessageStore
+def test_chat_store_exports_chat_persistence_class():
+    """`chat.store` owns chat container persistence only."""
+    from app.chat.store import ChatStore
 
     assert ChatStore.__name__ == "ChatStore"
-    assert MessageStore.__name__ == "MessageStore"
 
 
 def test_chat_event_catalog_is_frozen():

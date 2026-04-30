@@ -10,9 +10,13 @@ Why base64?
 - Base64 converts binary data to ASCII text (about 33% larger)
 - Claude decodes it back to binary on the server side
 """
-import base64
 from pathlib import Path
 from typing import Union
+
+from app.base.media import (
+    encode_bytes_to_base64,
+    get_media_type,
+)
 
 
 def encode_file_to_base64(file_path: Union[str, Path]) -> str:
@@ -41,52 +45,7 @@ def encode_file_to_base64(file_path: Union[str, Path]) -> str:
     with open(file_path, "rb") as f:
         file_bytes = f.read()
 
-    # standard_b64encode returns bytes, decode to string for JSON
-    return base64.standard_b64encode(file_bytes).decode("utf-8")
-
-
-def encode_bytes_to_base64(data: bytes) -> str:
-    """
-    Encode bytes to base64 string.
-
-    Educational Note: Use this when you already have the file
-    contents in memory (e.g., from a file upload).
-
-    Args:
-        data: Bytes to encode
-
-    Returns:
-        Base64-encoded string
-    """
-    return base64.standard_b64encode(data).decode("utf-8")
-
-
-def get_media_type(file_path: Union[str, Path]) -> str:
-    """
-    Get the MIME type for a file based on extension.
-
-    Educational Note: Claude needs to know the file type to process it
-    correctly. We map common extensions to their MIME types.
-
-    Args:
-        file_path: Path to the file
-
-    Returns:
-        MIME type string (e.g., "application/pdf", "image/png")
-    """
-    extension_to_mime = {
-        # Documents
-        ".pdf": "application/pdf",
-        # Images (supported by Claude vision)
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-    }
-
-    ext = Path(file_path).suffix.lower()
-    return extension_to_mime.get(ext, "application/octet-stream")
+    return encode_bytes_to_base64(file_bytes)
 
 
 def is_supported_for_encoding(file_path: Union[str, Path]) -> bool:

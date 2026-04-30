@@ -187,8 +187,8 @@ def get_chat_costs(project_id, chat_id):
     Get per-chat cost and token usage breakdown.
 
     Educational Note: Mirrors /projects/<id>/costs but scoped to a single
-    chat. Returns the same shape: total_cost and by_model breakdown with
-    input_tokens, output_tokens, and cost for each of opus/sonnet/haiku.
+    chat. Returns the same shape: total_cost and provider:model by_model
+    breakdown with input_tokens, output_tokens, and cost for each model used.
     """
     try:
         costs = chat_service.get_chat_costs(project_id, chat_id)

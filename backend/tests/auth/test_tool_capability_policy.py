@@ -1,7 +1,7 @@
 """
 Tests for ``ToolCapabilityPolicy`` (NBB-202B).
 
-The policy classifies every Claude-visible tool from the NBB-207C
+The policy classifies every model-visible tool from the typed ToolSpec
 inventory and enforces three guarantees:
 
 1. Unclassified tools are never exposable, so analysis tools cannot
@@ -25,6 +25,7 @@ import pytest
 # at module scope so the registry is populated before the parametrized
 # inventory test collects.
 from app.auth import permissions, tool_capabilities
+from app.config.tool import tool_loader
 from app.auth.tool_policy import (
     CapabilityLevel,
     RequiredPermission,
@@ -187,113 +188,68 @@ def test_register_rejects_conflicting_redefinition():
 
 
 # ---------------------------------------------------------------------------
-# Coverage: every Claude-visible tool from NBB-207C has an entry
+# Coverage: every model-visible ToolSpec has a capability entry
 # ---------------------------------------------------------------------------
 
 
-# The inventory is derived from disk so a future regression of the
-# "registry key drifted from JSON ``name`` field" class of bug is
-# caught automatically: walk every tool JSON, read its ``name`` field
-# (the value Claude actually sees in ``tool_choice``), and assert each
-# one has a registered capability.
+# The inventory is derived from typed ToolSpecs so a future tool cannot be
+# exposed to a provider without an authorization classification. We assert
+# against the provider-visible ``spec.name`` where possible; aliases cover the
+# few same-name tools whose capability entries are intentionally disambiguated
+# by category.
 #
-# Two JSON ``name`` values are reused across files (``query_runner``
-# in database_agent + freshdesk_agent, and ``web_search`` in link +
-# deep-research). The registry holds one canonical entry per category
-# and uses prefixed keys for the freshdesk + research variants to
-# avoid collision; the alias map below resolves those JSON names back
-# to their registered key.
-#
-# ``schema_info`` is freshdesk-only (the database agent uses
-# ``schema_fetcher``), but the registry uses the prefixed key
-# ``freshdesk_schema_info`` for symmetry with ``freshdesk_query_runner``;
-# include it in the alias map so the JSON ``name`` test passes for it.
-_TOOL_JSON_GLOBS = (
-    "app/**/tools/*.json",
-)
-
-
-# Maps a JSON ``name`` to the registry key that classifies it. Used
-# for the small set of names where the registry key intentionally
-# diverges from the JSON ``name`` — collision disambiguation today,
-# tracked under NBB-303 for the (category, name) key strategy.
-_NAME_REGISTRY_ALIASES = {
-    # link + deep-research both expose ``web_search``; the link
-    # variant takes the canonical key, and the research variant is
-    # registered as ``research_web_search``.
-    ("web_search", "app/sources/analysis/research/tools/web_search.json"):
-        "research_web_search",
-    # database + freshdesk both expose ``query_runner``; database
-    # takes the canonical key, freshdesk gets prefixed. Path moved to
-    # sources/analysis/freshdesk/tools/ in NBB-403.
-    ("query_runner", "app/sources/analysis/freshdesk/tools/query_runner.json"):
-        "freshdesk_query_runner",
-    # ``schema_info`` is freshdesk-only but registered with a prefix
-    # for symmetry with ``freshdesk_query_runner``. Path moved to
-    # sources/analysis/freshdesk/tools/ in NBB-403.
-    ("schema_info", "app/sources/analysis/freshdesk/tools/schema_info.json"):
-        "freshdesk_schema_info",
+_SPEC_CAPABILITY_ALIASES = {
+    ("deep_research", "web_search", "web_search"): "research_web_search",
+    ("freshdesk_agent", "query_runner", "query_runner"): "freshdesk_query_runner",
+    ("freshdesk_agent", "schema_info", "schema_info"): "freshdesk_schema_info",
 }
 
 
-def _discover_tool_json_inventory():
-    """Walk every tool JSON and return ``(json_name, file_path)`` tuples.
+def _discover_tool_spec_inventory():
+    """Return ``(category, registry_name, tool_name)`` tuples for ToolSpecs.
 
     Sorted output keeps pytest parametrize IDs stable across runs.
     """
-    import glob
-    import json
-    import os
-
-    backend_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..")
-    )
-    seen_paths = set()
     inventory = []
-    for pattern in _TOOL_JSON_GLOBS:
-        for path in glob.glob(
-            os.path.join(backend_dir, pattern), recursive=True
-        ):
-            rel = os.path.relpath(path, backend_dir)
-            if rel in seen_paths:
-                continue
-            seen_paths.add(rel)
-            with open(path) as fh:
-                data = json.load(fh)
-            name = data.get("name")
-            if not name:
-                continue
-            inventory.append((name, rel))
+    for category in tool_loader.get_available_categories():
+        for spec in tool_loader.load_tool_specs_for_agent(category):
+            registry_name = spec.metadata.get("registry_name")
+            if not isinstance(registry_name, str):
+                registry_name = spec.name
+            inventory.append((category, registry_name, spec.name))
     return tuple(sorted(inventory))
 
 
-_TOOL_JSON_INVENTORY = _discover_tool_json_inventory()
+_TOOL_SPEC_INVENTORY = _discover_tool_spec_inventory()
 
 
-@pytest.mark.parametrize("json_name,json_path", _TOOL_JSON_INVENTORY)
-def test_every_tool_json_name_has_registered_capability(json_name, json_path):
-    """AC#1: every Claude-visible tool's JSON ``name`` field maps to a
-    registered ``ToolCapability``.
+@pytest.mark.parametrize("category,registry_name,tool_name", _TOOL_SPEC_INVENTORY)
+def test_every_tool_spec_name_has_registered_capability(
+    category,
+    registry_name,
+    tool_name,
+):
+    """AC#1: every provider-visible ToolSpec name maps to a capability.
 
-    Derived from disk so a future regression of "registry key drifted
-    from JSON name" (the exact class of bug the recovery pass fixes)
-    fails this test instead of slipping through. For the small set of
-    JSON names that share a key across files, ``_NAME_REGISTRY_ALIASES``
-    redirects to the prefixed registry key.
+    Derived from the current typed tool registry so stale JSON files cannot
+    keep the authorization inventory green after the runtime migration.
     """
     tool_capability_policy.ensure_capabilities_loaded()
-    expected_key = _NAME_REGISTRY_ALIASES.get((json_name, json_path), json_name)
+    expected_key = _SPEC_CAPABILITY_ALIASES.get(
+        (category, registry_name, tool_name),
+        tool_name,
+    )
     assert tool_capability_policy.has(expected_key), (
-        f"Tool JSON {json_path!r} declares name={json_name!r} but the "
+        f"ToolSpec {category!r}/{registry_name!r} declares name={tool_name!r} but the "
         f"capability policy has no entry for {expected_key!r}. Registry "
-        f"key must match the JSON ``name`` field (or the alias map) so "
+        f"key must match the provider-visible ToolSpec name (or the alias map) so "
         f"``tool_choice={{type: tool, name: <name>}}`` lands on a real "
         f"capability."
     )
 
 
 def test_save_memory_capability_entry_exists():
-    """``save_memory`` is the JSON ``name`` for ``manage_memory_tool.json``;
+    """``save_memory`` is the provider-visible name for memory merge;
     chat memory merge calls it via forced ``tool_choice``. Pin the
     classification so a regression is caught alongside the disk-derived
     AC#1 test (which already covers it, but a named test makes the

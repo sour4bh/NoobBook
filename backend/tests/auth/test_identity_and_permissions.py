@@ -363,7 +363,7 @@ def test_user_has_permission_null_permissions_still_denies_unknown_items(
 def test_user_has_permission_category_only_check_uses_enabled_flag(
     auth_required_env,
 ):
-    """NBB-202A: ``main_chat_service`` calls ``user_has_permission(uid,
+    """NBB-202A: chat callers use ``user_has_permission(uid,
     "studio")`` with no item. That category-only shape must keep
     working — return True when the category master toggle is on."""
     from app.auth import permissions

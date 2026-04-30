@@ -2,11 +2,11 @@
 Prompt management endpoints.
 
 Educational Note: System prompts are crucial for shaping AI behavior.
-These endpoints let users customize how Claude responds in their projects.
+These endpoints let users customize how the assistant responds in their projects.
 
 The prompt hierarchy:
 1. Project custom prompt (if set) -> Used for all chats in project
-2. Default prompt (fallback) -> registered default prompt JSON
+2. Default prompt (fallback) -> typed default PromptSpec
 
 Routes:
 - GET  /projects/<id>/prompt  - Get project's effective prompt
@@ -15,7 +15,12 @@ Routes:
 """
 from flask import jsonify, request, current_app
 from app.api.prompts import prompts_bp
-from app.config.prompt import prompt_loader
+from app.config.prompt import (
+    get_default_prompt as get_default_prompt_text,
+    get_project_prompt as get_project_prompt_text,
+    list_public_prompt_configs,
+    update_project_prompt as save_project_prompt,
+)
 
 
 @prompts_bp.route('/projects/<project_id>/prompt', methods=['GET'])
@@ -33,7 +38,7 @@ def get_project_prompt(project_id):
         }
     """
     try:
-        prompt = prompt_loader.get_project_prompt(project_id)
+        prompt = get_project_prompt_text(project_id)
 
         return jsonify({
             'success': True,
@@ -86,7 +91,7 @@ def update_project_prompt(project_id):
             custom_prompt = None
 
         # Update via prompt service
-        success = prompt_loader.update_project_prompt(project_id, custom_prompt)
+        success = save_project_prompt(project_id, custom_prompt)
 
         if not success:
             return jsonify({
@@ -95,7 +100,7 @@ def update_project_prompt(project_id):
             }), 404
 
         # Return the current prompt
-        current_prompt = prompt_loader.get_project_prompt(project_id)
+        current_prompt = get_project_prompt_text(project_id)
 
         return jsonify({
             'success': True,
@@ -117,8 +122,8 @@ def get_default_prompt():
     Get the global default prompt.
 
     Educational Note: This is the fallback prompt used when
-    projects don't have custom prompts. It's stored in
-    registered default prompt JSON.
+    projects don't have custom prompts. The built-in prompt is a typed
+    PromptSpec owned by the chat domain.
 
     Response:
         {
@@ -127,7 +132,7 @@ def get_default_prompt():
         }
     """
     try:
-        prompt = prompt_loader.get_default_prompt()
+        prompt = get_default_prompt_text()
 
         return jsonify({
             'success': True,
@@ -147,9 +152,9 @@ def list_all_prompts():
     """
     List all prompt configurations.
 
-    Educational Note: This dynamically reads all prompt files from
-    registered prompt directories. Adding new prompt files automatically
-    makes them visible in the UI.
+    Educational Note: This dynamically reads typed prompt specs from
+    domain-owned prompt.py modules. Adding a new PromptSpec automatically
+    makes it visible in the UI.
 
     Response:
         {
@@ -163,14 +168,15 @@ def list_all_prompts():
                     "temperature": 0.5,
                     "system_prompt": "...",
                     "user_message": "..." (optional),
-                    "filename": "default_prompt.json"
+                    "filename": "default.py",
+                    "source": "python"
                 },
                 ...
             ]
         }
     """
     try:
-        prompts = prompt_loader.list_all_prompts()
+        prompts = list_public_prompt_configs()
 
         return jsonify({
             'success': True,

@@ -14,30 +14,25 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 from flask import has_request_context
 
 from app.auth.identity import RequestIdentity, get_request_identity
-from app.chat import memory as chat_memory
 from app.chat.context import build_system_prompt
 from app.chat.message.store import message_service
 from app.chat.persistence import emit_event
 from app.chat.naming import submit_naming_task
 from app.chat.schemas import ChatEvent, ChatResponse
 from app.chat.store import chat_service
-from app.chat.streaming import ClaudeStreamError, call_claude, iter_chat_events
+from app.chat.streaming import iter_chat_events
 from app.chat.tool.policy import chat_tool_policy
-from app.config.prompt import prompt_loader
+from app.chat.tools.binding import bind_chat_tools
+from app.config.prompt import get_project_custom_prompt, render_prompt
 from app.config.context import context_loader
-from app.projects.store import DEFAULT_USER_ID
-from app.providers.anthropic.content import serialize_content_blocks
-from app.providers.anthropic.response_parser import (
-    extract_tool_use_blocks,
-    is_tool_use,
+from app.agents.runtime import (
+    ProviderRunError,
+    RunLimits,
+    RunRequest,
+    run_with_provider,
+    stream_with_provider,
 )
-from app.connectors.knowledge import knowledge_base_service
-from app.connectors.mcp.tools import mcp_tool_service
-from app.sources.search import source_search_executor
-from app.studio.signal import studio_signal_executor
-from app.sources.analysis.csv import entry as csv_entry
-from app.sources.analysis.database import entry as database_entry
-from app.sources.analysis.freshdesk import entry as freshdesk_entry
+from app.projects.store import DEFAULT_USER_ID
 
 
 logger = logging.getLogger(__name__)
@@ -57,8 +52,26 @@ def _resolve_user_id(user_id: Optional[str]) -> str:
     return identity.user_id if identity else DEFAULT_USER_ID
 
 
-def _format_friendly_error(error_str: str) -> str:
-    """Map known Claude API error strings to user-facing messages."""
+def _provider_label(provider: str) -> str:
+    return {"openai": "OpenAI", "anthropic": "Anthropic"}.get(provider, provider.title())
+
+
+def _format_friendly_error(error: Exception | str) -> str:
+    """Map known provider API error strings to user-facing messages."""
+    info = getattr(error, "error_info", None)
+    if info is not None:
+        if info.kind == "rate_limit":
+            return "Rate limit reached. Please wait a moment and try again."
+        if info.kind in {"timeout", "connection"}:
+            return "The provider connection failed. Please try again."
+        if info.kind == "server":
+            return f"{_provider_label(info.provider)} is having trouble. Please try again shortly."
+        if info.kind == "authentication":
+            return f"{_provider_label(info.provider)} authentication failed. Check the API key."
+        if info.kind == "permission":
+            return f"{_provider_label(info.provider)} rejected the request for permission reasons."
+
+    error_str = str(error)
     if "overloaded_error" in error_str or "overloaded" in error_str.lower():
         return (
             "Overloaded error is on Anthropic's (Claude's) end, not NoobBook. "
@@ -156,8 +169,12 @@ class ChatLoop:
         # None = legacy chat (never set) -> fall back to all ready sources
         # [] = explicitly no sources selected
         selected_source_ids = chat.get("selected_source_ids")
-        prompt_config = prompt_loader.get_project_prompt_config(project_id)
-        base_prompt = prompt_config.get("system_prompt", "")
+        prompt = render_prompt(
+            "default",
+            project_id=project_id,
+            system_override=get_project_custom_prompt(project_id),
+        )
+        base_prompt = prompt.system_prompt
         system_prompt = build_system_prompt(
             project_id,
             base_prompt,
@@ -189,137 +206,105 @@ class ChatLoop:
             project_id=project_id,
         )
 
-        accumulated_text_parts: List[str] = []
+        streamed_text_parts: List[str] = []
 
         try:
-            # Step 4: Build messages and call Claude
-            api_messages = message_service.build_api_messages(project_id, chat_id)
-            emit_event(on_event, "ping")
-
-            response, response_text = call_claude(
-                stream_text=stream_text,
-                on_text_delta=on_text_delta,
-                messages=api_messages,
+            # Step 4: Build messages and run the selected model/tool loop.
+            runtime_messages = message_service.build_runtime_messages(project_id, chat_id)
+            bound_tools = bind_chat_tools(
+                tools,
+                project_id=project_id,
+                chat_id=chat_id,
+                user_id=resolved_user_id,
+                mcp_registry=mcp_registry,
+            )
+            request = RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose="chat",
                 system_prompt=system_prompt,
-                model=prompt_config.get("model"),
-                max_tokens=prompt_config.get("max_tokens"),
-                temperature=prompt_config.get("temperature"),
-                tools=tools,
+                messages=runtime_messages,
+                tools=bound_tools,
+                limits=RunLimits(
+                    max_tool_turns=self.MAX_TOOL_ITERATIONS,
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
                 project_id=project_id,
                 user_id=resolved_user_id,
                 chat_id=chat_id,
-                tags=["chat"],
+                metadata={"tags": ["chat"], "mcp_registry": mcp_registry},
             )
-            if response_text.strip():
-                accumulated_text_parts.append(response_text)
+            emit_event(on_event, "ping")
 
-            # Step 5: Handle tool use loop
-            # When Claude wants to use tools, stop_reason is "tool_use".
-            # We must execute tools and send back tool_result for each tool_use block.
-            # Claude can respond with text + tool_use together: the text is the response
-            # to the user, the tool_use is for background processing. We accumulate
-            # text from all responses so we don't lose it.
-            iteration = 0
+            if stream_text:
+                def emit_delta(delta: str) -> None:
+                    streamed_text_parts.append(delta)
+                    if on_text_delta is not None:
+                        on_text_delta(delta)
 
-            while is_tool_use(response) and iteration < self.MAX_TOOL_ITERATIONS:
-                iteration += 1
+                turn_result = stream_with_provider(request, on_text_delta=emit_delta)
+            else:
+                turn_result = run_with_provider(request)
 
-                # Get tool_use blocks from response (can be multiple for parallel tool calls)
-                tool_use_blocks = extract_tool_use_blocks(response)
-
-                if not tool_use_blocks:
-                    break
-
-                # Store the assistant's tool_use response.
-                # The message chain must be:
-                # user -> assistant (tool_use[]) -> user (tool_result[]) -> assistant
-                # Tool_use response is stored before the tool_result.
-                serialized_content = serialize_content_blocks(
-                    response.get("content_blocks", [])
-                )
+            # Step 5: Persist the runtime-generated tool transcript. The shared
+            # runtime owns execution and pairing; chat owns durable history.
+            for generated_message in turn_result.generated_messages:
+                stored_role = "user" if generated_message.role == "tool" else generated_message.role
                 message_service.add_message(
                     project_id=project_id,
                     chat_id=chat_id,
-                    role="assistant",
-                    content=serialized_content,
+                    role=stored_role,
+                    content=[
+                        part.model_dump(mode="json")
+                        for part in generated_message.content
+                    ],
                 )
-
-                # Execute each tool and add results.
-                # Each tool execution is wrapped in try/except so a tool_result is
-                # ALWAYS stored. Otherwise an exception orphans the tool_use block
-                # (no matching tool_result), corrupting the message history and
-                # causing Claude API 400 errors on every subsequent message.
-                for tool_block in tool_use_blocks:
-                    tool_id = tool_block.get("id")
-                    tool_name = tool_block.get("name")
-                    tool_input = tool_block.get("input", {})
-
-                    try:
-                        result = self._execute_tool(
-                            project_id,
-                            chat_id,
-                            tool_name,
-                            tool_input,
-                            user_id=resolved_user_id,
-                            mcp_registry=mcp_registry,
-                        )
-                        is_error = False
-                    except Exception as tool_error:
-                        logger.error(f"Tool execution failed for {tool_name}: {tool_error}")
-                        result = f"Tool execution failed: {str(tool_error)}"
-                        is_error = True
-
-                    message_service.add_tool_result_message(
-                        project_id=project_id,
-                        chat_id=chat_id,
-                        tool_use_id=tool_id,
-                        result=result,
-                        is_error=is_error,
-                    )
-
-                # Rebuild messages and call Claude again
-                api_messages = message_service.build_api_messages(project_id, chat_id)
-                emit_event(on_event, "ping")
-
-                response, response_text = call_claude(
-                    stream_text=stream_text,
-                    on_text_delta=on_text_delta,
-                    messages=api_messages,
-                    system_prompt=system_prompt,
-                    model=prompt_config.get("model"),
-                    max_tokens=prompt_config.get("max_tokens"),
-                    temperature=prompt_config.get("temperature"),
-                    tools=tools,
-                    project_id=project_id,
-                    user_id=resolved_user_id,
-                    chat_id=chat_id,
-                    tags=["chat"],
-                )
-                if response_text.strip():
-                    accumulated_text_parts.append(response_text)
 
             # Step 6: Store final text response.
-            # When Claude sends text + tool_use, the text comes first.
-            # After tool execution, Claude may respond with more text OR empty.
+            # Providers may send text before requesting tools; after tool
+            # execution they may respond with more text or an empty final turn.
             # All text parts combine into the complete response shown to the user.
-            final_text = "\n\n".join(accumulated_text_parts) if accumulated_text_parts else ""
+            final_text = turn_result.text
 
             assistant_msg = message_service.add_assistant_message(
                 project_id=project_id,
                 chat_id=chat_id,
                 content=final_text if final_text.strip() else "I've processed your request.",
-                model=response.get("model"),
-                tokens=response.get("usage"),
+                model=turn_result.model,
+                tokens=turn_result.usage.model_dump(mode="json"),
             )
             emit_event(on_event, "assistant_done", assistant_msg)
 
         except Exception as api_error:
-            partial_text = api_error.partial_text if isinstance(api_error, ClaudeStreamError) else ""
-            if partial_text.strip():
-                accumulated_text_parts.append(partial_text)
-            error_prefix = "\n\n".join(part for part in accumulated_text_parts if part.strip())
+            failed_result = (
+                api_error.result
+                if isinstance(api_error, ProviderRunError) and api_error.result is not None
+                else None
+            )
+            if failed_result is not None:
+                for generated_message in failed_result.generated_messages:
+                    stored_role = (
+                        "user"
+                        if generated_message.role == "tool"
+                        else generated_message.role
+                    )
+                    message_service.add_message(
+                        project_id=project_id,
+                        chat_id=chat_id,
+                        role=stored_role,
+                        content=[
+                            part.model_dump(mode="json")
+                            for part in generated_message.content
+                        ],
+            )
 
-            friendly_error = _format_friendly_error(str(api_error))
+            partial_text = str(getattr(api_error, "partial_text", "") or "")
+            if not partial_text.strip() and streamed_text_parts:
+                partial_text = "".join(streamed_text_parts)
+            error_prefix = partial_text.strip()
+
+            friendly_error = _format_friendly_error(api_error)
             error_content = (
                 f"{error_prefix}\n\n{friendly_error}" if error_prefix else friendly_error
             )
@@ -339,10 +324,7 @@ class ChatLoop:
                 },
             )
 
-        # Step 7: Sync chat index
-        chat_service.sync_chat_to_index(project_id, chat_id)
-
-        # Step 8: Auto-rename chat on first message (background task).
+        # Step 7: Auto-rename chat on first message (background task).
         # `chat` was read at the top, so `message_count` here is the pre-write
         # count. Naming runs in background so it doesn't block the response.
         submit_naming_task(chat, project_id, chat_id, user_message_text)
@@ -351,122 +333,6 @@ class ChatLoop:
             "user_message": user_msg,
             "assistant_message": assistant_msg,
         }
-
-    def _execute_tool(
-        self,
-        project_id: str,
-        chat_id: str,
-        tool_name: str,
-        tool_input: Dict[str, Any],
-        user_id: Optional[str] = None,
-        mcp_registry: Optional[Dict] = None,
-    ) -> str:
-        """
-        Route a tool call to its executor and return the result string.
-
-        Routing here is intentionally explicit and matches NBB-302's locked
-        in-scope mapping; redesigning routing is NBB-303's job.
-        """
-        if tool_name == "search_sources":
-            result = source_search_executor.search(
-                project_id=project_id,
-                source_id=tool_input.get("source_id", ""),
-                keywords=tool_input.get("keywords"),
-                query=tool_input.get("query"),
-            )
-            if result.get("success"):
-                return result.get("content", "No content found")
-            return f"Error: {result.get('error', 'Unknown error')}"
-
-        if tool_name == "store_memory":
-            # Memory tool returns immediately, actual update happens in background.
-            result = chat_memory.store(
-                project_id=project_id,
-                user_memory=tool_input.get("user_memory"),
-                project_memory=tool_input.get("project_memory"),
-                why_generated=tool_input.get("why_generated", ""),
-                user_id=user_id,
-            )
-            if result.get("success"):
-                return result.get("message", "Memory stored successfully")
-            return f"Error: {result.get('message', 'Unknown error')}"
-
-        if tool_name == "analyze_csv_agent":
-            # CSV analyzer agent for answering questions about CSV data
-            result = csv_entry.execute(
-                project_id=project_id,
-                source_id=tool_input.get("source_id", ""),
-                query=tool_input.get("query", ""),
-                chat_id=chat_id,
-                user_id=user_id,
-            )
-            if result.get("success"):
-                content = result.get("content", "No analysis result")
-                # Filenames are auto-generated unique IDs. Main chat Claude MUST
-                # use these exact filenames with [[image:FILENAME]].
-                if result.get("image_paths"):
-                    content += "\n\nGenerated visualizations (use these exact filenames):\n"
-                    for filename in result["image_paths"]:
-                        content += f"- [[image:{filename}]]\n"
-                return content
-            return f"Error: {result.get('error', 'Analysis failed')}"
-
-        if tool_name == "analyze_database_agent":
-            # Database analyzer agent for answering questions using live SQL
-            result = database_entry.execute(
-                project_id=project_id,
-                source_id=tool_input.get("source_id", ""),
-                query=tool_input.get("query", ""),
-                chat_id=chat_id,
-                user_id=user_id,
-            )
-            if result.get("success"):
-                return result.get("content", "No analysis result")
-            return f"Error: {result.get('error', 'Analysis failed')}"
-
-        if tool_name == "analyze_freshdesk_agent":
-            # Freshdesk analyzer agent for answering questions about ticket data
-            result = freshdesk_entry.execute(
-                project_id=project_id,
-                source_id=tool_input.get("source_id", ""),
-                query=tool_input.get("query", ""),
-                chat_id=chat_id,
-                user_id=user_id,
-            )
-            if result.get("success"):
-                return result.get("content", "No analysis result")
-            return f"Error: {result.get('error', 'Analysis failed')}"
-
-        if tool_name == "studio_signal":
-            # Studio signal returns immediately, actual storage happens in background.
-            result = studio_signal_executor.emit(
-                project_id=project_id,
-                chat_id=chat_id,
-                signals=tool_input.get("signals", []),
-            )
-            if result.get("success"):
-                return result.get("message", "Studio signals activated")
-            return f"Error: {result.get('message', 'Unknown error')}"
-
-        if knowledge_base_service.can_handle(tool_name):
-            # Route to knowledge base service (Jira, Notion, GitHub, etc.)
-            return knowledge_base_service.execute(
-                project_id=project_id,
-                chat_id=chat_id,
-                tool_name=tool_name,
-                tool_input=tool_input,
-            )
-
-        if mcp_registry and mcp_tool_service.can_handle(tool_name):
-            # Route to MCP tool service (Freshdesk, GitHub MCP, etc.)
-            return mcp_tool_service.execute(
-                tool_name=tool_name,
-                tool_input=tool_input,
-                registry=mcp_registry,
-            )
-
-        return f"Unknown tool: {tool_name}"
-
 
 def run_send(
     project_id: str,

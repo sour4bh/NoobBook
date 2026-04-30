@@ -7,7 +7,7 @@ NBB-704A established two narrow rules that hold long before migration finishes:
    must be a canonical root from ``STRUCTURE.md`` (NBB-104/NBB-902).
    ``services`` is retired by NBB-811, and ``utils`` plus ``data/prompts`` are
    retired by NBB-812. New roots outside the approved list fail. This catches a
-   contributor inventing a new mechanism bucket such as ``backend/app/agents/``.
+   contributor inventing a new mechanism bucket.
 
 2. Import direction at the external edge (NBB-104, NBB-206).
    - ``backend/app/providers/`` is a leaf. It must not import from ``app.api``,
@@ -31,20 +31,17 @@ NBB-704B adds richer post-migration boundary checks now that domains exist:
    for the per-line rationale.
 
 4. Chat publics-only rule. Code outside ``app.chat/`` must reach chat through
-   the public surface declared in ``app.chat.__all__`` ({store, tools, schemas,
-   send, stream, ChatEvent, ChatResponse}). Reaching deeper paths such as
-   ``app.chat.message.store`` is rejected; callers that need message
-   persistence import ``message_service`` from ``app.chat.store``.
+   the public surface declared in ``app.chat.__all__`` ({store, message, tools,
+   schemas, send, stream, ChatEvent, ChatResponse}). Reaching deeper paths such
+   as ``app.chat.message.store`` is rejected; callers that need message
+   persistence import ``message_service`` from ``app.chat.message``.
 
 5. Inter-domain regression guard. ``app.auth/``, ``app.workspaces/``,
    ``app.projects/``, ``app.connectors/``, ``app.brand/``, ``app.background/``,
    and ``app.settings/`` currently do not import from ``app.chat``,
-   ``app.sources``, or ``app.studio`` at all (one allowlisted registry
-   exception: ``auth/tool_policy.py`` lazily imports
-   ``sources.analysis.tool_capabilities`` for cross-cutting capability
-   registration owned by NBB-202B). Lock the property — these roots may not
-   depend on the migrated domains in either direction, today or in future
-   commits.
+   ``app.sources``, or ``app.studio`` at all. Lock the property — these roots
+   may not depend on the migrated domains in either direction, today or in
+   future commits.
 
 6. API transport boundary (NBB-906). Non-transport app code must not import
    ``app.api`` route modules. The app factory may register the blueprint, and
@@ -73,7 +70,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Set, Tuple
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = BACKEND_DIR / "app"
@@ -83,6 +80,7 @@ REPO_ROOT = BACKEND_DIR.parent
 # belongs under one of these.
 CANONICAL_ROOTS: frozenset[str] = frozenset({
     "api",
+    "agents",
     "auth",
     "workspaces",
     "projects",
@@ -166,17 +164,10 @@ CONNECTORS_FORBIDDEN_PREFIXES: Tuple[str, ...] = tuple(
 )
 
 # NBB-704B path (a): inherited providers→domain imports that landed with
-# NBB-705C (cost_tracking + embedding_utils drain). Each entry is
-# ``(rel_path, lineno, target_root)`` so a future re-fire on a different line
-# still surfaces. Rationale lives in ``providers/CHARTER.md``
-# "Documented exceptions (NBB-704B)" — observability legitimately depends on
-# user/project/chat ownership, and the lazy imports already break the
-# providers→domain runtime cycle.
+# NBB-705C. Each entry is ``(rel_path, lineno, target_root)`` so a future
+# re-fire on a different line still surfaces. Rationale lives in
+# ``providers/CHARTER.md`` "Documented exceptions (NBB-704B)".
 INHERITED_PROVIDER_VIOLATIONS: frozenset[Tuple[str, int, str]] = frozenset({
-    ("backend/app/providers/anthropic/cost.py", 76, "projects"),
-    ("backend/app/providers/anthropic/cost.py", 82, "chat"),
-    ("backend/app/providers/anthropic/cost.py", 300, "auth"),
-    ("backend/app/providers/anthropic/cost.py", 357, "auth"),
     ("backend/app/providers/anthropic/token_count.py", 12, "sources"),
 })
 
@@ -195,6 +186,7 @@ INHERITED_CONNECTOR_VIOLATIONS: frozenset[Tuple[str, int, str]] = frozenset({
 # (``app.chat.message.store``, ``app.chat.loop``, ``app.chat.tool.policy``,
 # etc.) is a boundary violation.
 CHAT_PUBLIC_SUBMODULES: frozenset[str] = frozenset({
+    "message",
     "store",
     "tools",
     "schemas",
@@ -214,17 +206,64 @@ INDEPENDENT_ROOTS: Tuple[str, ...] = (
 )
 MIGRATED_DOMAINS: Tuple[str, ...] = ("chat", "sources", "studio")
 
-# NBB-704B rule 5 inherited exception: ``auth.tool_policy`` runs a lazy
-# registry-loading import of ``app.sources.analysis.tool_capabilities`` to
-# attach sources-owned tool capabilities to the policy registry it owns
-# (NBB-202B). The import is gated behind ``_ensure_loaded`` to avoid the
-# providers→domain runtime cycle and the source side reciprocally imports
-# from ``app.auth.tool_policy``. This is a known cross-cutting registry
-# pattern, not a regression.
 INDEPENDENT_ROOTS_ALLOWLIST: frozenset[Tuple[str, int, str]] = frozenset({
-    ("backend/app/auth/tool_policy.py", 225, "sources"),
     ("backend/app/connectors/freshdesk/sync.py", 74, "sources"),
 })
+
+AI_DOMAIN_FORBIDDEN_TOKENS: Tuple[Tuple[str, str], ...] = (
+    (
+        "claude_service.send_message",
+        "domain code must not call claude_service.send_message directly after "
+        "NBB-1111. Use app.agents.runtime or the provider adapter boundary.",
+    ),
+    (
+        "claude_service.stream_message",
+        "domain code must not call claude_service.stream_message directly after "
+        "NBB-1111. Use app.agents.runtime or the provider adapter boundary.",
+    ),
+    (
+        "tool_loader.load_tool(",
+        "domain code must not request Anthropic-shaped tool dictionaries after "
+        "NBB-1111. Load ToolSpec contracts and compile them through the runtime "
+        "provider boundary.",
+    ),
+    (
+        "tool_loader.load_tools_for_agent(",
+        "domain code must not request Anthropic-shaped agent tool dictionaries "
+        "after NBB-1111. Load ToolSpec contracts and compile them through the "
+        "runtime provider boundary.",
+    ),
+    (
+        "tool_loader.load_tools_from_category(",
+        "domain code must not request provider-shaped tool dictionaries after "
+        "NBB-1111. Load ToolSpec contracts and compile them through the "
+        "runtime provider boundary.",
+    ),
+)
+
+AI_FORBIDDEN_ANTHROPIC_INTERNAL_IMPORTS: Tuple[str, ...] = (
+    "app.providers.anthropic.response_parser",
+    "app.providers.anthropic.content",
+)
+
+TOOL_BINDING_ALLOWLIST: Set[str] = {
+    # Chat memory has one internal forced tool; its executable binding is
+    # colocated with the memory update workflow while specs remain catalog-owned.
+    "backend/app/chat/memory/tools",
+    # These single terminating tools only echo validated input. Their handlers
+    # stay at the call site so we do not create binding.py files that repeat
+    # what the spec and runtime binding call already say.
+    "backend/app/sources/pdf/tools",
+    "backend/app/sources/pptx/tools",
+    "backend/app/sources/image/tools",
+    "backend/app/studio/design/flow_diagram/tools",
+    "backend/app/studio/learning/flash_card/tools",
+    "backend/app/studio/learning/mind_map/tools",
+    "backend/app/studio/learning/quiz/tools",
+    "backend/app/connectors/jira/tools",
+    "backend/app/connectors/mixpanel/tools",
+    "backend/app/connectors/notion/tools",
+}
 
 CURRENT_DOC_PATHS: Tuple[Path, ...] = (
     REPO_ROOT / "AGENTS.md",
@@ -675,8 +714,8 @@ def check_chat_publics_only() -> List[Violation]:
                 (
                     f"reaches into chat internals via '{module}'. Use the "
                     "chat public surface (app.chat / app.chat.store / "
-                    "app.chat.tools / app.chat.schemas) per chat/__init__.py "
-                    "and chat/CHARTER.md (NBB-704B)."
+                    "app.chat.message / app.chat.tools / app.chat.schemas) "
+                    "per chat/__init__.py and chat/CHARTER.md (NBB-704B)."
                 ),
             ))
     return violations
@@ -757,6 +796,337 @@ def check_no_external_api_imports() -> List[Violation]:
     return violations
 
 
+def check_no_legacy_ai_domain_access() -> List[Violation]:
+    """NBB-1111: domains must not bypass the typed model/tool runtime."""
+    violations: List[Violation] = []
+    for path in sorted(APP_DIR.rglob("*.py")):
+        rel = _rel_path(path)
+        if rel.startswith("backend/app/providers/"):
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+            lines = source.splitlines()
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+
+        for index, line in enumerate(lines, start=1):
+            for token, message in AI_DOMAIN_FORBIDDEN_TOKENS:
+                if token in line:
+                    violations.append(Violation(path, index, message))
+
+        try:
+            tree = ast.parse(source, filename=str(path))
+        except SyntaxError as exc:
+            violations.append(Violation(path, exc.lineno or 0, f"syntax error: {exc.msg}"))
+            continue
+        for lineno, module in _iter_import_modules(tree):
+            if module in AI_FORBIDDEN_ANTHROPIC_INTERNAL_IMPORTS:
+                violations.append(Violation(
+                    path,
+                    lineno,
+                    (
+                        f"domain code must not import '{module}' after "
+                        "NBB-1111. Use app.providers.anthropic.adapter or "
+                        "app.agents.runtime contracts instead."
+                    ),
+                ))
+
+    return violations
+
+
+def check_no_static_tool_json() -> List[Violation]:
+    """NBB-1111: tool schemas are Pydantic ToolSpec contracts, not JSON files."""
+    tracked_files, error = _git_ls_files("backend/app")
+    if error is not None:
+        return [Violation(None, 0, error)]
+
+    violations: List[Violation] = []
+    for rel_path in tracked_files:
+        path = Path(rel_path)
+        absolute_path = REPO_ROOT / rel_path
+        if not absolute_path.exists():
+            continue
+        if path.suffix != ".json":
+            continue
+        if "tools" not in path.parts and "raw_tools" not in path.parts:
+            continue
+        violations.append(Violation(
+            absolute_path,
+            0,
+            (
+                "static tool JSON is forbidden after NBB-1111. Define the "
+                "tool in the owning domain's tools/specs.py as a ToolSpec."
+            ),
+        ))
+    return violations
+
+
+def check_no_static_prompt_json() -> List[Violation]:
+    """NBB-1113: built-in prompts are Python PromptSpec contracts."""
+    violations: List[Violation] = []
+    for path in sorted(APP_DIR.rglob("*_prompt.json")):
+        violations.append(Violation(
+            path,
+            0,
+            (
+                "built-in prompt JSON is forbidden after NBB-1113. Define the "
+                "prompt in the owning domain's prompt.py as a PromptSpec."
+            ),
+        ))
+    return violations
+
+
+def check_prompt_modules_export_specs() -> List[Violation]:
+    """NBB-1113: prompt.py modules must be discoverable typed specs."""
+    violations: List[Violation] = []
+    for path in sorted(APP_DIR.rglob("prompt.py")):
+        if path == APP_DIR / "config" / "prompt.py":
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+        try:
+            tree = ast.parse(source, filename=str(path))
+        except SyntaxError as exc:
+            violations.append(Violation(path, exc.lineno or 0, f"syntax error: {exc.msg}"))
+            continue
+        exported = {
+            target.id
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        }
+        if "PROMPT" in exported or "PROMPTS" in exported:
+            continue
+        violations.append(Violation(
+            path,
+            0,
+            (
+                "prompt.py modules are prompt-spec modules after NBB-1113. "
+                "Export PROMPT or PROMPTS with PromptSpec values, or rename "
+                "non-prompt behavior to its real local concept."
+            ),
+        ))
+    return violations
+
+
+def check_no_obsolete_prompt_asset_apis() -> List[Violation]:
+    """NBB-1113: prompt JSON path registry APIs must not return."""
+    forbidden = (
+        "register_prompt_path",
+        "resolve_prompt_path",
+        "iter_registered_prompt_dirs",
+        "iter_prompt_candidate_paths",
+        "_PRODUCTION_PROMPT_PATHS",
+    )
+    violations: List[Violation] = []
+    for path in sorted((APP_DIR / "config").rglob("*.py")):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+        for index, line in enumerate(lines, start=1):
+            for token in forbidden:
+                if token in line:
+                    violations.append(Violation(
+                        path,
+                        index,
+                        (
+                            f"obsolete prompt asset API {token!r} is forbidden "
+                            "after NBB-1113. Built-in prompts are discovered "
+                            "from domain prompt.py modules."
+                        ),
+                    ))
+    return violations
+
+
+def check_no_domain_prompt_config_dict_reads() -> List[Violation]:
+    """NBB-1113: domain model callers render typed prompts, not config dicts."""
+    forbidden = (
+        "prompt_loader.get_prompt_config(",
+        "prompt_loader.get_project_prompt_config(",
+        "from app.config.prompt import prompt_loader",
+    )
+    allowed_prefixes = (
+        "backend/app/api/prompts/",
+        "backend/app/config/prompt.py",
+    )
+    violations: List[Violation] = []
+    for path in sorted(APP_DIR.rglob("*.py")):
+        rel = _rel_path(path)
+        if rel.startswith(allowed_prefixes):
+            continue
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+        for index, line in enumerate(lines, start=1):
+            for token in forbidden:
+                if token in line:
+                    violations.append(Violation(
+                        path,
+                        index,
+                        (
+                            "domain model callers must use render_prompt after "
+                            "NBB-1113. prompt_loader remains only for the public "
+                            "prompt API and persisted project-prompt compatibility."
+                        ),
+                    ))
+    return violations
+
+
+def _call_local_name(node: ast.Call) -> Optional[str]:
+    if isinstance(node.func, ast.Name):
+        return node.func.id
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr
+    return None
+
+
+def check_no_native_tool_loop_calls() -> List[Violation]:
+    """NBB-011: runtime owns model calls and tool loops."""
+    violations: List[Violation] = []
+    for path in sorted(APP_DIR.rglob("*.py")):
+        rel = _rel_path(path)
+        if rel.startswith("backend/app/agents/runtime/"):
+            continue
+        if rel.startswith("backend/app/providers/"):
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+        try:
+            tree = ast.parse(source, filename=str(path))
+        except SyntaxError as exc:
+            violations.append(Violation(path, exc.lineno or 0, f"syntax error: {exc.msg}"))
+            continue
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = _call_local_name(node)
+            if name == "runtime_parts_to_native_content":
+                violations.append(Violation(
+                    path,
+                    node.lineno,
+                    (
+                        "domain code must not reconstruct provider-native "
+                        "content from runtime parts. Persist or pass "
+                        "RunMessage/ContentPart contracts instead."
+                    ),
+                ))
+                continue
+            if name not in {"run_native_turn", "stream_native_turn"}:
+                continue
+            violations.append(Violation(
+                path,
+                node.lineno,
+                (
+                    "run_native_turn/stream_native_turn are forbidden after "
+                    "NBB-011. Build a RunRequest and call run_with_provider "
+                    "or stream_with_provider."
+                ),
+            ))
+    return violations
+
+
+def check_no_domain_tool_call_payload_reads() -> List[Violation]:
+    """NBB-011: domains consume validated tool results, not provider tool calls."""
+    violations: List[Violation] = []
+    for path in sorted(APP_DIR.rglob("*.py")):
+        rel = _rel_path(path)
+        if rel.startswith("backend/app/agents/runtime/"):
+            continue
+        if rel.startswith("backend/app/providers/"):
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            violations.append(Violation(path, 0, f"cannot read file: {exc}"))
+            continue
+        try:
+            tree = ast.parse(source, filename=str(path))
+        except SyntaxError as exc:
+            violations.append(Violation(path, exc.lineno or 0, f"syntax error: {exc.msg}"))
+            continue
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Attribute):
+                continue
+            if node.attr != "tool_calls":
+                continue
+            violations.append(Violation(
+                path,
+                node.lineno,
+                (
+                    "domain code must consume validated RunResult.tool_results "
+                    "instead of provider/model tool_calls. Use the runtime result "
+                    "helper for business payloads."
+                ),
+            ))
+    return violations
+
+
+def check_tool_specs_have_bindings() -> List[Violation]:
+    """NBB-011: executable local tool contracts need sibling binding modules."""
+    violations: List[Violation] = []
+    for specs_path in sorted(APP_DIR.rglob("specs.py")):
+        rel_parent = _rel_path(specs_path.parent)
+        if not (rel_parent.endswith("/tools") or rel_parent.endswith("/raw_tools")):
+            continue
+        if rel_parent in TOOL_BINDING_ALLOWLIST:
+            continue
+        binding_path = specs_path.with_name("binding.py")
+        if binding_path.exists():
+            continue
+        violations.append(Violation(
+            specs_path,
+            0,
+            (
+                "tool specs must have a sibling binding.py so static Pydantic "
+                "contracts and executable per-run handlers stay paired."
+            ),
+        ))
+    return violations
+
+
+def check_no_trivial_echo_binding_modules() -> List[Violation]:
+    """NBB-1112: echo-only terminating tools stay bound at call sites."""
+    violations: List[Violation] = []
+    for rel_parent in sorted(TOOL_BINDING_ALLOWLIST):
+        if rel_parent not in {
+            "backend/app/sources/pdf/tools",
+            "backend/app/sources/pptx/tools",
+            "backend/app/sources/image/tools",
+            "backend/app/studio/design/flow_diagram/tools",
+            "backend/app/studio/learning/flash_card/tools",
+            "backend/app/studio/learning/mind_map/tools",
+            "backend/app/studio/learning/quiz/tools",
+        }:
+            continue
+        binding_path = REPO_ROOT / rel_parent / "binding.py"
+        if not binding_path.exists():
+            continue
+        violations.append(Violation(
+            binding_path,
+            0,
+            (
+                "this single-tool echo binding is intentionally inline after "
+                "NBB-1112. Delete binding.py and bind echo_input at the owning "
+                "workflow call site."
+            ),
+        ))
+    return violations
+
+
 def main() -> int:
     if not APP_DIR.is_dir():
         sys.stderr.write(f"error: {APP_DIR} not found\n")
@@ -772,6 +1142,16 @@ def main() -> int:
     violations.extend(check_chat_publics_only())
     violations.extend(check_independent_roots())
     violations.extend(check_no_external_api_imports())
+    violations.extend(check_no_legacy_ai_domain_access())
+    violations.extend(check_no_static_tool_json())
+    violations.extend(check_no_static_prompt_json())
+    violations.extend(check_prompt_modules_export_specs())
+    violations.extend(check_no_obsolete_prompt_asset_apis())
+    violations.extend(check_no_domain_prompt_config_dict_reads())
+    violations.extend(check_no_native_tool_loop_calls())
+    violations.extend(check_no_domain_tool_call_payload_reads())
+    violations.extend(check_tool_specs_have_bindings())
+    violations.extend(check_no_trivial_echo_binding_modules())
 
     if violations:
         for v in violations:

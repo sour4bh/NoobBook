@@ -1,65 +1,18 @@
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional
 
 from pydantic import Field, RootModel, model_validator
 
+from app.agents.runtime.contract import ContentPart
 from app.base.contracts import ContractModel
 
 
-class TextBlock(ContractModel):
-    type: Literal["text"] = "text"
-    text: str
-    citations: Optional[list[dict[str, Any]]] = None
+class MessageContent(RootModel[list[ContentPart]]):
+    """Current `messages.content` JSONB contract.
 
+    NBB-1106 stores neutral runtime content parts. Legacy Anthropic block
+    shapes are migration input only and are converted before validation.
+    """
 
-class ToolUseBlock(ContractModel):
-    type: Literal["tool_use"] = "tool_use"
-    id: str
-    name: str
-    input: dict[str, Any] = Field(default_factory=dict)
-
-
-class ToolResultBlock(ContractModel):
-    type: Literal["tool_result"] = "tool_result"
-    tool_use_id: str
-    content: str
-    is_error: Optional[bool] = None
-
-
-class ServerToolUseBlock(ContractModel):
-    type: Literal["server_tool_use"] = "server_tool_use"
-    id: str
-    name: str
-    input: dict[str, Any] = Field(default_factory=dict)
-
-
-class WebSearchToolResultBlock(ContractModel):
-    type: Literal["web_search_tool_result"] = "web_search_tool_result"
-    tool_use_id: str
-    content: Any
-
-
-class WebFetchToolResultBlock(ContractModel):
-    type: Literal["web_fetch_tool_result"] = "web_fetch_tool_result"
-    tool_use_id: str
-    content: Any
-
-
-ContentBlock = Union[
-    TextBlock,
-    ToolUseBlock,
-    ToolResultBlock,
-    ServerToolUseBlock,
-    WebSearchToolResultBlock,
-    WebFetchToolResultBlock,
-]
-
-
-class StoredTextContent(ContractModel):
-    text: str
-    error: Optional[bool] = None
-
-
-class MessageContent(RootModel[Union[StoredTextContent, list[ContentBlock]]]):
     pass
 
 

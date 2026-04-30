@@ -293,8 +293,7 @@ def user_has_permission(
 
     ``require_permission`` in ``app.auth.guards`` turns ``False`` into
     a 403 response with the standard contact-admin message; callers
-    that gate feature visibility inline (for example
-    ``main_chat_service``) consume the bool directly.
+    that gate feature visibility inline consume the bool directly.
     """
     # 1. Unknown category: do not silently allow in production.
     if not is_known_category(category):

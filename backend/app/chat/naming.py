@@ -13,27 +13,18 @@ its `_prompt_config` lazy cache moved here as a module-private variable.
 import logging
 from typing import Any, Dict, Optional
 
-import app.providers.anthropic.response_parser
+from app.agents.runtime import (
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    run_with_provider,
+)
 from app.background.tasks import task_service
 from app.chat.store import chat_service
-from app.config.prompt import prompt_loader
-from app.providers.anthropic import claude_service
+from app.config.prompt import render_prompt
 
 logger = logging.getLogger(__name__)
-
-_prompt_config: Optional[Dict[str, Any]] = None
-
-
-def _get_prompt_config() -> Dict[str, Any]:
-    """Load and cache the chat-naming prompt config."""
-    global _prompt_config
-    if _prompt_config is None:
-        cfg = prompt_loader.get_prompt_config("chat_naming")
-        if cfg is None:
-            raise ValueError("chat_naming_prompt.json not registered or missing")
-        _prompt_config = cfg
-    return _prompt_config
-
 
 def generate_title(
     first_message: str,
@@ -44,16 +35,24 @@ def generate_title(
         return None
 
     try:
-        config = _get_prompt_config()
-        response = claude_service.send_message(
-            messages=[{"role": "user", "content": first_message}],
-            system_prompt=config.get("system_prompt", ""),
-            model=config.get("model"),
-            max_tokens=config.get("max_tokens"),
-            temperature=config.get("temperature"),
-            project_id=project_id,
+        prompt = render_prompt("chat_naming", project_id=project_id)
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose="chat_naming",
+                messages=[
+                    RunMessage(role="user", content=[TextPart(text=first_message)])
+                ],
+                system_prompt=prompt.system_prompt,
+                limits=RunLimits(
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
+                project_id=project_id,
+            )
         )
-        title = app.providers.anthropic.response_parser.extract_text(response).strip()
+        title = result.text.strip()
         if not title:
             return None
         title = title.strip("\"'")

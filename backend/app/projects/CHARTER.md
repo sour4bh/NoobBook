@@ -27,7 +27,7 @@ Auxiliary tables defined elsewhere but keyed to `project_id`:
 | Column | Defined in | Purpose |
 |---|---|---|
 | `projects.memory` | 00001 | Project-specific memory string merged into the chat system prompt. |
-| `projects.costs` | 00001 | Per-project cost tracking mirrored in `chats.costs` (00018). Updated via `backend/app/providers/anthropic/cost.py`. |
+| `projects.costs` | 00001 | Provider/model-aware per-project cost tracking mirrored in `chats.costs` (00018). Updated via `backend/app/agents/runtime/cost.py`. |
 
 ## Access guard of record
 

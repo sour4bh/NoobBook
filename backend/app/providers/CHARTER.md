@@ -6,18 +6,20 @@
 
 Provider territory:
 - Low-level external API clients and SDK wrappers (Anthropic, OpenAI, ElevenLabs, Gemini, Veo, Imagen, Pinecone, Tavily, Webshare).
+- Provider adapters that translate between `app.agents.runtime` contracts and a specific model API protocol.
 - Raw storage and database adapters (Supabase storage, Supabase auth client, Supabase service-role client).
 - Auth primitives tied to a specific provider protocol (Google OAuth token exchange and refresh).
 - Raw transport wrappers for connector runtimes (MCP SSE/stdio client).
-- Provider-neutral runtime IO consumed directly by domains (HTTP fetches, YouTube transcript fetch, media/base64 encoding helpers, rate limiters paired with a specific provider API, Claude response parsers and cost helpers).
+- Provider-neutral runtime IO consumed directly by domains (HTTP fetches, YouTube transcript fetch, media/base64 encoding helpers, rate limiters paired with a specific provider API, and provider response parsing helpers).
 
 ## Out of scope
 
 - Product orchestration. If a capability is named after a product integration (Notion workspace, Jira project, Freshdesk ticket scope, Mixpanel project, Google Drive folder), it is a connector, not a provider.
 - User/project connection state. Connector stores (database connection, MCP connection) belong to `connectors/`, not `providers/` — see `NBB-209E`.
-- Permission-gated tool schemas. Claude-visible tool JSON that depends on per-user credentials lives under `connectors/<name>/tools/` by the `NBB-207C` decision map.
+- Permission-gated tool contracts. Model-visible tool specs that depend on per-user credentials live under `connectors/<name>/tools/specs.py` by the `NBB-207C` ownership map and `NBB-1104` conversion.
 - File-format parsing and extraction. PDF, DOCX, PPTX, image, audio, URL, and YouTube *format* operations are domain-owned behavior under `sources/` (see `NBB-401`). `providers/` supplies raw fetch/transport primitives; it does not extract structured content from bytes.
 - Studio export and screenshot helpers. Studio-owned behavior under `studio/` owns those.
+- Provider-neutral agent/tool loop ownership. Shared run contracts and local-tool execution mechanics live under `backend/app/agents/runtime`; providers only translate those contracts to SDK calls and back.
 
 `platform/files/` and `providers/files/` are explicitly rejected as default homes. There is no generic file-adapter root; format ownership follows `NBB-401`, and provider-neutral IO primitives stay near the protocol they speak.
 
@@ -27,24 +29,20 @@ Provider territory:
 
 - `providers/` imports nothing from `api/`, any domain (`chat/`, `sources/`, `studio/`, `projects/`, `auth/`, `brand/`, `settings/`, `background/`), or `connectors/`.
 - `connectors/` imports from `providers/` to wrap a raw client into a configured product capability.
-- Domains may import from `providers/` **only** for provider-neutral runtime primitives (HTTP/storage/Anthropic-client/OpenAI-embeddings primitives). Product-specific external capabilities go through `connectors/` instead.
+- Domains may import from `providers/` **only** for provider-neutral runtime primitives (HTTP/storage/OpenAI-embeddings primitives) or through `app.agents.runtime` provider adapters. Domain code must not branch on Anthropic/OpenAI response shapes directly after `NBB-011` migrations land. Product-specific external capabilities go through `connectors/` instead.
 - Domain-reviewed provider seam: `sources/CHARTER.md` pins `providers/supabase/storage.py` as the single path builder for the `raw-files`, `processed-files`, and `chunks` buckets. Do not introduce sibling path builders; the seam crosses the boundary by design and is reviewed under `NBB-204`.
 
 Rich import-direction enforcement lands in `NBB-704A` and `NBB-704B`.
 
 ## Documented exceptions (NBB-704B)
 
-`NBB-704B` accepts five inherited providers→domain imports under `providers/anthropic/` and encodes them line-by-line in `backend/scripts/verify_architecture.py` as `INHERITED_PROVIDER_VIOLATIONS`. These are not regressions and do not weaken the leaf rule above; they are observability hooks that legitimately depend on user/project/chat ownership, and the cycle is broken at runtime by lazy imports inside helper functions.
+`NBB-704B` accepts one inherited providers→domain import under `providers/anthropic/` and encodes it line-by-line in `backend/scripts/verify_architecture.py` as `INHERITED_PROVIDER_VIOLATIONS`. This is not a regression and does not weaken the leaf rule above.
 
 | File and line | Imports | Why it stays |
 |---|---|---|
-| `backend/app/providers/anthropic/cost.py:76` | `app.projects.store.project_service` | Project cost tracking writes through the project ownership store; `_get_project_service` lazily imports inside a helper to break the runtime cycle. |
-| `backend/app/providers/anthropic/cost.py:82` | `app.chat.store.chat_service` | Per-chat cost mirroring (NBB-209A schema) writes through the chat store; lazy-imported alongside the project service. |
-| `backend/app/providers/anthropic/cost.py:300` | `app.auth.user.store.get_user_service` | Spending-limit lookup reads `users.cost_limit` and `users.period_*` columns owned by `auth/`; lazy-imported inside `check_user_spending_limit`. |
-| `backend/app/providers/anthropic/cost.py:357` | `app.auth.user.store.get_user_service` | Period-spend write companion to the lookup above; lazy-imported inside `record_user_period_spend`. |
 | `backend/app/providers/anthropic/token_count.py:12` | `app.sources.tokens.count_tokens` | tiktoken fallback when the Anthropic count-tokens API call fails; the fallback is the same helper `sources/` uses for chunking, so duplicating it here would diverge the two estimators. Eager import is acceptable because `sources.tokens` does not import back into `providers/`. |
 
-NBB-705C reviewer confirmed the `cost.py` imports are byte-identical to the former `utils/cost_tracking.py` source. The allowlist is keyed on `(rel_path, lineno, target_root)`; if any of these helpers move to a new line, the verifier surfaces the move and the entry must be re-confirmed under the same rationale.
+The allowlist is keyed on `(rel_path, lineno, target_root)`; if this helper moves to a new line, the verifier surfaces the move and the entry must be re-confirmed under the same rationale.
 
 ## Current-code inventory
 
@@ -52,7 +50,7 @@ Classification of provider client modules after `NBB-806`. Connector clients mov
 
 | Current path | Classification | Rationale |
 |---|---|---|
-| `providers/anthropic/messages.py` | provider | Raw Anthropic Messages API client; `NBB-705C` drains Claude parsing/cost/rate helpers alongside it into `providers/anthropic/`. |
+| `providers/anthropic/messages.py` | provider | Raw Anthropic Messages API client; `NBB-705C` drained Claude parsing/rate helpers alongside it into `providers/anthropic/`. Cost accounting moved to provider-neutral `agents/runtime/cost.py` in `NBB-011`. |
 | `providers/openai/embeddings.py` | provider | Raw OpenAI embeddings client; stateless, no product orchestration. |
 | `providers/elevenlabs/audio.py` | provider | ElevenLabs Scribe v1 transcription SDK call. |
 | `providers/elevenlabs/transcription.py` | provider | ElevenLabs streaming-transcription token minting (runtime IO primitive). |
@@ -86,7 +84,7 @@ For Anthropic specifically, `claude_service.reload_config()` (added in `NBB-208A
 
 This charter locks the boundary. The physical provider-client drain landed in `NBB-806`; connector moves remain follow-up work.
 
-- `NBB-705C` — Drain provider and Anthropic utilities. Splits `utils/claude_parsing_utils.py` into `providers/anthropic/{response_parser,content,usage}.py`; moves `utils/cost_tracking.py`, the API half of `utils/embedding_utils.py`, `utils/rate_limit_utils.py`, and `utils/encoding_utils.py` under `providers/anthropic/`.
+- `NBB-705C` — Drain provider and Anthropic utilities. Splits `utils/claude_parsing_utils.py` into `providers/anthropic/{response_parser,content,usage}.py`; moved the former cost tracker temporarily under `providers/anthropic/`, then `NBB-011` replaced it with provider-neutral `agents/runtime/cost.py`. Also moved the API half of `utils/embedding_utils.py`, `utils/rate_limit_utils.py`, and `utils/encoding_utils.py` under `providers/anthropic/`.
 - `NBB-806` — moved OpenAI, ElevenLabs, Google (Imagen/Veo/OAuth half), Pinecone, Tavily, Supabase primitives, YouTube, MCP transport, and provider-owned validators under `providers/`.
 
 Provider-owned API-key validators (Anthropic, OpenAI, ElevenLabs, Gemini, Nano Banana, Veo, Pinecone, Tavily, Opik) live under their matching `providers/` modules. `settings/` retains the route and validation dispatcher in `app.settings.validation`.

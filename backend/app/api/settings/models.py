@@ -1,21 +1,19 @@
 """
-Model settings endpoints - Workspace-configurable Claude model per use case.
+Model settings endpoints - workspace-configurable provider/model per use case.
 
-Educational Note: Every prompt config has a baked-in model (Haiku, Sonnet, or
-Opus). This endpoint lets a workspace owner/admin override those models per
-category:
+Educational Note: Every prompt config has a baked-in provider/model pair. This
+endpoint lets a workspace owner/admin override those selections per category:
 
     - chat:       main conversation, auto-naming, memory
     - studio:     all content generation (audio, video, presentations, etc.)
     - query:      database/csv/freshdesk analyzer agents
     - extraction: background source processing (PDF, PPTX, image, CSV)
 
-Selecting "Default" (null) for a category clears the override so each prompt's
-own JSON-baked model is used — preserving intentional per-prompt tuning like
-presentation_agent=Opus.
+Selecting "Default" (null) for a category clears the override so each typed
+PromptSpec's provider/model is used.
 
 Overrides are stored in workspace settings in Supabase mode, with .env kept as
-the local/bootstrap fallback. PromptConfig resolves the model dynamically on
+the local/bootstrap fallback. Runtime prompt rendering resolves the model on
 each request.
 
 Routes:
@@ -27,26 +25,40 @@ from flask import jsonify, request, current_app
 from app.api.settings import settings_bp
 from app.api.settings.workspace import resolve_workspace_context
 from app.config.model import (
-    AVAILABLE_MODELS,
     MODEL_CATEGORIES,
+    get_available_models,
     get_current_settings,
     get_all_default_models,
+    get_configured_providers,
+    normalize_model_selection,
+    is_provider_configured,
+    workspace_model_overrides,
 )
 from app.settings.env import EnvService
 from app.workspaces.settings import workspace_settings_store
+from app.workspaces.store import workspace_store
 
 env_service = EnvService()
 
 
-def _get_workspace_model_settings(workspace_id: str, requester_user_id: str) -> dict[str, str | None]:
+def _get_workspace_model_settings(
+    workspace_id: str,
+    requester_user_id: str,
+) -> dict[str, dict[str, str] | None]:
     settings = get_current_settings()
     if not workspace_settings_store.supabase:
         return settings
     workspace_settings = workspace_settings_store.get_settings(workspace_id, requester_user_id)
-    overrides = workspace_settings.get("model_overrides") or {}
+    overrides = workspace_model_overrides(workspace_settings)
     for category, model_id in overrides.items():
         if category in MODEL_CATEGORIES:
-            settings[category] = model_id or None
+            selection = normalize_model_selection(model_id)
+            settings[category] = (
+                selection.model_dump(mode="json")
+                if selection
+                and is_provider_configured(selection.provider, workspace_id=workspace_id)
+                else None
+            )
     return settings
 
 
@@ -60,8 +72,8 @@ def get_model_settings():
         {
             "success": true,
             "settings": {
-                "chat": "claude-opus-4-6" | null,
-                "studio": "claude-haiku-4-5-20251001" | null,
+                "chat": {"provider": "anthropic", "model": "claude-opus-4-6"} | null,
+                "studio": {"provider": "openai", "model": "gpt-5-mini"} | null,
                 "query": null,
                 "extraction": null
             },
@@ -76,7 +88,8 @@ def get_model_settings():
         }
     """
     try:
-        identity, workspace_id = resolve_workspace_context(require_manager=True)
+        identity, workspace_id = resolve_workspace_context(require_manager=False)
+        can_manage = workspace_store.can_manage_workspace(workspace_id, identity.user_id)
         # `defaults` shows what each prompt actually resolves to when its
         # category is set to "Default" — used by the UI to make Default
         # honest about which models will be used (e.g. chat = mostly Sonnet
@@ -85,9 +98,14 @@ def get_model_settings():
         return jsonify({
             'success': True,
             'settings': _get_workspace_model_settings(workspace_id, identity.user_id),
-            'available_models': list(AVAILABLE_MODELS.values()),
+            'available_models': get_available_models(workspace_id=workspace_id),
+            'configured_providers': get_configured_providers(workspace_id=workspace_id),
             'categories': list(MODEL_CATEGORIES.values()),
             'defaults': defaults,
+            'capabilities': {
+                'can_manage_provider_keys': can_manage,
+                'can_manage_model_defaults': can_manage,
+            },
         }), 200
     except PermissionError as e:
         return jsonify({'success': False, 'error': str(e)}), 403
@@ -103,9 +121,9 @@ def update_model_settings():
 
     Request body:
         {
-            "chat": "claude-opus-4-6",          // set override
+            "chat": {"provider": "anthropic", "model": "claude-opus-4-6"},
             "studio": null,                      // clear override (use Default)
-            "query": "claude-haiku-4-5-20251001",
+            "query": {"provider": "openai", "model": "gpt-5-mini"},
             "extraction": null
         }
 
@@ -124,7 +142,7 @@ def update_model_settings():
 
         # Validate everything before writing anything so a single bad entry
         # doesn't leave the .env in a half-updated state.
-        validated: dict[str, str] = {}
+        validated: dict[str, dict[str, str] | None] = {}
         for category, model_id in data.items():
             if category not in MODEL_CATEGORIES:
                 return jsonify({
@@ -133,23 +151,36 @@ def update_model_settings():
                 }), 400
 
             if model_id in (None, ""):
-                validated[category] = ""  # empty string = clear override
+                validated[category] = None
                 continue
 
-            if not isinstance(model_id, str) or model_id not in AVAILABLE_MODELS:
+            selection = normalize_model_selection(model_id)
+            if selection is None:
                 return jsonify({
                     'success': False,
-                    'error': f"Invalid model for {category}: {model_id}. Must be one of: {list(AVAILABLE_MODELS.keys())}"
+                    'error': (
+                        f"Invalid provider/model for {category}: {model_id}."
+                    )
                 }), 400
 
-            validated[category] = model_id
+            if not is_provider_configured(selection.provider, workspace_id=workspace_id):
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        f"{selection.provider} provider is not configured. "
+                        "Save that provider's API key before selecting its models."
+                    )
+                }), 400
+
+            validated[category] = selection.model_dump(mode="json")
 
         # Apply all validated updates
         if workspace_settings_store.supabase:
             workspace_settings = workspace_settings_store.get_settings(workspace_id, identity.user_id)
-            overrides = dict(workspace_settings.get("model_overrides") or {})
+            ai_settings = dict(workspace_settings.get("ai") or {})
+            overrides = workspace_model_overrides(workspace_settings)
             for category, value in validated.items():
-                overrides[category] = value or None
+                overrides[category] = value
                 current_app.logger.info(
                     "Updated workspace model override %s to %r",
                     category,
@@ -158,12 +189,12 @@ def update_model_settings():
             workspace_settings_store.update_settings(
                 workspace_id,
                 identity.user_id,
-                {"model_overrides": overrides},
+                {"ai": {**ai_settings, "models": overrides}},
             )
         else:
             for category, value in validated.items():
                 env_var = MODEL_CATEGORIES[category]["env_var"]
-                env_service.set_key(env_var, value)
+                env_service.set_key(env_var, value["model"] if value else "")
                 current_app.logger.info(
                     "Updated %s to %r", env_var, value or "<cleared>"
                 )

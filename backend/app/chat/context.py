@@ -20,9 +20,9 @@ def build_system_prompt(
     user_id: Optional[str] = None,
     selected_source_ids: Optional[List[str]] = None,
 ) -> str:
-    """Assemble the chat system prompt for a single Claude turn.
+    """Assemble the chat system prompt for a single model turn.
 
-    Order is contractual: today's date first (so Claude can resolve
+    Order is contractual: today's date first (so the model can resolve
     relative dates without explicit values), then the project's base
     prompt, then source/memory context, then brand context.
     """

@@ -2,13 +2,13 @@
 Messages API Blueprint.
 
 Educational Note: This blueprint handles the core AI interaction - sending
-messages to Claude and receiving responses. This is where the RAG pipeline
+messages to the model and receiving responses. This is where the RAG pipeline
 and tool-use loop happens (delegated to app.chat).
 
 The message flow:
 1. User sends message via POST endpoint
 2. app.chat builds context (sources, memory, system prompt)
-3. Claude API is called with tools (search_sources, store_memory)
+3. the selected model is called with tools (search_sources, store_memory)
 4. Tool use loop executes until Claude returns final response
 5. Both user message and assistant response are stored and returned
 """

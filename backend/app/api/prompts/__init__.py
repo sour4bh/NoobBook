@@ -1,8 +1,8 @@
 """
 Prompts API Blueprint.
 
-Educational Note: System prompts are the instructions that shape how Claude
-responds in conversations. This blueprint manages:
+Educational Note: System prompts are the instructions that shape how the
+configured assistant responds in conversations. This blueprint manages:
 
 1. Project Prompts:
    - Each project can have a custom system prompt
@@ -10,11 +10,11 @@ responds in conversations. This blueprint manages:
    - Stored in local project config files
 
 2. Default Prompt:
-   - Global fallback stored in registered default prompt JSON
+   - Global fallback stored as a typed PromptSpec in the chat domain
    - Used when projects don't have custom prompts
 
 Why System Prompts Matter:
-- They set Claude's persona and behavior
+- They set the assistant's persona and behavior
 - They define what tools are available and how to use them
 - They provide context about the user's sources
 - They're the foundation of prompt engineering

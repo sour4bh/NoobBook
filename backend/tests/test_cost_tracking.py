@@ -1,184 +1,119 @@
-"""
-Tests for cost_tracking.py.
+"""Provider-neutral runtime cost accounting tests."""
 
-Covers:
-- _get_model_key: model string detection, case insensitivity, unknown defaults
-- _calculate_cost: exact pricing math for opus/sonnet/haiku
-- _ensure_cost_structure: None, empty, partial dicts, preserves existing
-- _get_default_costs: structure validation
-"""
 import pytest
 
-from app.providers.anthropic.cost import (
-    _get_model_key,
-    _calculate_cost,
-    _get_default_costs,
-    _ensure_cost_structure,
+import app.agents.runtime.cost as cost_mod
+from app.agents.runtime.contract import Usage
+from app.agents.runtime.cost import (
+    add_usage,
+    calculate_cost,
+    ensure_cost_structure,
+    get_default_costs,
 )
 
 
-# ===========================================================================
-# _get_model_key
-# ===========================================================================
+def test_calculate_cost_uses_provider_model_catalog() -> None:
+    usage = Usage(input_tokens=1_000_000, output_tokens=1_000_000)
 
-class TestGetModelKey:
-
-    def test_sonnet_full_id(self):
-        assert _get_model_key("claude-sonnet-4-5-20250929") == "sonnet"
-
-    def test_haiku_full_id(self):
-        assert _get_model_key("claude-haiku-3-20240307") == "haiku"
-
-    def test_opus_full_id(self):
-        assert _get_model_key("claude-opus-4-6") == "opus"
-
-    def test_sonnet_short(self):
-        assert _get_model_key("claude-sonnet-4-6") == "sonnet"
-
-    def test_haiku_short(self):
-        assert _get_model_key("claude-haiku-4-5") == "haiku"
-
-    def test_case_insensitive(self):
-        assert _get_model_key("claude-OPUS-4-6") == "opus"
-        assert _get_model_key("claude-SONNET-4-6") == "sonnet"
-        assert _get_model_key("CLAUDE-HAIKU-3") == "haiku"
-
-    def test_unknown_defaults_to_sonnet(self):
-        """Unknown model strings default to sonnet pricing."""
-        assert _get_model_key("gpt-4o") == "sonnet"
-        assert _get_model_key("unknown-model") == "sonnet"
-
-    def test_empty_string(self):
-        assert _get_model_key("") == "sonnet"
+    assert calculate_cost("anthropic", "claude-sonnet-4-6", usage) == pytest.approx(18.0)
+    assert calculate_cost("openai", "gpt-5-mini", usage) == pytest.approx(2.25)
 
 
-# ===========================================================================
-# _calculate_cost
-# ===========================================================================
+def test_calculate_cost_accounts_for_cached_input_tokens() -> None:
+    usage = Usage(
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_read_input_tokens=500_000,
+    )
 
-class TestCalculateCost:
-
-    def test_opus_input_only(self):
-        """Opus: $5/1M input tokens."""
-        assert _calculate_cost("opus", 1_000_000, 0) == pytest.approx(5.0)
-
-    def test_opus_output_only(self):
-        """Opus: $25/1M output tokens."""
-        assert _calculate_cost("opus", 0, 1_000_000) == pytest.approx(25.0)
-
-    def test_opus_combined(self):
-        """Opus: 1M in + 1M out = $5 + $25 = $30."""
-        assert _calculate_cost("opus", 1_000_000, 1_000_000) == pytest.approx(30.0)
-
-    def test_sonnet_input_only(self):
-        """Sonnet: $3/1M input tokens → 1M tokens = $3.00"""
-        assert _calculate_cost("sonnet", 1_000_000, 0) == pytest.approx(3.0)
-
-    def test_sonnet_output_only(self):
-        """Sonnet: $15/1M output tokens → 1M tokens = $15.00"""
-        assert _calculate_cost("sonnet", 0, 1_000_000) == pytest.approx(15.0)
-
-    def test_sonnet_combined(self):
-        """Sonnet: 1M in + 1M out = $3 + $15 = $18"""
-        assert _calculate_cost("sonnet", 1_000_000, 1_000_000) == pytest.approx(18.0)
-
-    def test_haiku_input_only(self):
-        """Haiku: $1/1M input tokens"""
-        assert _calculate_cost("haiku", 1_000_000, 0) == pytest.approx(1.0)
-
-    def test_haiku_output_only(self):
-        """Haiku: $5/1M output tokens"""
-        assert _calculate_cost("haiku", 0, 1_000_000) == pytest.approx(5.0)
-
-    def test_haiku_combined(self):
-        """Haiku: 1M in + 1M out = $1 + $5 = $6"""
-        assert _calculate_cost("haiku", 1_000_000, 1_000_000) == pytest.approx(6.0)
-
-    def test_zero_tokens(self):
-        assert _calculate_cost("sonnet", 0, 0) == 0.0
-
-    def test_small_usage(self):
-        """1000 tokens should cost fractions of a cent."""
-        cost = _calculate_cost("sonnet", 1000, 1000)
-        assert cost == pytest.approx(0.018, abs=0.001)
-
-    def test_unknown_model_uses_sonnet_pricing(self):
-        """Unknown model key falls back to sonnet pricing."""
-        assert _calculate_cost("unknown", 1_000_000, 0) == pytest.approx(3.0)
+    assert calculate_cost("openai", "gpt-5-mini", usage) == pytest.approx(0.1375)
 
 
-# ===========================================================================
-# _get_default_costs
-# ===========================================================================
+def test_default_costs_start_without_fixed_vendor_buckets() -> None:
+    costs = get_default_costs()
 
-class TestGetDefaultCosts:
-
-    def test_structure(self):
-        costs = _get_default_costs()
-        assert costs["total_cost"] == 0.0
-        assert "opus" in costs["by_model"]
-        assert "sonnet" in costs["by_model"]
-        assert "haiku" in costs["by_model"]
-
-    def test_model_structure(self):
-        costs = _get_default_costs()
-        for model in ["opus", "sonnet", "haiku"]:
-            assert costs["by_model"][model]["input_tokens"] == 0
-            assert costs["by_model"][model]["output_tokens"] == 0
-            assert costs["by_model"][model]["cost"] == 0.0
+    assert costs == {"total_cost": 0.0, "by_model": {}}
 
 
-# ===========================================================================
-# _ensure_cost_structure
-# ===========================================================================
-
-class TestEnsureCostStructure:
-
-    def test_none_returns_defaults(self):
-        result = _ensure_cost_structure(None)
-        assert result["total_cost"] == 0.0
-        assert "opus" in result["by_model"]
-        assert "sonnet" in result["by_model"]
-        assert "haiku" in result["by_model"]
-
-    def test_empty_dict_fills_all(self):
-        result = _ensure_cost_structure({})
-        assert result["total_cost"] == 0.0
-        assert "sonnet" in result["by_model"]
-
-    def test_partial_dict_missing_model(self):
-        """Dict with sonnet but missing haiku gets haiku added."""
-        costs = {
-            "total_cost": 5.0,
+def test_ensure_cost_structure_preserves_provider_model_buckets() -> None:
+    result = ensure_cost_structure(
+        {
+            "total_cost": 0.25,
             "by_model": {
-                "sonnet": {"input_tokens": 100, "output_tokens": 50, "cost": 5.0}
-            }
+                "openai:gpt-5-mini": {
+                    "provider": "openai",
+                    "model": "gpt-5-mini",
+                    "input_tokens": 10,
+                    "output_tokens": 5,
+                    "cache_read_input_tokens": 2,
+                    "provider_units": {"reasoning_tokens": 1},
+                    "cost": 0.25,
+                }
+            },
         }
-        result = _ensure_cost_structure(costs)
-        assert result["total_cost"] == 5.0
-        assert result["by_model"]["sonnet"]["cost"] == 5.0
-        assert result["by_model"]["haiku"]["cost"] == 0.0
+    )
 
-    def test_preserves_existing_values(self):
-        """Existing non-zero values are not overwritten."""
-        costs = {
-            "total_cost": 10.5,
+    bucket = result["by_model"]["openai:gpt-5-mini"]
+    assert result["total_cost"] == 0.25
+    assert bucket["provider"] == "openai"
+    assert bucket["model"] == "gpt-5-mini"
+    assert bucket["cache_read_input_tokens"] == 2
+    assert bucket["provider_units"] == {"reasoning_tokens": 1}
+
+
+def test_ensure_cost_structure_normalizes_legacy_claude_buckets() -> None:
+    result = ensure_cost_structure(
+        {
+            "total_cost_usd": 0.18,
             "by_model": {
-                "sonnet": {"input_tokens": 500, "output_tokens": 200, "cost": 10.5},
-                "haiku": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-            }
+                "sonnet": {"input_tokens": 1000, "output_tokens": 2000, "cost": 0.18}
+            },
         }
-        result = _ensure_cost_structure(costs)
-        assert result["total_cost"] == 10.5
-        assert result["by_model"]["sonnet"]["input_tokens"] == 500
+    )
 
-    def test_missing_total_cost(self):
-        costs = {"by_model": {"sonnet": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0}}}
-        result = _ensure_cost_structure(costs)
-        assert result["total_cost"] == 0.0
+    bucket = result["by_model"]["anthropic:sonnet"]
+    assert result["total_cost"] == 0.18
+    assert bucket["provider"] == "anthropic"
+    assert bucket["model"] == "sonnet"
+    assert bucket["input_tokens"] == 1000
 
-    def test_missing_by_model(self):
-        costs = {"total_cost": 0.0}
-        result = _ensure_cost_structure(costs)
-        assert "sonnet" in result["by_model"]
-        assert "haiku" in result["by_model"]
+
+def test_project_cost_write_uses_owner_identity_for_viewer_requester(monkeypatch) -> None:
+    class FakeProjectService:
+        def __init__(self) -> None:
+            self.load_user_ids: list[str] = []
+            self.save_user_ids: list[str] = []
+
+        def get_project_owner_id(self, project_id: str) -> str:
+            return "owner-user"
+
+        def get_project_costs(self, project_id: str, user_id: str):
+            self.load_user_ids.append(user_id)
+            return {"total_cost": 0.0, "by_model": {}}
+
+        def update_project_costs(self, project_id: str, costs, user_id: str) -> bool:
+            self.save_user_ids.append(user_id)
+            if user_id == "viewer-user":
+                raise PermissionError("Project editor role required")
+            return True
+
+    fake_project_service = FakeProjectService()
+    recorded_spend: list[tuple[str | None, float]] = []
+    monkeypatch.setattr(cost_mod, "_get_project_service", lambda: fake_project_service)
+    monkeypatch.setattr(
+        cost_mod,
+        "record_user_period_spend",
+        lambda user_id, call_cost: recorded_spend.append((user_id, call_cost)),
+    )
+
+    add_usage(
+        project_id="project-1",
+        provider="openai",
+        model="gpt-5-mini",
+        usage=Usage(input_tokens=1_000, output_tokens=1_000),
+        requester_user_id="viewer-user",
+    )
+
+    assert fake_project_service.load_user_ids == ["owner-user"]
+    assert fake_project_service.save_user_ids == ["owner-user"]
+    assert recorded_spend[0][0] == "viewer-user"

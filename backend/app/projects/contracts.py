@@ -1,28 +1,24 @@
-from typing import Literal
+from typing import Any, Literal, Optional
 
-from pydantic import model_validator
+from pydantic import Field
 
 from app.base.contracts import ContractModel
 
-REQUIRED_COST_MODEL_KEYS = frozenset({"opus", "sonnet", "haiku"})
-
 
 class CostBucket(ContractModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
     input_tokens: int
     output_tokens: int
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    provider_units: dict[str, Any] = Field(default_factory=dict)
     cost: float
 
 
 class ProjectCosts(ContractModel):
     total_cost: float
     by_model: dict[str, CostBucket]
-
-    @model_validator(mode="after")
-    def require_model_buckets(self) -> "ProjectCosts":
-        missing = REQUIRED_COST_MODEL_KEYS.difference(self.by_model)
-        if missing:
-            raise ValueError(f"missing cost buckets: {', '.join(sorted(missing))}")
-        return self
 
 
 class ProjectCostsResponse(ContractModel):

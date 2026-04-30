@@ -1,31 +1,31 @@
 """
-Tests for NBB-207C tool-schema ownership and tool-loader compatibility.
+Tests for tool-schema ownership and typed tool-loader compatibility.
 
 These assert that registered domain-owned tool paths resolve end-to-end and
-both `load_tool` and `load_tools_for_agent` see the registered paths via the
-production singleton. Tool schemas are registry-only after NBB-810.
+`load_tool_spec` / `load_tool_specs_for_agent` see the registered paths via
+the production singleton. Tool contracts are registry-only Python `ToolSpec`s
+after NBB-1104.
 
 The sibling `test_asset.py` autouse fixture resets the registry
 before and after each test; these tests explicitly re-invoke
 `register_production_asset_paths()` after reset so they see the state a
 running backend sees at startup. This mirrors the pattern established by
-`test_prompt_loader_registry.py` for NBB-207B.
+`test_prompt_registry.py` for NBB-207B.
 """
 from typing import List, Tuple
 
 import pytest
 
 import app.config.asset as asset
+from app.agents.runtime import compile_agent_tools_for_provider
 from app.config.tool import ToolLoader, tool_loader
 
 
 # Tool families moved to domain-owned homes in NBB-207C. Each entry carries the
 # loader category key (unchanged; consumers keep passing it), the expected
-# relative destination dir, the client-tool stems (loadable via
-# `load_tool`), and the full tool-stem list (what
-# `load_tools_from_category` returns, including server tools that carry no
-# `input_schema` and therefore cannot be loaded via the validating
-# `load_tool`).
+# relative destination dir, the client-tool keys (loadable via
+# `load_tool_spec`), and the full tool-stem list (what
+# `load_tool_specs_for_agent` returns, including provider-hosted tools).
 MOVED_TOOL_FAMILIES: List[Tuple[str, str, List[str], List[str]]] = [
     (
         "chat_tools",
@@ -148,6 +148,7 @@ def _restore_production_registry():
     asset.register_production_asset_paths()
     yield
     asset._reset_for_tests()
+    asset.register_production_asset_paths()
 
 
 def _fresh_loader() -> ToolLoader:
@@ -168,29 +169,19 @@ def test_moved_tool_family_resolves_from_registered_domain_path(
 ) -> None:
     """Each NBB-207C move must resolve via the registered domain dir.
 
-    Failure here means the tool JSON moved but the registry pointer did
-    not, or vice versa — either way, production `load_tool` would raise
+    Failure here means the ToolSpec moved but the registry pointer did
+    not, or vice versa — either way, production `load_tool_spec` would raise
     `FileNotFoundError` on a category that used to work.
 
-    Only client tools are loaded via `load_tool`: server tools (e.g.
-    `web_search`) carry only `type`/`name`/`max_uses` and fail the
-    `load_tool` validator, which is why agents use `load_tools_for_agent`
-    for those.
+    Only client tools are loaded by stable registry name here; provider-hosted
+    tools (e.g. `web_search`) route through `load_tool_specs_for_agent`.
     """
     loader = _fresh_loader()
 
     for tool_stem in client_stems:
-        tool = loader.load_tool(category, tool_stem)
-        assert "name" in tool, (
+        tool = loader.load_tool_spec(category, tool_stem)
+        assert tool.name, (
             f"registered tool {category}/{tool_stem} did not load"
-        )
-
-    # Confirm no same-named legacy category directory is being used.
-    legacy_category_dir = loader.tools_dir / category
-    if legacy_category_dir.exists():
-        remaining = list(legacy_category_dir.glob("*.json"))
-        assert remaining == [], (
-            f"legacy dir {legacy_category_dir} should be drained, found {remaining}"
         )
 
 
@@ -199,33 +190,26 @@ def test_moved_tool_family_resolves_from_registered_domain_path(
     MOVED_TOOL_FAMILIES,
     ids=[category for category, _, _, _ in MOVED_TOOL_FAMILIES],
 )
-def test_moved_tool_family_enumerates_every_tool(
+def test_moved_tool_family_enumerates_every_tool_spec(
     category: str,
     relative_dir: str,
     client_stems: List[str],
     all_stems: List[str],
 ) -> None:
-    """`load_tools_for_agent` must see every tool in the new dir.
+    """`load_tool_specs_for_agent` must see every spec in the new dir.
 
-    Agents like `web_agent_service` enumerate the whole category. If the
-    registered dir loses a file we would silently drop a tool from the
-    agentic loop. `load_tools_for_agent` is the right entry point because
-    it handles server tools (no `input_schema`) and client tools together;
-    `load_tools_from_category` calls the same validator that `load_tool`
-    calls and therefore rejects server-tool JSON by shape.
+    Runtime callers enumerate the whole category. If the registered dir loses
+    a spec we would silently drop a tool from the agentic loop.
     """
     loader = _fresh_loader()
 
-    bundle = loader.load_tools_for_agent(category)
-    loaded_names = {t["name"] for t in bundle["all_tools"]}
+    specs = loader.load_tool_specs_for_agent(category)
+    loaded_names = {spec.name for spec in specs}
 
-    # `all_stems` is every file in the moved directory. Server tools appear
-    # under `server_tools`, client tools under `client_tools`; `all_tools`
-    # unions both, and the unique tool-name count should match the number
-    # of moved files.
-    assert len(bundle["all_tools"]) == len(all_stems), (
+    # `all_stems` is every registered tool in the moved directory.
+    assert len(specs) == len(all_stems), (
         f"{category}: expected {len(all_stems)} tools "
-        f"({all_stems}), got {len(bundle['all_tools'])} ({loaded_names})"
+        f"({all_stems}), got {len(specs)} ({loaded_names})"
     )
 
 
@@ -233,8 +217,8 @@ def test_chat_tools_category_excludes_deleted_compact_tool() -> None:
     """The dormant compact tool was deleted instead of exposed."""
     loader = _fresh_loader()
 
-    tools = loader.load_tools_from_category("chat_tools")
-    names = {tool["name"] for tool in tools}
+    specs = loader.load_tool_specs_for_agent("chat_tools")
+    names = {spec.name for spec in specs}
 
     assert "compact" not in names
 
@@ -242,21 +226,22 @@ def test_chat_tools_category_excludes_deleted_compact_tool() -> None:
 def test_singleton_sees_registered_tool_paths() -> None:
     """The `tool_loader` singleton must see production registrations.
 
-    Services cache `tool_loader.load_tool(...)` results at first use; this
-    covers the path real runtime callers take, not a freshly built loader.
+    Runtime callers use the production singleton, not a freshly built loader.
     """
-    tool = tool_loader.load_tool("pdf_tools", "pdf_extraction")
-    assert "name" in tool
+    tool = tool_loader.load_tool_spec("pdf_tools", "pdf_extraction")
+    assert tool.name
 
 
-def test_web_agent_load_tools_for_agent_returns_expected_split() -> None:
-    """`load_tools_for_agent('web_agent')` must split server/client tools.
+def test_web_agent_specs_compile_to_expected_anthropic_split() -> None:
+    """Runtime specs compile provider-hosted and local tools separately.
 
-    `web_agent_service.py` depends on server tools (`web_search`) being
-    separated from client tools (`tavily_search`, `return_search_result`).
-    The registered path change must preserve that split.
+    The registered path change must preserve provider-hosted tools
+    (`web_search`) separately from local tools.
     """
-    bundle = tool_loader.load_tools_for_agent("web_agent")
+    bundle = compile_agent_tools_for_provider(
+        "anthropic",
+        tool_loader.load_tool_specs_for_agent("web_agent"),
+    )
 
     server_names = {t["name"] for t in bundle["server_tools"]}
     client_names = {t["name"] for t in bundle["client_tools"]}
@@ -265,9 +250,12 @@ def test_web_agent_load_tools_for_agent_returns_expected_split() -> None:
     assert {"tavily_search", "return_search_result"}.issubset(client_names)
 
 
-def test_deep_research_load_tools_for_agent_returns_expected_split() -> None:
-    """`load_tools_for_agent('deep_research')` must split server/client tools."""
-    bundle = tool_loader.load_tools_for_agent("deep_research")
+def test_deep_research_specs_compile_to_expected_anthropic_split() -> None:
+    """Runtime specs compile deep-research hosted and local tools separately."""
+    bundle = compile_agent_tools_for_provider(
+        "anthropic",
+        tool_loader.load_tool_specs_for_agent("deep_research"),
+    )
 
     server_names = {t["name"] for t in bundle["server_tools"]}
     client_names = {t["name"] for t in bundle["client_tools"]}

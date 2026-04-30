@@ -3,7 +3,7 @@ Chat domain root and public surface.
 
 Charter (NBB-104): Chat loop, streaming, memory invocation, and chat
 persistence coordination. Owns the agentic loop, chat/message stores, and
-chat-invoked tool adapters exposed to Claude.
+chat-invoked tool adapters exposed to the model.
 
 Allowed imports:
 - `api/` route modules import this package's public surface.
@@ -18,7 +18,8 @@ Public surface (NBB-301):
 - `chat.tools` — registry/public-surface scaffolding for chat-owned tool
   schemas. Capability-aware exposure waits for NBB-303.
 - `chat.memory` — memory invocation and merge surface for chat-owned memory.
-- `chat.store` — re-exports `ChatStore` and `MessageStore`.
+- `chat.store` — chat container persistence.
+- `chat.message` — message persistence.
 - `chat.schemas` — `ChatResponse`, `ChatEvent`, and chat contract shapes
   traced to NBB-205.
 
@@ -31,7 +32,7 @@ residue.
 from typing import Iterator, Optional
 
 from app.auth.identity import RequestIdentity
-from app.chat import loop, memory, schemas, store, tools
+from app.chat import loop, memory, message, schemas, store, tools
 from app.chat.schemas import ChatEvent, ChatResponse
 
 
@@ -42,6 +43,7 @@ __all__ = [
     "send",
     "store",
     "stream",
+    "message",
     "memory",
     "tools",
 ]

@@ -18,7 +18,7 @@ import anthropic
 from anthropic import APIStatusError, APITimeoutError, APIConnectionError
 
 from app.config.secret import get_project_secret
-from app.providers.anthropic.cost import add_usage as add_cost_usage, check_user_spending_limit
+from app.agents.runtime.cost import check_user_spending_limit
 
 logger = logging.getLogger(__name__)
 
@@ -278,8 +278,14 @@ class ClaudeService:
         if limit_error:
             raise ValueError(limit_error)
 
-        from app.config.model import resolve_model_for_project
-        model = resolve_model_for_project(model, project_id)
+        from app.config.model import resolve_model_selection_for_project
+
+        selection = resolve_model_selection_for_project(model, project_id)
+        if selection.provider != "anthropic":
+            raise ValueError(
+                f"Anthropic client cannot run {selection.provider} model {selection.model!r}"
+            )
+        model = selection.model
 
         # Warn loudly if project_id is missing so cost tracking omissions are
         # observable. The call still proceeds — billing just won't be recorded.
@@ -320,17 +326,7 @@ class ClaudeService:
             trace_name=trace_name,
         )
 
-        # Track costs if project_id provided (also per-chat if chat_id set)
-        if project_id:
-            add_cost_usage(
-                project_id=project_id,
-                model=response.model,
-                input_tokens=response.usage.input_tokens,
-                output_tokens=response.usage.output_tokens,
-                chat_id=chat_id,
-            )
-
-        # Return raw response data - all parsing happens in claude_parsing_utils
+        # Return raw response data; adapter/parser modules own interpretation.
         return {
             "content_blocks": response.content,  # Raw Anthropic content blocks
             "model": response.model,
@@ -369,8 +365,14 @@ class ClaudeService:
         if limit_error:
             raise ValueError(limit_error)
 
-        from app.config.model import resolve_model_for_project
-        model = resolve_model_for_project(model, project_id)
+        from app.config.model import resolve_model_selection_for_project
+
+        selection = resolve_model_selection_for_project(model, project_id)
+        if selection.provider != "anthropic":
+            raise ValueError(
+                f"Anthropic client cannot run {selection.provider} model {selection.model!r}"
+            )
+        model = selection.model
 
         client = self._get_client(project_id=project_id)
         api_params = self._build_api_params(
@@ -403,15 +405,6 @@ class ClaudeService:
         trace_name = str(short_name) if short_name else "noobbook_llm_call"
         trace_input = {"prompt": last_user_msg, "model": model, "message_count": len(messages)}
         response = self._run_tracked(_do_stream, opik_kwargs=opik_kwargs, trace_input=trace_input, trace_name=trace_name)
-
-        if project_id:
-            add_cost_usage(
-                project_id=project_id,
-                model=response.model,
-                input_tokens=response.usage.input_tokens,
-                output_tokens=response.usage.output_tokens,
-                chat_id=chat_id,
-            )
 
         return {
             "content_blocks": response.content,

@@ -6,11 +6,16 @@ from app.connectors.freshdesk.client import freshdesk_service
 from app.connectors.jira import client as jira_client
 from app.connectors.mixpanel import client as mixpanel_client
 from app.connectors.notion import client as notion_client
-from app.config.model import PromptModel, resolve_model_for_project
+from app.config.model import (
+    PromptModel,
+    get_available_models,
+    resolve_model_for_project,
+)
 from app.config.provider import APIProvider, get_tier
 from app.providers.elevenlabs import tts_service
 from app.providers.google.imagen import imagen_service
 from app.workspaces.settings import WorkspaceSettingsStore
+from app.api.settings.models import _get_workspace_model_settings
 
 
 def test_workspace_provider_secret_round_trips_encrypted(monkeypatch):
@@ -117,13 +122,75 @@ def test_model_override_resolves_from_project_workspace_settings():
 
     with patch("app.config.secret.workspace_settings_store") as settings:
         settings.get_project_settings.return_value = {
-            "model_overrides": {"chat": "claude-haiku-4-5-20251001"}
+            "ai": {
+                "models": {
+                    "chat": {
+                        "provider": "anthropic",
+                        "model": "claude-haiku-4-5-20251001",
+                    }
+                }
+            }
         }
+        settings.get_runtime_secret.return_value = "sk-ant-workspace"
 
         assert (
             resolve_model_for_project(model, "project-1")
             == "claude-haiku-4-5-20251001"
         )
+
+
+def test_legacy_model_override_resolves_from_project_workspace_settings():
+    model = PromptModel("claude-sonnet-4-6", prompt_name="default")
+
+    with patch("app.config.secret.workspace_settings_store") as settings:
+        settings.get_project_settings.return_value = {
+            "model_overrides": {
+                "chat": "claude-haiku-4-5-20251001",
+            }
+        }
+        settings.get_runtime_secret.return_value = "sk-ant-workspace"
+
+        assert (
+            resolve_model_for_project(model, "project-1")
+            == "claude-haiku-4-5-20251001"
+        )
+
+
+def test_model_settings_get_reads_legacy_workspace_overrides():
+    with patch("app.api.settings.models.workspace_settings_store") as settings, patch(
+        "app.api.settings.models.is_provider_configured",
+        return_value=True,
+    ):
+        settings.supabase = object()
+        settings.get_settings.return_value = {
+            "model_overrides": {
+                "chat": "claude-haiku-4-5-20251001",
+            }
+        }
+
+        model_settings = _get_workspace_model_settings("workspace-1", "member-1")
+
+    assert model_settings["chat"] == {
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+    }
+
+
+def test_model_availability_is_provider_key_driven(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with patch("app.config.secret.workspace_settings_store") as settings:
+        settings.get_runtime_secret.side_effect = (
+            lambda key, **_kwargs: "sk-openai-workspace"
+            if key == "OPENAI_API_KEY"
+            else None
+        )
+
+        available = get_available_models(workspace_id="workspace-1")
+
+    assert {model["provider"] for model in available} == {"openai"}
+    assert {model["id"] for model in available} == {"gpt-5.1", "gpt-5-mini"}
 
 
 def test_provider_tier_resolves_from_project_workspace_settings(monkeypatch):

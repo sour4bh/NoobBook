@@ -5,9 +5,9 @@ Educational Note: This service manages chat entity lifecycle within projects
 using Supabase as the database backend.
 
 Separation of Concerns:
-- chat_service.py: Chat CRUD (this file)
-- claude_service.py: Claude API interactions
-- message_service.py: Message persistence
+- chat/store.py: Chat CRUD (this file)
+- chat/loop.py: Model/tool orchestration
+- chat/message/store.py: Message persistence
 - app.config.prompt: Prompt management
 """
 import logging
@@ -126,9 +126,9 @@ class ChatStore:
         """
         Get full chat data including messages and studio signals.
 
-        Educational Note: Filters out tool_use and tool_result messages
-        from the response by default. When include_raw=True, returns ALL
-        messages with their original content blocks for debug/raw view.
+        Educational Note: Filters out tool-call and tool-result intermediate
+        messages from the response by default. When include_raw=True, returns
+        ALL messages with their original content parts for debug/raw view.
 
         Args:
             project_id: The project UUID
@@ -180,13 +180,12 @@ class ChatStore:
                 })
         else:
             # Normal mode: filter out tool chain intermediates
-            # Educational Note: During a tool_use loop, the chat loop stores:
-            #   1. Intermediate assistant messages with LIST content (serialized content
-            #      blocks containing text + tool_use blocks)
-            #   2. Tool_result user messages with LIST content
-            #   3. Final assistant message with DICT content ({"text": "..."})
+            # Educational Note: During a tool-call loop, the chat loop stores:
+            #   1. Intermediate assistant messages containing tool_call parts
+            #   2. Tool-result user messages containing tool_result parts
+            #   3. Final assistant messages with text parts
             # The final message already contains all accumulated text from the tool
-            # chain, so intermediate list-content messages must be skipped to avoid
+            # chain, so intermediate tool messages must be skipped to avoid
             # showing duplicate responses.
             display_messages = []
             for msg in messages:
@@ -196,17 +195,11 @@ class ChatStore:
                 if role not in ["user", "assistant"]:
                     continue
 
-                # Skip list-content messages — these are tool chain intermediates
-                # (tool_use assistant responses and tool_result user messages)
-                if isinstance(content, list):
+                # Skip tool-chain intermediates, but keep ordinary text parts.
+                if self._content_has_tool_part(content):
                     continue
 
-                if isinstance(content, dict):
-                    text_content = content.get("text", "")
-                elif isinstance(content, str):
-                    text_content = content
-                else:
-                    text_content = str(content) if content else ""
+                text_content = self._extract_text_content(content)
 
                 if not text_content.strip():
                     continue
@@ -256,19 +249,39 @@ class ChatStore:
     def _derive_message_type(role: str, content) -> str:
         """Derive a human-readable message type for the raw view."""
         if role == "user":
-            if isinstance(content, list):
+            if ChatStore._content_has_tool_part(content):
                 return "tool_result"
             return "user_input"
         if role == "assistant":
-            if isinstance(content, list):
-                # List content = tool_use blocks from Claude
-                has_tool_use = any(
-                    isinstance(b, dict) and b.get("type") == "tool_use"
-                    for b in content
-                )
-                return "tool_use" if has_tool_use else "ai_response"
+            if ChatStore._content_has_tool_part(content):
+                return "tool_call"
             return "ai_response"
         return "unknown"
+
+    @staticmethod
+    def _content_has_tool_part(content: Any) -> bool:
+        if not isinstance(content, list):
+            return False
+        tool_types = {"tool_call", "tool_result", "tool_use"}
+        return any(
+            isinstance(part, dict) and part.get("type") in tool_types
+            for part in content
+        )
+
+    @staticmethod
+    def _extract_text_content(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, dict):
+            return str(content.get("text") or "")
+        if isinstance(content, list):
+            parts = [
+                str(part.get("text") or "")
+                for part in content
+                if isinstance(part, dict) and part.get("type") == "text"
+            ]
+            return "\n\n".join(part for part in parts if part.strip())
+        return str(content) if content else ""
 
     def get_chat_metadata(self, project_id: str, chat_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -407,29 +420,6 @@ class ChatStore:
 
         return True
 
-    def sync_chat_to_index(self, project_id: str, chat_id: str) -> bool:
-        """
-        Sync a chat's metadata (no-op for Supabase version).
-
-        Educational Note: In Supabase, the data is always in sync.
-        This method exists for API compatibility.
-
-        Args:
-            project_id: The project UUID
-            chat_id: The chat UUID
-
-        Returns:
-            True if chat exists
-        """
-        existing = (
-            self.supabase.table(self.table)
-            .select("id")
-            .eq("id", chat_id)
-            .eq("project_id", project_id)
-            .execute()
-        )
-        return bool(existing.data)
-
     def get_chat_costs(self, project_id: str, chat_id: str) -> Dict[str, Any]:
         """
         Get cost tracking data for a specific chat.
@@ -454,23 +444,9 @@ class ChatStore:
         )
 
         if not response.data:
-            return {
-                "total_cost": 0.0,
-                "by_model": {
-                    "opus": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-                    "sonnet": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-                    "haiku": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-                },
-            }
+            return {"total_cost": 0.0, "by_model": {}}
 
-        return response.data[0].get("costs") or {
-            "total_cost": 0.0,
-            "by_model": {
-                "opus": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-                "sonnet": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-                "haiku": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0},
-            },
-        }
+        return response.data[0].get("costs") or {"total_cost": 0.0, "by_model": {}}
 
     def get_chat_costs_raw(self, chat_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -506,9 +482,3 @@ class ChatStore:
 
 # Singleton instance for easy import
 chat_service = ChatStore()
-
-
-# NBB-301/NBB-706: expose message persistence through the chat public surface.
-# `MessageStore` and `message_service` are implemented in
-# `app.chat.message.store`; this is a public-surface export, not a relocation.
-from app.chat.message.store import MessageStore, message_service  # noqa: E402,F401

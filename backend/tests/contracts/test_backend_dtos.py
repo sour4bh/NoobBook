@@ -57,15 +57,18 @@ def test_message_content_contract_names_tool_block_discriminants() -> None:
     MessageContent.model_validate([
         {"type": "text", "text": "Let me search."},
         {
-            "type": "tool_use",
-            "id": "toolu_1",
+            "type": "tool_call",
+            "call_id": "toolu_1",
             "name": "search_sources",
-            "input": {"source_id": "src-1"},
+            "arguments": {"source_id": "src-1"},
+            "provider_call_id": "toolu_1",
         },
         {
             "type": "tool_result",
-            "tool_use_id": "toolu_1",
+            "call_id": "toolu_1",
+            "name": "search_sources",
             "content": "result",
+            "is_error": False,
         },
     ])
 
@@ -118,18 +121,32 @@ def test_project_costs_contract_requires_stable_bucket_shape() -> None:
         costs={
             "total_cost": 1.25,
             "by_model": {
-                "opus": {"input_tokens": 1, "output_tokens": 2, "cost": 0.1},
-                "sonnet": {"input_tokens": 3, "output_tokens": 4, "cost": 0.2},
-                "haiku": {"input_tokens": 5, "output_tokens": 6, "cost": 0.3},
+                "anthropic:claude-sonnet-4-6": {
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-6",
+                    "input_tokens": 3,
+                    "output_tokens": 4,
+                    "cost": 0.2,
+                },
+                "openai:gpt-5-mini": {
+                    "provider": "openai",
+                    "model": "gpt-5-mini",
+                    "input_tokens": 5,
+                    "output_tokens": 6,
+                    "cost": 0.3,
+                },
             },
         },
     )
 
-    assert set(response.costs.by_model) == {"opus", "sonnet", "haiku"}
+    assert set(response.costs.by_model) == {
+        "anthropic:claude-sonnet-4-6",
+        "openai:gpt-5-mini",
+    }
 
     with pytest.raises(ValidationError):
         ProjectCostsResponse(
-            costs={"total_cost": 1.25, "by_model": {"sonnet": {"input_tokens": 1}}},
+            costs={"total_cost": 1.25, "by_model": {"openai:gpt-5-mini": {"input_tokens": 1}}},
         )
 
 

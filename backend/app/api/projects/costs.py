@@ -13,7 +13,7 @@ Educational Note: Cost tracking is essential for LLM applications because:
    - Source processing (PDF extraction uses many tokens)
 
 Cost Tracking Architecture:
-- Each claude_service.send_message() call records usage
+- Each provider adapter call records usage
 - Costs stored in Supabase projects.costs column
 - Broken down by model for transparency
 
@@ -28,7 +28,7 @@ Routes:
 from flask import jsonify
 from app.api.responses import ErrorEnvelope, body
 from app.api.projects import projects_bp
-from app.providers.anthropic.cost import get_project_costs
+from app.agents.runtime.cost import get_project_costs
 from app.auth.identity import get_request_identity
 from app.projects.contracts import ProjectCostsResponse
 from app.projects.store import project_service
@@ -54,12 +54,16 @@ def get_project_costs_endpoint(project_id):
             "costs": {
                 "total_cost": 0.0234,
                 "by_model": {
-                    "sonnet": {
+                    "anthropic:claude-sonnet-4-6": {
+                        "provider": "anthropic",
+                        "model": "claude-sonnet-4-6",
                         "input_tokens": 5000,
                         "output_tokens": 1500,
                         "cost": 0.0225
                     },
-                    "haiku": {
+                    "openai:gpt-5-mini": {
+                        "provider": "openai",
+                        "model": "gpt-5-mini",
                         "input_tokens": 2000,
                         "output_tokens": 500,
                         "cost": 0.0009

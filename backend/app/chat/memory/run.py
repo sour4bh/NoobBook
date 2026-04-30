@@ -62,7 +62,12 @@ class MemoryExecutor:
         if user_memory and user_memory.strip():
             thread = threading.Thread(
                 target=self._update_user_memory,
-                kwargs=dict(new_memory=user_memory, reason=why_generated, user_id=user_id),
+                kwargs=dict(
+                    project_id=project_id,
+                    new_memory=user_memory,
+                    reason=why_generated,
+                    user_id=user_id,
+                ),
                 daemon=True,
             )
             thread.start()
@@ -100,6 +105,7 @@ class MemoryExecutor:
 
     def _update_user_memory(
         self,
+        project_id: str,
         new_memory: str,
         reason: str,
         user_id: Optional[str] = None,
@@ -115,6 +121,7 @@ class MemoryExecutor:
                 memory_type="user",
                 new_memory=new_memory,
                 reason=reason,
+                project_id=project_id,
                 user_id=user_id,
             )
             if result.get("success"):

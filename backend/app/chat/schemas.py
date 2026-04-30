@@ -33,7 +33,7 @@ class ChatResponse(TypedDict):
 
     Mirrors the JSON body of `POST /api/v1/projects/<id>/chats/<id>/messages`
     minus the transport `success` envelope. Each message is a stored row
-    whose `content` is JSONB blocks per NBB-205 Contract 9.
+    whose `content` is JSONB runtime parts per NBB-205 Contract 9.
     """
 
     user_message: Dict[str, Any]

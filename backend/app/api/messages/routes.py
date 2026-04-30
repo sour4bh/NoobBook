@@ -9,14 +9,14 @@ the chat domain's public surface orchestrates:
    - Loads user and project memory
    - Builds dynamic system prompt
 
-2. Claude API Call:
+2. Model API Call:
    - Sends conversation history + context
    - Provides tools: search_sources, store_memory
 
 3. Tool Use Loop (Agentic Pattern):
-   - Claude may call search_sources to query embeddings
-   - Claude may call store_memory to save important info
-   - Loop continues until Claude returns final text response
+   - The selected model may call search_sources to query embeddings
+   - The selected model may call store_memory to save important info
+   - Loop continues until the selected model returns final text response
 
 4. Response Handling:
    - Stores both user and assistant messages
@@ -56,7 +56,7 @@ def send_message(project_id, chat_id):
     handles:
     1. Storing user message
     2. Building context with system prompt
-    3. Calling Claude API
+    3. Calling the selected model API
     4. Executing tool use loop
     5. Storing assistant response
     6. Syncing chat index

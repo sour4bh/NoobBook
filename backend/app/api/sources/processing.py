@@ -40,7 +40,7 @@ Routes:
 """
 from flask import jsonify, current_app
 from app.api.sources import sources_bp
-from app.sources.catalog import source_service
+from app.sources.pipeline import source_pipeline
 
 
 @sources_bp.route('/projects/<project_id>/sources/<source_id>/cancel', methods=['POST'])
@@ -72,7 +72,7 @@ def cancel_source_processing(project_id: str, source_id: str):
         - 400 if source not found or not in processing state
     """
     try:
-        cancelled = source_service.cancel_processing(project_id, source_id)
+        cancelled = source_pipeline.cancel_processing(project_id, source_id)
 
         if not cancelled:
             return jsonify({
@@ -122,7 +122,7 @@ def retry_source_processing(project_id: str, source_id: str):
         - 400 if source not in retryable state
     """
     try:
-        result = source_service.retry_processing(project_id, source_id)
+        result = source_pipeline.retry_processing(project_id, source_id)
 
         if not result.get('success'):
             return jsonify({

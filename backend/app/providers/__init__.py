@@ -9,8 +9,9 @@ surface. Boundary rules are finalized in `NBB-206`.
 Allowed imports:
 - `connectors/` depends on providers to build configured capabilities.
 - Domains may depend on providers directly only for provider-neutral runtime
-  primitives (for example HTTP clients, storage adapters, Claude API
-  primitives). Product-specific integrations must pass through `connectors/`.
+  primitives (for example HTTP clients and storage adapters) or through
+  `app.agents.runtime` provider adapters. Product-specific integrations must
+  pass through `connectors/`.
 - Providers must not import from `api/`, domains, or `connectors/`.
 
 Migration source: `backend/app/services/integrations/` fed this root; `NBB-705C`

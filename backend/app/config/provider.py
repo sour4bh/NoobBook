@@ -225,6 +225,23 @@ def get_tier_config(
     }))
 
 
+def get_generation_config(
+    provider: str,
+    *,
+    project_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Return provider-specific concurrency knobs for source generation calls."""
+    config = get_tier_config(provider, project_id=project_id)
+    return {
+        "max_workers": int(config.get("max_workers", 4)),
+        "requests_per_minute": int(
+            config.get("pages_per_minute")
+            or config.get("requests_per_minute")
+            or 60
+        ),
+    }
+
+
 def get_all_tiers(provider: str) -> Dict[int, Dict[str, Any]]:
     """
     Get all tier configurations for a provider.

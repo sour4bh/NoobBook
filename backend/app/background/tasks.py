@@ -8,7 +8,7 @@ for concurrent execution and Supabase for task tracking.
 Why ThreadPoolExecutor works for our use case:
 - Our tasks are I/O-bound (API calls, file operations)
 - I/O operations release the GIL (Global Interpreter Lock)
-- While one thread waits for Claude API, other threads can run
+- While one thread waits for a model/provider API, other threads can run
 - User can chat while PDFs are being processed in background
 
 How it works:

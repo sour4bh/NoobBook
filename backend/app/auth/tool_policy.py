@@ -1,7 +1,7 @@
 """
-Tool capability policy for Claude-visible tools.
+Tool capability policy for model-visible tools.
 
-Every tool exposed to Claude must declare a ``ToolCapability`` entry. The
+Every tool exposed to the model must declare a ``ToolCapability`` entry. The
 policy enforces three things:
 
 1. Unclassified tools are never exposable. ``is_exposable_for`` returns
@@ -19,20 +19,15 @@ policy enforces three things:
    suffices); unknown categories or items still fail closed inside
    ``user_has_permission``.
 
-The classification list itself lives in ``app.auth.tool_capabilities``
-(central registry) and per-domain modules (for example
-``app.sources.analysis.tool_capabilities``) that register their own
-entries via ``register`` at import time. ``ensure_capabilities_loaded``
-is the single hook callers reach for; it imports every registration
-module exactly once so tests, ``main_chat_service``, and any future
-chat surface see the same registry.
+The central classification list itself lives in
+``app.auth.tool_capabilities``. Domain-owned tool families may register
+additional entries from their own module, but the domain surface that exposes
+those tools is responsible for importing that module so auth does not depend
+on migrated product domains.
 
 Connector entries (Jira/Notion/Mixpanel) currently live in the central
-module. ``connectors/<name>/`` skeletons land in later tickets
-(NBB-303, per-connector migrations); when they do, those modules can
-register their own capabilities without breaking callers because
-``ensure_capabilities_loaded`` discovers them through explicit imports
-in this module's loader.
+module. If a connector later needs ownership-local capability policy, the
+connector or chat exposure surface can import that module explicitly.
 """
 from dataclasses import dataclass
 from enum import Enum
@@ -81,7 +76,7 @@ class RequiredPermission:
 
 @dataclass(frozen=True)
 class ToolCapability:
-    """Capability classification for a single Claude-visible tool.
+    """Capability classification for a single model-visible tool.
 
     The seven required fields mirror the ticket scope verbatim
     (owner, required permission, scope, capability level, external
@@ -104,7 +99,7 @@ class ToolCapability:
 
 
 class ToolCapabilityPolicy:
-    """Registry + decision surface for Claude-visible tools.
+    """Registry + decision surface for model-visible tools.
 
     Tools register at module import; ``ensure_capabilities_loaded``
     triggers those imports exactly once so the registry is populated
@@ -168,7 +163,7 @@ class ToolCapabilityPolicy:
     def is_exposable_for(
         self, user_id: Optional[str], tool_name: str
     ) -> bool:
-        """Return True if the tool may be sent to Claude for ``user_id``.
+        """Return True if the tool may be sent to the model for ``user_id``.
 
         Decision rules (in order):
 
@@ -220,9 +215,8 @@ class ToolCapabilityPolicy:
         with self._lock:
             if self._loaded:
                 return
-            # Side-effect imports register entries.
+            # Side-effect import registers central auth-owned entries.
             import app.auth.tool_capabilities  # noqa: F401
-            import app.sources.analysis.tool_capabilities  # noqa: F401
 
             self._loaded = True
 

@@ -65,7 +65,7 @@ validators moved beside their connector clients in NBB-807.
 | key_id(s)                               | validator current location                                             | reload hook                                  | owner |
 |-----------------------------------------|------------------------------------------------------------------------|-----------------------------------------------|------------------------------|
 | `ANTHROPIC_API_KEY`                     | `providers/anthropic/validation.py`                                    | indirect via `claude_service.reload_config()` | `providers/` (raw client)   |
-| `OPENAI_API_KEY`                        | `providers/openai/validation.py`                                       | none (embedding client is stateless)         | `providers/`                |
+| `OPENAI_API_KEY`                        | `providers/openai/validation.py`                                       | `openai.responses.reload_config()`           | `providers/`                |
 | `ELEVENLABS_API_KEY`                    | `providers/elevenlabs/validation.py`                                   | none                                          | `providers/`                |
 | `GEMINI_2_5_API_KEY`                    | `providers/google/validation.py`                                       | none                                          | `providers/`                |
 | `NANO_BANANA_API_KEY`                   | `providers/google/validation.py`                                       | none                                          | `providers/`                |
@@ -134,7 +134,7 @@ API_KEYS_CONFIG = [
     {
         'id': 'OPENAI_API_KEY',
         'name': 'OpenAI API',
-        'description': 'OpenAI models for embeddings (text-embedding-3-small)',
+        'description': 'OpenAI models for Responses and embeddings',
         'category': 'ai'
     },
     {
@@ -455,6 +455,9 @@ def update_api_keys():
                     # NBB-208A: uses the public reload_config() hook to match Notion/Jira/etc.
                     from app.providers.anthropic.messages import claude_service
                     claude_service.reload_config()
+                elif key_id == 'OPENAI_API_KEY':
+                    from app.providers.openai import responses as openai_responses
+                    openai_responses.reload_config()
 
         current_app.logger.info(f"Updated {updated_count} API keys")
 

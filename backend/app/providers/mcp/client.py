@@ -278,7 +278,7 @@ async def _list_tools_async(connection_config: Dict[str, Any]) -> List[Dict[str,
     List available tools from an MCP server.
 
     Educational Note: MCP tools use JSON Schema for their input schemas,
-    which maps directly to Claude's tool input_schema format — no conversion needed.
+    which maps directly to Anthropic's tool input_schema format.
     """
     async with _connect(connection_config) as session:
         response = await session.list_tools()

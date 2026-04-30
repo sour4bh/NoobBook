@@ -1,60 +1,38 @@
 """
-Asset registry for prompt JSON and tool JSON search paths.
+Asset registry for typed tool-spec search paths.
 
-This module is the single source of truth for where prompt and tool JSON files
-live. Domain tickets register domain-owned destinations here; loaders resolve
-assets through the registry only.
+This module is the single source of truth for where domain-owned
+``tools/specs.py`` modules live. Domain tickets register domain-owned
+destinations here; loaders resolve tool specs through the registry only.
 
-Tool schemas are registry-only after NBB-810. Category API compatibility is
-preserved by mapping legacy category/name keys to domain-owned files here, not
-by keeping a fallback directory alive.
+Tool contracts are registry-only after NBB-1104. Stable catalog keys map to
+domain-owned spec modules here; checked-in JSON tool files are not a live
+contract surface.
+Built-in prompts are Python ``PromptSpec`` modules discovered by
+``app.config.prompt`` and do not register through this asset loader.
 """
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
 
-# prompt_name -> ordered list of directories to search.
-# `prompt_name` matches the argument to `prompt_loader.get_prompt_config`
-# (e.g., "memory" for `memory_prompt.json`) and the file stem used by
-# `get_agent_prompt`.
-_prompt_dirs: Dict[str, List[Path]] = {}
-
 # (category, tool_name) -> ordered list of directories to search for a single
-# tool JSON.
+# tool spec.
 _tool_file_dirs: Dict[Tuple[str, str], List[Path]] = {}
 
 # category -> ordered list of directories to search when a whole category has
-# moved. `load_tools_from_category` and `load_tools_for_agent` consult these.
+# moved. `tool_loader.load_tool_specs_for_agent` consults these.
 _tool_category_dirs: Dict[str, List[Path]] = {}
 
 
-class AssetNotFoundError(FileNotFoundError):
-    """Raised when an asset key resolves to no existing file.
-
-    Subclasses `FileNotFoundError` so existing callers that already catch
-    `FileNotFoundError` (e.g., `tool_loader.load_tool`) keep working.
-    """
-
-
-def register_prompt_path(prompt_name: str, directory: Path) -> None:
-    """Register a domain-owned directory for a single prompt.
-
-    Registered paths are searched in registration order. A registered
-    directory that does not contain the expected file falls through to the next
-    candidate.
-    """
-    _prompt_dirs.setdefault(prompt_name, []).append(Path(directory))
-
-
 def register_tool_path(category: str, tool_name: str, directory: Path) -> None:
-    """Register a domain-owned directory for a single tool JSON file.
+    """Register a domain-owned directory for a single tool spec.
 
     Per-file registrations win over per-category registrations. This lets a
-    heterogeneous legacy category like `chat_tools/` be split across multiple
-    new owners one file at a time.
+    heterogeneous catalog family like `chat_tools/` span multiple domain
+    owners without checked-in JSON tool files.
     """
     _tool_file_dirs.setdefault((category, tool_name), []).append(Path(directory))
 
@@ -62,44 +40,14 @@ def register_tool_path(category: str, tool_name: str, directory: Path) -> None:
 def register_tool_category(category: str, directory: Path) -> None:
     """Register a domain-owned directory for an entire tool category.
 
-    Used when a whole legacy family (e.g., `pdf_tools/`) moves to a single
-    domain destination. `load_tools_from_category` / `load_tools_for_agent`
-    consult this registration.
+    Used when a whole catalog family (e.g., `pdf_tools`) belongs to a single
+    domain destination. `tool_loader.load_tool_specs_for_agent` consults this
+    registration.
     """
     _tool_category_dirs.setdefault(category, []).append(Path(directory))
 
 
-def iter_prompt_candidate_paths(prompt_name: str, filename: str) -> List[Path]:
-    """Return candidate prompt file paths in priority order.
-
-    Prompts are registry-only after NBB-812.
-    """
-    return [
-        directory / filename for directory in _prompt_dirs.get(prompt_name, [])
-    ]
-
-
-def iter_tool_candidate_paths(
-    category: str, tool_name: str, _registry_root: Path
-) -> List[Path]:
-    """Return candidate tool JSON file paths in priority order.
-
-    Per-tool registrations win over per-category registrations. Tools do not
-    fall back to the legacy tool directory; every live tool path must be
-    registered.
-    """
-    filename = f"{tool_name}.json"
-    candidates: List[Path] = [
-        directory / filename
-        for directory in _tool_file_dirs.get((category, tool_name), [])
-    ]
-    candidates.extend(
-        directory / filename for directory in _tool_category_dirs.get(category, [])
-    )
-    return candidates
-
-
-def iter_tool_category_dirs(category: str, _registry_root: Path) -> List[Path]:
+def iter_tool_category_dirs(category: str) -> List[Path]:
     """Return registered directories for a tool category in priority order."""
     dirs: List[Path] = list(_tool_category_dirs.get(category, []))
     return dirs
@@ -119,65 +67,18 @@ def registered_tool_categories() -> List[str]:
     return categories
 
 
-def iter_tool_file_candidate_paths(category: str) -> List[Path]:
-    """Return exact per-file registrations for a category in priority order."""
-    candidates: List[Path] = []
+def iter_tool_file_candidate_dirs(category: str) -> List[Tuple[str, Path]]:
+    """Return exact per-file registration dirs for a category."""
+    candidates: List[Tuple[str, Path]] = []
     for (registered_category, tool_name), dirs in _tool_file_dirs.items():
         if registered_category != category:
             continue
-        filename = f"{tool_name}.json"
-        candidates.extend(directory / filename for directory in dirs)
+        candidates.extend((tool_name, directory) for directory in dirs)
     return candidates
-
-
-def resolve_prompt_path(prompt_name: str, filename: str) -> Path:
-    """Return the first existing candidate prompt file, or raise.
-
-    Internal resolver used by loaders that want an explicit miss signal. Public
-    loader methods may still convert the raise into their existing contract
-    (e.g., `get_prompt_config` returning `None`).
-    """
-    for candidate in iter_prompt_candidate_paths(prompt_name, filename):
-        if candidate.exists():
-            return candidate
-    raise AssetNotFoundError(
-        f"Prompt asset not found: name={prompt_name!r}, filename={filename!r}. "
-        f"Searched registered directories for {prompt_name!r}. Prompts are "
-        f"registry-only after NBB-812."
-    )
-
-
-def resolve_tool_path(category: str, tool_name: str, legacy_dir: Path) -> Path:
-    """Return the first existing candidate tool file, or raise.
-
-    Internal resolver used by loaders that want an explicit miss signal.
-    """
-    for candidate in iter_tool_candidate_paths(category, tool_name, legacy_dir):
-        if candidate.exists():
-            return candidate
-    raise AssetNotFoundError(
-        f"Tool asset not found: category={category!r}, tool={tool_name!r}. "
-        f"Searched registered per-file and per-category paths. Tools are "
-        f"registry-only after NBB-810."
-    )
-
-
-def iter_registered_prompt_dirs() -> List[Tuple[str, Path]]:
-    """Return every (prompt_name, directory) pair currently registered.
-
-    Used by `list_all_prompts` to enumerate domain-owned prompt files without
-    re-discovering the directories elsewhere.
-    """
-    pairs: List[Tuple[str, Path]] = []
-    for prompt_name, dirs in _prompt_dirs.items():
-        for directory in dirs:
-            pairs.append((prompt_name, directory))
-    return pairs
 
 
 def _reset_for_tests() -> None:
     """Clear every registration. Intended only for test fixtures."""
-    _prompt_dirs.clear()
     _tool_file_dirs.clear()
     _tool_category_dirs.clear()
 
@@ -185,62 +86,18 @@ def _reset_for_tests() -> None:
 def _snapshot() -> Dict[str, Dict]:
     """Return a deep-ish snapshot of registry state for diagnostics/tests."""
     return {
-        "prompt_dirs": {k: list(v) for k, v in _prompt_dirs.items()},
         "tool_file_dirs": {k: list(v) for k, v in _tool_file_dirs.items()},
         "tool_category_dirs": {k: list(v) for k, v in _tool_category_dirs.items()},
     }
 
 
-# Prompts that have moved to domain-owned homes. The map lives here
-# so it can be replayed after `_reset_for_tests()` during tests that need the
-# production configuration restored.
+# Tool categories that have moved to domain-owned homes. The autouse reset
+# fixture in `backend/tests/config/test_asset.py` replays these paths so tests
+# can mutate the registry without leaking state.
 #
-# Key: prompt_name (the argument passed to `prompt_loader.get_prompt_config`).
-# Value: directory path relative to `backend/app/`.
-_PRODUCTION_PROMPT_PATHS: Dict[str, str] = {
-    "default": "chat/prompts",
-    "chat_naming": "chat/prompts",
-    "memory": "chat/memory/prompts",
-    "summary": "sources/prompts",
-    "csv_analyzer_agent": "sources/analysis/csv/prompts",
-    "csv_processor": "sources/analysis/csv/prompts",
-    "database_analyzer_agent": "sources/analysis/database/prompts",
-    "freshdesk_analyzer_agent": "sources/analysis/freshdesk/prompts",
-    "pdf_extraction": "sources/pdf/prompts",
-    "pptx_extraction": "sources/pptx/prompts",
-    "image_extraction": "sources/image/prompts",
-    "web_agent": "sources/link/prompts",
-    "deep_research_agent": "sources/analysis/research/prompts",
-    "website_agent": "studio/design/website/prompts",
-    "component_agent": "studio/design/component/prompts",
-    "flow_diagram": "studio/design/flow_diagram/prompts",
-    "wireframe": "studio/design/wireframe/prompts",
-    "wireframe_agent": "studio/design/wireframe/prompts",
-    "blog_agent": "studio/documents/blog/prompts",
-    "business_report_agent": "studio/documents/business_report/prompts",
-    "prd_agent": "studio/documents/prd/prompts",
-    "presentation_agent": "studio/documents/presentation/prompts",
-    "ad_creative": "studio/marketing/ad/prompts",
-    "email_agent": "studio/marketing/email/prompts",
-    "infographic": "studio/marketing/infographic/prompts",
-    "marketing_strategy_agent": "studio/marketing/strategy/prompts",
-    "social_posts": "studio/marketing/social_post/prompts",
-    "flash_cards": "studio/learning/flash_card/prompts",
-    "mind_map": "studio/learning/mind_map/prompts",
-    "quiz": "studio/learning/quiz/prompts",
-    "audio_script": "studio/media/audio/prompts",
-    "video": "studio/media/video/prompts",
-}
-
-
-# Tool categories that have moved to domain-owned homes (NBB-207C). Paired
-# with `_PRODUCTION_PROMPT_PATHS` so both asset types replay through one
-# function; the autouse reset fixture in
-# `backend/tests/config/test_asset.py` has a single replay hook.
-#
-# Key: category (the first argument to `tool_loader.load_tool` /
-# `load_tools_from_category` / `load_tools_for_agent`, and the `AGENT_NAME`
-# value for agent services). Consumers keep using the same key; only the
+# Key: category (the first argument to `tool_loader.load_tool_spec` /
+# `load_tool_specs_for_agent`, and the `AGENT_NAME` value for agent services).
+# Consumers keep using the same key; only the
 # directory resolves to the new domain path.
 # Value: directory path relative to `backend/app/`.
 _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
@@ -262,12 +119,12 @@ _PRODUCTION_TOOL_PATHS: Dict[str, str] = {
 }
 
 
-# Single tool JSON files (not full categories) that have moved to domain-owned
-# homes. Use per-file entries when a directory contains schemas owned by
+# Single tool specs (not full categories) that have moved to domain-owned
+# homes. Use per-tool entries when a directory contains specs owned by
 # multiple loader categories, so category enumeration stays precise.
 #
-# Key: (category, tool_name) — the arguments to `tool_loader.load_tool`.
-# Value: directory path relative to `backend/app/` for the tool's JSON file.
+# Key: (category, tool_name) — the arguments to `tool_loader.load_tool_spec`.
+# Value: directory path relative to `backend/app/` for the tool's `specs.py`.
 _PRODUCTION_TOOL_FILE_PATHS: Dict[Tuple[str, str], str] = {
     ("chat_tools", "source_search_tool"): "chat/tools",
     ("chat_tools", "memory_tool"): "chat/memory/tools",
@@ -322,17 +179,15 @@ _PRODUCTION_TOOL_FILE_PATHS: Dict[Tuple[str, str], str] = {
 
 
 def register_production_asset_paths() -> None:
-    """Register every domain-owned prompt/tool JSON path.
+    """Register every domain-owned tool-spec path.
 
-    Called from `app.config` package init so `prompt_loader`/`tool_loader`
-    singletons see the registered paths before any consumer imports them.
+    Called from `app.config` package init so `tool_loader` singletons see the
+    registered paths before any consumer imports them.
     Idempotent: calling twice appends the same dirs twice, so callers must
     reset the registry (tests) or rely on the single package-init call
     (production).
     """
     app_dir = Path(__file__).resolve().parents[1]
-    for prompt_name, relative in _PRODUCTION_PROMPT_PATHS.items():
-        register_prompt_path(prompt_name, app_dir / relative)
     for category, relative in _PRODUCTION_TOOL_PATHS.items():
         register_tool_category(category, app_dir / relative)
     for (category, tool_name), relative in _PRODUCTION_TOOL_FILE_PATHS.items():

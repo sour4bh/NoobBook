@@ -1,11 +1,9 @@
 """
-Anthropic response parsing.
+Private Anthropic response parsing.
 
-Predicates and extractors over the raw response shape returned by
-``claude_service.send_message()``. Covers stop-reason checks, text
-and citation extraction, and both client-tool and server-tool block
-extraction. Content-block construction lives in ``content.py``;
-token/model accessors live in ``usage.py``.
+Predicates and extractors over the raw response shape returned by the
+Anthropic Messages edge. These helpers are provider-internal; domain code
+consumes runtime ``RunResult`` contracts instead.
 """
 from typing import Dict, Any, List, Optional
 

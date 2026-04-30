@@ -3,38 +3,50 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.config.prompt import prompt_loader
+from app.config.prompt import render_prompt
 from app.config.tool import tool_loader
-from app.providers.anthropic import response_parser
+from app.agents.runtime import (
+    bind_local_tools,
+    echo_input,
+    RunLimits,
+    RunMessage,
+    RunRequest,
+    TextPart,
+    ToolChoice,
+    run_with_provider,
+)
+from app.agents.runtime.tool import ToolSpec
 from app.projects.store import DEFAULT_USER_ID, project_service
-from app.providers.anthropic import claude_service
 
 logger = logging.getLogger(__name__)
 
-_prompt_config: Optional[Dict[str, Any]] = None
-_tool_def: Optional[Dict[str, Any]] = None
+_tool_def: Optional[Any] = None
 
 
 def _resolved_user_id(user_id: Optional[str]) -> str:
     return user_id or DEFAULT_USER_ID
 
 
-def _get_prompt_config() -> Dict[str, Any]:
-    global _prompt_config
-
-    if _prompt_config is None:
-        _prompt_config = prompt_loader.get_prompt_config("memory")
-        if _prompt_config is None:
-            raise ValueError("memory_prompt.json not registered or missing")
-    return _prompt_config
-
-
-def _load_tool_definition() -> Dict[str, Any]:
+def _load_tool_definition() -> Any:
     global _tool_def
 
     if _tool_def is None:
-        _tool_def = tool_loader.load_tool("memory_tools", "manage_memory_tool")
+        _tool_def = tool_loader.load_tool_spec("memory_tools", "manage_memory_tool")
     return _tool_def
+
+
+def _bind_memory_merge_tools(specs: list[ToolSpec]) -> list[ToolSpec]:
+    """Attach the forced save-memory handler for this small internal workflow.
+
+    The static contract stays in `chat/memory/tools/specs.py` so the catalog can
+    discover it without importing memory effects. The executable binding is
+    colocated here because this domain has one internal-only forced tool.
+    """
+    return bind_local_tools(
+        specs,
+        {"save_memory": echo_input},
+        terminating_tools={"save_memory"},
+    )
 
 
 def get_user_memory(user_id: Optional[str] = DEFAULT_USER_ID) -> Optional[str]:
@@ -96,23 +108,6 @@ def _save_project_memory(
         return False
 
 
-def _build_user_message(
-    config: Dict[str, Any],
-    memory_type: str,
-    current_memory: str,
-    new_memory: str,
-    reason: str,
-) -> str:
-    template = config.get("user_message", "")
-
-    return template.format(
-        memory_type=memory_type,
-        current_memory=current_memory if current_memory else "(empty - no existing memory)",
-        new_memory=new_memory,
-        reason=reason,
-    )
-
-
 def update_memory(
     memory_type: str,
     new_memory: str,
@@ -133,39 +128,64 @@ def update_memory(
     else:
         current_memory = get_project_memory(project_id_for_memory, user_id=user_id) or ""
 
-    config = _get_prompt_config()
-    tool_def = _load_tool_definition()
-    user_message = _build_user_message(
-        config=config,
-        memory_type=memory_type,
-        current_memory=current_memory,
-        new_memory=new_memory,
-        reason=reason,
+    prompt = render_prompt(
+        "memory",
+        {
+            "memory_type": memory_type,
+            "current_memory": (
+                current_memory
+                if current_memory
+                else "(empty - no existing memory)"
+            ),
+            "new_memory": new_memory,
+            "reason": reason,
+        },
+        project_id=project_id,
     )
+    tool_def = _load_tool_definition()
 
     try:
         # Forced tool use keeps the merge output structured and avoids parsing
         # free-form model text before writing long-lived memory.
-        response = claude_service.send_message(
-            messages=[{"role": "user", "content": user_message}],
-            system_prompt=config.get("system_prompt", ""),
-            model=config.get("model"),
-            max_tokens=config.get("max_tokens"),
-            temperature=config.get("temperature"),
-            tools=[tool_def],
-            tool_choice={"type": "tool", "name": "save_memory"},
-            project_id=project_id,
+        # The runtime primitive is intentionally provider-neutral; this module
+        # supplies the domain meaning through purpose, prompt, and forced tool
+        # choice rather than wrapping the model call in a memory-only facade.
+        result = run_with_provider(
+            RunRequest(
+                provider=prompt.provider,
+                model=prompt.model,
+                purpose="memory_merge",
+                system_prompt=prompt.system_prompt,
+                messages=[
+                    RunMessage(
+                        role="user",
+                        content=[TextPart(text=prompt.user_message or "")],
+                    )
+                ],
+                tools=_bind_memory_merge_tools([tool_def]),
+                tool_choice=ToolChoice(type="tool", name="save_memory"),
+                limits=RunLimits(
+                    max_tool_turns=1,
+                    max_output_tokens=prompt.max_tokens,
+                    temperature=prompt.temperature,
+                ),
+                project_id=project_id,
+                user_id=_resolved_user_id(user_id),
+            )
         )
 
-        tool_inputs = response_parser.extract_tool_inputs(
-            response,
-            "save_memory",
-        )
+        tool_inputs = [
+            tool_result.content
+            for tool_result in result.tool_results
+            if tool_result.name == "save_memory"
+            and isinstance(tool_result.content, dict)
+            and not tool_result.is_error
+        ]
 
         if not tool_inputs:
             logger.error(
-                "Memory merge: save_memory tool not found in response. "
-                "Content blocks: %s", response.get("content_blocks")
+                "Memory merge: save_memory tool result not found. Tool results: %s",
+                [item.model_dump(mode="json") for item in result.tool_results],
             )
             return {
                 "success": False,
@@ -200,8 +220,8 @@ def update_memory(
                 "memory_type": memory_type,
                 "memory": merged_memory,
                 "previous_memory": current_memory,
-                "model": response.get("model"),
-                "usage": response.get("usage")
+                "model": result.model,
+                "usage": result.usage.model_dump(mode="json")
             }
         return {
             "success": False,

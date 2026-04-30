@@ -388,6 +388,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           } catch (fallbackError) {
             log.error({ err: fallbackError }, 'failed to send message via fallback');
             error('Failed to send message');
+            setMessage(userMessage);
           }
         } else {
           log.error({ err }, 'failed to send message');
@@ -396,6 +397,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       }
       setStreamingAssistantContent('');
       if (!canonicalUserMessageReceivedRef.current) {
+        setMessage(userMessage);
         setActiveChat((prev) => {
           if (!prev) return null;
           return {

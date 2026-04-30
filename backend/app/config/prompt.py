@@ -278,7 +278,11 @@ def render_prompt(
         raise FileNotFoundError(f"Prompt spec not found: {prompt_name}")
 
     values = _context_data(context)
-    system = system_override or spec.system_template().render(values)
+    # System prompts are long-lived instruction documents. Many include literal
+    # JSON, CSS, or Mermaid examples, so only user-message templates are treated
+    # as format strings unless a future prompt explicitly adds a separate
+    # system-template contract.
+    system = system_override or spec.system_prompt
     system = _compose_system_prompt(system, extra_sections)
 
     user_template = spec.user_template()

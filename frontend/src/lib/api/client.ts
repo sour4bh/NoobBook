@@ -19,6 +19,7 @@ import { createLogger } from '@/lib/logger';
 import { parseAuthSessionResponse, parseErrorEnvelope } from './contracts';
 
 const log = createLogger('api-client');
+export const AUTH_SESSION_EXPIRED_EVENT = 'noobbook:auth-session-expired';
 
 // Base host URL (without /api/v1 path) - used for file URLs, static assets.
 // When VITE_API_HOST is set to "" (Docker via nginx proxy), same-origin requests
@@ -74,6 +75,13 @@ axios.interceptors.request.use(attachAuthHeader);
 
 let refreshPromise: Promise<boolean> | null = null;
 
+function expireSession(): void {
+  clearSession();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+  }
+}
+
 async function tryRefreshToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
@@ -91,7 +99,7 @@ async function tryRefreshToken(): Promise<boolean> {
     log.error({ err }, 'token refresh failed');
   }
 
-  clearSession();
+  expireSession();
   return false;
 }
 

@@ -17,8 +17,8 @@ import {
   parseWorkspaceMembersResponse,
   parseWorkspaceSessionResponse,
 } from '../lib/api/contracts';
-import { api, fetchWithAuthRefresh } from '../lib/api/client';
-import { setSelectedWorkspaceId, setSession } from '../lib/auth/session';
+import { AUTH_SESSION_EXPIRED_EVENT, api, fetchWithAuthRefresh } from '../lib/api/client';
+import { getAccessToken, getRefreshToken, setSelectedWorkspaceId, setSession } from '../lib/auth/session';
 
 const message = {
   id: 'msg-1',
@@ -290,5 +290,29 @@ describe('frontend API contract parsers', () => {
     expect((fetchMock.mock.calls[1][1]?.headers as Headers).get('Authorization')).toBe(
       'Bearer fresh-access-token',
     );
+  });
+
+  it('expires the local session when auth refresh fails', async () => {
+    setSession('old-access-token', 'refresh-token', 'old-asset-token');
+
+    vi.spyOn(axios, 'post').mockRejectedValue(new Error('refresh token already used'));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ success: false, error: 'Expired token' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const onExpired = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
+    try {
+      const response = await fetchWithAuthRefresh('/api/v1/contract-test');
+
+      expect(response.status).toBe(401);
+      expect(onExpired).toHaveBeenCalledTimes(1);
+      expect(getAccessToken()).toBeNull();
+      expect(getRefreshToken()).toBeNull();
+    } finally {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
+    }
   });
 });

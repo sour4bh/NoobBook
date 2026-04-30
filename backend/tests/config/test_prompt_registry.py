@@ -114,3 +114,18 @@ def test_render_prompt_formats_user_message_context() -> None:
     assert rendered.name == "memory"
     assert rendered.provider == "anthropic"
     assert "Prefers concise answers" in (rendered.user_message or "")
+
+
+def test_render_prompt_treats_system_prompt_examples_as_literal_text() -> None:
+    """Literal JSON/CSS/Mermaid braces in system prompts are not templates."""
+    rendered = render_prompt(
+        "flow_diagram",
+        {
+            "direction": "show the process",
+            "content": "Start, decide, act.",
+        },
+    )
+
+    assert "B{Decision?}" in rendered.system_prompt
+    assert "USER ||--o{ ORDER : places" in rendered.system_prompt
+    assert "Direction from user: show the process" in (rendered.user_message or "")

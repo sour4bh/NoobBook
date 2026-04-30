@@ -110,7 +110,12 @@ export const useFlowDiagramGeneration = (projectId: string) => {
         setSavedFlowDiagramJobs((prev) => [finalJob, ...prev]);
         setViewingFlowDiagramJob(finalJob); // Open modal to view
       } else if (finalJob.status === 'error') {
-        showError(finalJob.error || 'Flow diagram generation failed.');
+        const message = finalJob.error || 'Flow diagram generation failed.';
+        if (configErrorTimer.current) clearTimeout(configErrorTimer.current);
+        setConfigError(message);
+        configErrorTimer.current = setTimeout(() => setConfigError(null), 10000);
+        setSavedFlowDiagramJobs((prev) => [finalJob, ...prev]);
+        showError(message);
       }
     } catch (error) {
       log.error({ err: error }, 'flow diagram generation failed');

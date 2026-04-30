@@ -6,9 +6,9 @@ processed text:
 
 1. Check if source needs embedding (token count > threshold).
 2. Parse processed text into chunks (one page = one chunk).
-3. Upload chunks to Supabase Storage.
-4. Create embeddings via OpenAI.
-5. Upsert vectors to Pinecone.
+3. Upload chunks to Supabase Storage for local retrieval.
+4. Create embeddings via OpenAI when vector search is configured.
+5. Upsert vectors to Pinecone when vector search is configured.
 
 Called after source processing (e.g. PDF extraction) completes.
 
@@ -41,7 +41,7 @@ def process_embeddings(
     """Run the full embedding pipeline for one source.
 
     Returns embedding_info with `is_embedded`, `embedded_at`, `token_count`,
-    `chunk_count`, and `reason`.
+    `chunk_count`, `vector_count`, and `reason`.
     """
     should_embed, token_count, reason = get_embedding_info(text=processed_text)
     logger.info("Embedding check for %s: %s", source_name, reason)
@@ -52,16 +52,8 @@ def process_embeddings(
             "embedded_at": None,
             "token_count": token_count,
             "chunk_count": 0,
+            "vector_count": 0,
             "reason": reason,
-        }
-
-    if not pinecone_service.is_configured(project_id=project_id):
-        return {
-            "is_embedded": False,
-            "embedded_at": None,
-            "token_count": token_count,
-            "chunk_count": 0,
-            "reason": "Pinecone not configured - embedding skipped",
         }
 
     try:
@@ -76,6 +68,7 @@ def process_embeddings(
                 "embedded_at": None,
                 "token_count": token_count,
                 "chunk_count": 0,
+                "vector_count": 0,
                 "reason": "No chunks created from text",
             }
 
@@ -94,7 +87,32 @@ def process_embeddings(
             if storage_path:
                 uploaded_count += 1
         logger.info("Uploaded %d chunks to Supabase Storage", uploaded_count)
+    except Exception as exc:
+        logger.exception("Chunk storage workflow error")
+        return {
+            "is_embedded": False,
+            "embedded_at": None,
+            "token_count": token_count,
+            "chunk_count": 0,
+            "vector_count": 0,
+            "reason": f"Chunk storage failed: {exc}",
+        }
 
+    base_info = {
+        "embedded_at": None,
+        "token_count": token_count,
+        "chunk_count": uploaded_count,
+        "vector_count": 0,
+    }
+
+    if not pinecone_service.is_configured(project_id=project_id):
+        return {
+            **base_info,
+            "is_embedded": False,
+            "reason": "Pinecone not configured - vector embedding skipped",
+        }
+
+    try:
         chunk_texts = [clean_text_for_embedding(chunk.text) for chunk in chunks]
         embeddings = openai_embeddings.create_embeddings_batch(
             chunk_texts,
@@ -116,17 +134,17 @@ def process_embeddings(
             "is_embedded": True,
             "embedded_at": datetime.now().isoformat(),
             "token_count": token_count,
-            "chunk_count": len(chunks),
+            "chunk_count": uploaded_count,
+            "vector_count": upsert_result.get("upserted_count", 0),
             "reason": f"Successfully embedded {len(chunks)} chunks",
         }
     except Exception as exc:
         logger.exception("Embedding workflow error")
         return {
+            **base_info,
             "is_embedded": False,
-            "embedded_at": None,
-            "token_count": token_count,
-            "chunk_count": 0,
             "reason": f"Embedding failed: {exc}",
+            "embedding_error": str(exc),
         }
 
 

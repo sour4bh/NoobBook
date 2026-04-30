@@ -354,6 +354,63 @@ class TestRetryProcessing:
             "error": "Source is already processed",
         }
 
+    def test_ready_source_without_chunks_can_be_repaired(self):
+        pipeline = SourcePipeline()
+
+        with patch(
+            "app.sources.catalog.source_service"
+        ) as mock_service, patch(
+            "app.background.tasks.task_service"
+        ) as mock_tasks, patch(
+            "app.sources.pipeline.storage_service"
+        ) as mock_storage:
+            mock_service.get_source.return_value = {
+                "id": SOURCE_ID,
+                "status": "ready",
+                "embedding_info": {
+                    "file_extension": ".txt",
+                    "stored_filename": "src.txt",
+                    "chunk_count": 0,
+                },
+            }
+            mock_storage.download_raw_file.return_value = b"raw-data"
+
+            result = pipeline.retry_processing(PROJECT_ID, SOURCE_ID)
+
+        assert result == {
+            "success": True,
+            "message": "Processing restarted",
+        }
+        mock_storage.delete_processed_file.assert_called_once_with(
+            PROJECT_ID, SOURCE_ID
+        )
+        mock_storage.delete_source_chunks.assert_called_once_with(
+            PROJECT_ID, SOURCE_ID
+        )
+        mock_tasks.submit_task.assert_called_once()
+
+    def test_ready_csv_without_chunks_is_not_repaired(self):
+        pipeline = SourcePipeline()
+
+        with patch(
+            "app.sources.catalog.source_service"
+        ) as mock_service:
+            mock_service.get_source.return_value = {
+                "id": SOURCE_ID,
+                "status": "ready",
+                "embedding_info": {
+                    "file_extension": ".csv",
+                    "stored_filename": "src.csv",
+                    "chunk_count": 0,
+                },
+            }
+            result = pipeline.retry_processing(PROJECT_ID, SOURCE_ID)
+
+        assert result == {
+            "success": False,
+            "error": "Source is already processed",
+        }
+
     def test_missing_source_returns_structured_error(self):
         pipeline = SourcePipeline()
 

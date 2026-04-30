@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { Dashboard, CreateProjectDialog } from './components/dashboard';
 import { ProjectWorkspace } from './components/project';
@@ -6,6 +6,7 @@ import { ProjectWorkspace } from './components/project';
 import { projectsAPI, workspacesAPI } from './lib/api';
 import { AuthPage } from './components/auth/AuthPage';
 import { authAPI } from './lib/api/auth';
+import { AUTH_SESSION_EXPIRED_EVENT } from './lib/api/client';
 import { createLogger } from '@/lib/logger';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import type { WorkspaceSessionContext } from './lib/api/contracts';
@@ -258,7 +259,7 @@ function App() {
   const [globalRole, setGlobalRole] = useState('user');
   const [workspace, setWorkspace] = useState<WorkspaceSessionContext | null>(null);
 
-  const refreshAuth = async () => {
+  const refreshAuth = useCallback(async () => {
     try {
       const res = await authAPI.me();
       setAuthRequired(Boolean(res?.auth_required));
@@ -283,7 +284,7 @@ function App() {
     } finally {
       setAuthReady(true);
     }
-  };
+  }, []);
 
   const handleWorkspaceChange = async (workspaceId: string) => {
     setSelectedWorkspaceId(workspaceId);
@@ -303,7 +304,17 @@ function App() {
 
   useEffect(() => {
     refreshAuth();
-  }, []);
+  }, [refreshAuth]);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      refreshAuth();
+    };
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+    };
+  }, [refreshAuth]);
 
   if (!authReady) {
     return (

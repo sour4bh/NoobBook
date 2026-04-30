@@ -201,6 +201,28 @@ const getStatusDisplay = (status: Source['status'], source?: Source) => {
   }
 };
 
+const CHUNK_REPAIR_EXCLUDED_EXTENSIONS = new Set([
+  '.csv',
+  '.database',
+  '.freshdesk',
+  '.jira',
+  '.mixpanel',
+]);
+
+const needsChunkRepair = (source: Source): boolean => {
+  const embeddingInfo = source.embedding_info || {};
+  if (!('chunk_count' in embeddingInfo) || !embeddingInfo.stored_filename) {
+    return false;
+  }
+  const fileExtension = String(embeddingInfo.file_extension || '').toLowerCase();
+  const chunkCount = Number(embeddingInfo.chunk_count || 0);
+  return (
+    source.status === 'ready' &&
+    chunkCount === 0 &&
+    !CHUNK_REPAIR_EXCLUDED_EXTENSIONS.has(fileExtension)
+  );
+};
+
 export const SourceItem: React.FC<SourceItemProps> = ({
   source,
   onDownload,
@@ -227,6 +249,7 @@ export const SourceItem: React.FC<SourceItemProps> = ({
   const isActivelyWorking = isProcessing || isEmbedding;
   // "uploaded" status means source is waiting for processing (fresh upload or cancelled)
   const isWaitingToProcess = source.status === 'uploaded';
+  const canRebuildChunks = needsChunkRepair(source);
   // Source can be toggled active/inactive only when it's ready
   // Educational Note: No partial status - sources are either fully ready or failed
   const canToggleActive = source.status === 'ready';
@@ -279,10 +302,14 @@ export const SourceItem: React.FC<SourceItemProps> = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
           {/* Retry/Start option - for error or uploaded (waiting) state */}
-          {(source.status === 'error' || isWaitingToProcess) && (
+          {(source.status === 'error' || isWaitingToProcess || canRebuildChunks) && (
             <DropdownMenuItem onClick={() => onRetryProcessing(source.id)}>
               <ArrowsClockwise size={14} className="mr-2" />
-              {isWaitingToProcess ? 'Start Processing' : 'Retry Processing'}
+              {canRebuildChunks
+                ? 'Rebuild Chunks'
+                : isWaitingToProcess
+                  ? 'Start Processing'
+                  : 'Retry Processing'}
             </DropdownMenuItem>
           )}
 

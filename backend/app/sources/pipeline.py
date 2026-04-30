@@ -38,6 +38,28 @@ from app.providers.supabase import storage_service
 logger = logging.getLogger(__name__)
 
 
+CHUNK_REPAIR_EXCLUDED_EXTENSIONS = {
+    ".csv",
+    ".database",
+    ".freshdesk",
+    ".jira",
+    ".mixpanel",
+}
+
+
+def _needs_chunk_repair(source: Dict[str, Any]) -> bool:
+    """Return true for legacy ready sources that need chunk reconstruction."""
+    if source.get("status") != "ready":
+        return False
+    embedding_info = source.get("embedding_info", {}) or {}
+    if "chunk_count" not in embedding_info or not embedding_info.get("stored_filename"):
+        return False
+    file_extension = (embedding_info.get("file_extension") or "").lower()
+    if file_extension in CHUNK_REPAIR_EXCLUDED_EXTENSIONS:
+        return False
+    return int(embedding_info.get("chunk_count") or 0) == 0
+
+
 class SourcePipeline:
     """
     Pipeline class for orchestrating source file processing.
@@ -299,7 +321,7 @@ class SourcePipeline:
         if not source:
             return {"success": False, "error": "Source not found"}
 
-        if source["status"] == "ready":
+        if source["status"] == "ready" and not _needs_chunk_repair(source):
             return {"success": False, "error": "Source is already processed"}
 
         # If source is stuck in processing/embedding (e.g. server restart, crashed task),

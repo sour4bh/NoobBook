@@ -77,12 +77,16 @@ describe('frontend API contract parsers', () => {
       costs: {
         total_cost: 1.25,
         by_model: {
-          opus: { input_tokens: 1, output_tokens: 2, cost: 0.1 },
-          sonnet: { input_tokens: 3, output_tokens: 4, cost: 0.2 },
-          haiku: { input_tokens: 5, output_tokens: 6, cost: 0.3 },
+          'anthropic:claude-sonnet-4-6': {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-6',
+            input_tokens: 3,
+            output_tokens: 4,
+            cost: 0.2,
+          },
         },
       },
-    }).costs.by_model.sonnet.cost).toBe(0.2);
+    }).costs.by_model['anthropic:claude-sonnet-4-6'].cost).toBe(0.2);
 
     expect(parseActiveTasksResponse({
       success: true,

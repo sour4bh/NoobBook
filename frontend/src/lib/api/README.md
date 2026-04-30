@@ -18,14 +18,14 @@ That document is the source of truth for:
 
 - chat streaming event names (`user_message`, `ping`, `assistant_delta`, `assistant_done`, `error`)
 - citation marker and chunk-id format (`[[cite:{source_id}_page_{n}_chunk_{m}]]`)
-- chat tool invocation / result block union (`text | tool_use | tool_result | server_tool_use | web_search_tool_result | web_fetch_tool_result`)
+- chat content-part union (`text | media | tool_call | tool_result | provider_metadata`)
 - auth identity (`GET /auth/me`) and session (`POST /auth/signin|signup|refresh`) shapes
 - authenticated media and scoped asset-token (`?asset_token=<token>`) access rules
 - `studio_signals` row and tool-input shapes
 - `projects.costs` and `chats.costs` JSONB shape
 - `messages.content` JSONB block array shape
 - background-task polling envelope (`/projects/<id>/active-tasks`)
-- tool-schema JSON contract through domain-owned `tools/` directories and the backend asset registry
+- tool-spec contract through domain-owned `tools/specs.py` modules and the backend asset registry
 - source kind / MIME / status enums
 - studio job status / progress / result flattening
 - permissions JSON contract (`users.permissions` shape)

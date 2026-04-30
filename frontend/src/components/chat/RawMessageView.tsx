@@ -1,9 +1,9 @@
 /**
  * RawMessageView Component
  * Educational Note: Debug view that displays ALL messages in a chat including
- * tool_use and tool_result intermediates that are normally filtered out.
+ * tool_call and tool_result intermediates that are normally filtered out.
  * Shows the raw JSON content blocks with syntax highlighting so developers
- * can inspect the full Claude API exchange.
+ * can inspect the full provider-runtime exchange.
  */
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
@@ -25,7 +25,7 @@ interface RawMessageViewProps {
 const TYPE_STYLES: Record<string, { bg: string; text: string }> = {
   user_input: { bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-300' },
   ai_response: { bg: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-700 dark:text-green-300' },
-  tool_use: { bg: 'bg-teal-100 dark:bg-teal-900/40', text: 'text-teal-700 dark:text-teal-300' },
+  tool_call: { bg: 'bg-teal-100 dark:bg-teal-900/40', text: 'text-teal-700 dark:text-teal-300' },
   tool_result: { bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-700 dark:text-orange-300' },
 };
 

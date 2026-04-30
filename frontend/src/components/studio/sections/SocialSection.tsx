@@ -10,7 +10,7 @@ import { useSocialPostGeneration } from '../social/useSocialPostGeneration';
 import { SocialPostListItem } from '../social/SocialPostListItem';
 import { SocialPostProgressIndicator } from '../social/SocialPostProgressIndicator';
 import { SocialPostViewerModal } from '../social/SocialPostViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const SocialSection: React.FC = () => {
   const { projectId, signals, registerGenerationHandler } = useStudioContext();

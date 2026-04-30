@@ -67,6 +67,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({
   exportingChat,
 }) => {
   const { hasPermission } = usePermissions();
+  const costEntries = chatCosts
+    ? Object.entries(chatCosts.by_model).filter(([, bucket]) =>
+        bucket.input_tokens > 0 || bucket.output_tokens > 0 || bucket.cost > 0
+      )
+    : [];
 
   return (
     <div className="border-b px-4 py-3">
@@ -192,47 +197,19 @@ export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({
                   <div className="space-y-2 text-xs">
                     <p className="font-semibold text-sm mb-2">Chat Usage Breakdown</p>
 
-                    {chatCosts.by_model.opus && (chatCosts.by_model.opus.input_tokens > 0 || chatCosts.by_model.opus.output_tokens > 0) && (
+                    {costEntries.map(([key, bucket]) => (
                       <div className="space-y-1">
-                        <p className="font-medium">Opus</p>
+                        <p className="font-medium">{bucket.model || key}</p>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
                           <span>Input:</span>
-                          <span>{formatTokens(chatCosts.by_model.opus.input_tokens)} tokens</span>
+                          <span>{formatTokens(bucket.input_tokens)} tokens</span>
                           <span>Output:</span>
-                          <span>{formatTokens(chatCosts.by_model.opus.output_tokens)} tokens</span>
+                          <span>{formatTokens(bucket.output_tokens)} tokens</span>
                           <span>Cost:</span>
-                          <span className="font-medium text-foreground">{formatCostWithSymbol(chatCosts.by_model.opus.cost)}</span>
+                          <span className="font-medium text-foreground">{formatCostWithSymbol(bucket.cost)}</span>
                         </div>
                       </div>
-                    )}
-
-                    {(chatCosts.by_model.sonnet.input_tokens > 0 || chatCosts.by_model.sonnet.output_tokens > 0) && (
-                      <div className="space-y-1">
-                        <p className="font-medium">Sonnet</p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-                          <span>Input:</span>
-                          <span>{formatTokens(chatCosts.by_model.sonnet.input_tokens)} tokens</span>
-                          <span>Output:</span>
-                          <span>{formatTokens(chatCosts.by_model.sonnet.output_tokens)} tokens</span>
-                          <span>Cost:</span>
-                          <span className="font-medium text-foreground">{formatCostWithSymbol(chatCosts.by_model.sonnet.cost)}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {(chatCosts.by_model.haiku.input_tokens > 0 || chatCosts.by_model.haiku.output_tokens > 0) && (
-                      <div className="space-y-1">
-                        <p className="font-medium">Haiku</p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-                          <span>Input:</span>
-                          <span>{formatTokens(chatCosts.by_model.haiku.input_tokens)} tokens</span>
-                          <span>Output:</span>
-                          <span>{formatTokens(chatCosts.by_model.haiku.output_tokens)} tokens</span>
-                          <span>Cost:</span>
-                          <span className="font-medium text-foreground">{formatCostWithSymbol(chatCosts.by_model.haiku.cost)}</span>
-                        </div>
-                      </div>
-                    )}
+                    ))}
 
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between font-medium">

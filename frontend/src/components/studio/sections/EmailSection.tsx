@@ -9,7 +9,7 @@ import { useEmailGeneration } from '../email/useEmailGeneration';
 import { EmailListItem } from '../email/EmailListItem';
 import { EmailProgressIndicator } from '../email/EmailProgressIndicator';
 import { EmailViewerModal } from '../email/EmailViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const EmailSection: React.FC = () => {
   const { projectId, registerGenerationHandler } = useStudioContext();

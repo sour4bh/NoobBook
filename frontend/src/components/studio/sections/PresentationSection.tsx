@@ -9,7 +9,7 @@ import { usePresentationGeneration } from '../presentations/usePresentationGener
 import { PresentationListItem } from '../presentations/PresentationListItem';
 import { PresentationProgressIndicator } from '../presentations/PresentationProgressIndicator';
 import { PresentationViewerModal } from '../presentations/PresentationViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const PresentationSection: React.FC = () => {
   const { projectId, registerGenerationHandler } = useStudioContext();

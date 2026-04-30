@@ -1,11 +1,11 @@
 /**
  * ModelsSection Component
  *
- * Admin-only model selector. Lets the admin override which Claude model
- * each use-case category uses (chat, studio, query agents, source extraction).
+ * Workspace model selector. Members can see configured provider/model choices;
+ * workspace owners/admins can override which model each use-case category uses.
  *
  * Selecting "Per-prompt defaults" for a category clears the override and
- * each prompt's JSON-baked model is used. The UI shows the per-prompt
+ * each prompt's JSON-baked provider/model is used. The UI shows the per-prompt
  * breakdown explicitly so "Default" isn't ambiguous — admins can see that
  * Chat actually means Sonnet for the main prompt and Haiku for chat_naming
  * and memory, etc.
@@ -27,6 +27,7 @@ import type {
   ModelCategory,
   ModelSettings,
   ModelDefaults,
+  ModelSelection,
 } from '@/lib/api/settings';
 import { useToast } from '@/components/ui/use-toast';
 import { createLogger } from '@/lib/logger';
@@ -79,6 +80,7 @@ export const ModelsSection: React.FC = () => {
   const [categories, setCategories] = useState<ModelCategory[]>([]);
   const [selections, setSelections] = useState<ModelSettings>({});
   const [defaults, setDefaults] = useState<ModelDefaults>({});
+  const [canManageModelDefaults, setCanManageModelDefaults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savingCategory, setSavingCategory] = useState<string | null>(null);
 
@@ -92,6 +94,7 @@ export const ModelsSection: React.FC = () => {
       setCategories(response.categories);
       setSelections(response.settings);
       setDefaults(response.defaults ?? {});
+      setCanManageModelDefaults(response.capabilities.can_manage_model_defaults);
     } catch (err) {
       log.error({ err }, 'failed to load model settings');
       error('Failed to load model settings');
@@ -105,18 +108,29 @@ export const ModelsSection: React.FC = () => {
   }, [loadSettings]);
 
   const handleModelChange = async (categoryId: string, value: string) => {
+    if (!canManageModelDefaults) {
+      return;
+    }
     const modelId = value === DEFAULT_MODEL_VALUE ? null : value;
+    const nextSelection: ModelSelection | null = modelId
+      ? {
+          provider:
+            availableModels.find((model) => model.id === modelId)?.provider ??
+            'anthropic',
+          model: modelId,
+        }
+      : null;
     const previous = selections[categoryId] ?? null;
 
     // Optimistic update; roll back on failure
-    setSelections((prev) => ({ ...prev, [categoryId]: modelId }));
+    setSelections((prev) => ({ ...prev, [categoryId]: nextSelection }));
     setSavingCategory(categoryId);
 
     try {
-      await modelSettingsAPI.updateSettings({ [categoryId]: modelId });
+      await modelSettingsAPI.updateSettings({ [categoryId]: nextSelection });
       const categoryLabel =
         categories.find((c) => c.id === categoryId)?.label ?? categoryId;
-      success(`${categoryLabel} model updated`);
+      success(`${categoryLabel} provider/model updated`);
     } catch (err) {
       log.error({ err, categoryId }, 'failed to update model');
       setSelections((prev) => ({ ...prev, [categoryId]: previous }));
@@ -134,24 +148,27 @@ export const ModelsSection: React.FC = () => {
     );
   }
 
-  // Build a quick lookup so we can show "Sonnet 4.6" instead of the raw id
-  const modelNameById = new Map(availableModels.map((m) => [m.id, m.name]));
-  const friendlyModelName = (id: string) => modelNameById.get(id) ?? id;
+  // Build a quick lookup so we can show "Sonnet 4.6" instead of the raw id.
+  const modelById = new Map(availableModels.map((m) => [m.id, m]));
+  const friendlyModelName = (id: string) => modelById.get(id)?.name ?? id;
+  const providerLabel = (provider: string) =>
+    provider === 'openai' ? 'OpenAI' : 'Anthropic';
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-base font-medium text-stone-900 mb-1">Models</h2>
         <p className="text-sm text-muted-foreground">
-          Choose which Claude model each use case runs on. Overrides apply
-          immediately and persist across restarts.
+          Choose which provider/model each use case runs on. Overrides apply
+          immediately and persist across restarts. Provider models appear after
+          a workspace admin configures that provider's API key.
         </p>
       </div>
 
       <div className="space-y-6">
         {categories.map((category) => {
           const selected = selections[category.id] ?? null;
-          const selectValue = selected ?? DEFAULT_MODEL_VALUE;
+          const selectValue = selected?.model ?? DEFAULT_MODEL_VALUE;
           const breakdown = defaults[category.id] ?? {};
           const breakdownEntries = Object.entries(breakdown);
           // Sort so the model that covers the most prompts shows first
@@ -177,11 +194,11 @@ export const ModelsSection: React.FC = () => {
                 )}
               </div>
 
-              <Select
-                value={selectValue}
-                onValueChange={(val) => handleModelChange(category.id, val)}
-                disabled={savingCategory !== null}
-              >
+                <Select
+                  value={selectValue}
+                  onValueChange={(val) => handleModelChange(category.id, val)}
+                  disabled={savingCategory !== null || !canManageModelDefaults}
+                >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
@@ -191,11 +208,17 @@ export const ModelsSection: React.FC = () => {
                   </SelectItem>
                   {availableModels.map((model) => (
                     <SelectItem key={model.id} value={model.id}>
-                      {model.name}
+                      {providerLabel(model.provider)} - {model.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {!canManageModelDefaults && (
+                <p className="text-xs text-muted-foreground">
+                  Workspace members can use configured models, but only owners
+                  and admins can change workspace defaults.
+                </p>
+              )}
 
               {/* What "Per-prompt defaults" actually resolves to */}
               {breakdownEntries.length > 0 && (
@@ -217,7 +240,7 @@ export const ModelsSection: React.FC = () => {
                   {selected === null && (
                     <p className="mt-1 italic">
                       Selecting a single model above forces every prompt in
-                      this category to use it.
+                      this category to use that provider/model pair.
                     </p>
                   )}
                 </div>

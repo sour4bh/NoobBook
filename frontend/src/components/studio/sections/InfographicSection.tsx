@@ -9,7 +9,7 @@ import { useInfographicGeneration } from '../infographic/useInfographicGeneratio
 import { InfographicListItem } from '../infographic/InfographicListItem';
 import { InfographicProgressIndicator } from '../infographic/InfographicProgressIndicator';
 import { InfographicViewerModal } from '../infographic/InfographicViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const InfographicSection: React.FC = () => {
   const { projectId, registerGenerationHandler } = useStudioContext();

@@ -49,7 +49,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
 
   // Handle section change with admin check
   const handleSectionChange = (section: SettingsSection) => {
-    const adminOnlySections: SettingsSection[] = ['team', 'api-keys', 'models', 'design', 'system'];
+    const adminOnlySections: SettingsSection[] = ['team', 'api-keys', 'design', 'system'];
     if (!canManageWorkspace && adminOnlySections.includes(section)) {
       return;
     }
@@ -85,7 +85,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
       case 'api-keys':
         return canManageWorkspace ? <ApiKeysSection /> : null;
       case 'models':
-        return canManageWorkspace ? <ModelsSection /> : null;
+        return <ModelsSection />;
       case 'integrations':
         return <IntegrationsSection isAdmin={canManageWorkspace} />;
       case 'design':

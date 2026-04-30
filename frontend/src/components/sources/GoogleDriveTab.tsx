@@ -28,7 +28,7 @@ import {
 } from '@phosphor-icons/react';
 import { googleDriveAPI, type GoogleFile, type GoogleStatus } from '@/lib/api/settings';
 import { useToast } from '../ui/use-toast';
-import { DriveItem } from './drive';
+import { DriveItem } from './DriveItem';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('google-drive-tab');

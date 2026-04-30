@@ -9,7 +9,7 @@ import { useFlowDiagramGeneration } from '../flow-diagrams/useFlowDiagramGenerat
 import { FlowDiagramListItem } from '../flow-diagrams/FlowDiagramListItem';
 import { FlowDiagramProgressIndicator } from '../flow-diagrams/FlowDiagramProgressIndicator';
 import { FlowDiagramViewerModal } from '../flow-diagrams/FlowDiagramViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const FlowDiagramSection: React.FC = () => {
   const { projectId, registerGenerationHandler } = useStudioContext();

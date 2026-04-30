@@ -30,7 +30,7 @@ import {
 import { Textarea } from '../ui/textarea';
 import { ArrowLeft, DotsThreeVertical, Plus, Trash, FolderOpen, Gear, CircleNotch, CurrencyDollar, Brain, CaretDown, CaretRight, PencilSimple, SignOut, ShareNetwork } from '@phosphor-icons/react';
 import { Input } from '../ui/input';
-import { chatsAPI, type PromptConfig } from '../../lib/api/chats';
+import { chatsAPI, type PromptSpecSummary } from '../../lib/api/chats';
 import { projectsAPI, type CostTracking, type MemoryData } from '../../lib/api';
 import { ToastContainer } from '../ui/toast';
 import { useToast } from '../ui/use-toast';
@@ -84,6 +84,11 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
 
   // Cost tracking state
   const [costs, setCosts] = React.useState<CostTracking | null>(null);
+  const costEntries = costs
+    ? Object.entries(costs.by_model).filter(([, bucket]) =>
+        bucket.input_tokens > 0 || bucket.output_tokens > 0 || bucket.cost > 0
+      )
+    : [];
 
   // Memory state
   const [memoryDialogOpen, setMemoryDialogOpen] = React.useState(false);
@@ -94,7 +99,7 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   const [savingMemory, setSavingMemory] = React.useState(false);
 
   // All prompts state (view-only)
-  const [allPrompts, setAllPrompts] = React.useState<PromptConfig[]>([]);
+  const [allPrompts, setAllPrompts] = React.useState<PromptSpecSummary[]>([]);
   const [loadingPrompts, setLoadingPrompts] = React.useState(false);
   const [expandedPrompts, setExpandedPrompts] = React.useState<Set<string>>(new Set());
 
@@ -278,8 +283,8 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   /**
    * Get prompt identifier (name or derive from filename)
    */
-  const getPromptId = (prompt: PromptConfig): string => {
-    return prompt.name || prompt.filename.replace('_prompt.json', '').replace('.json', '');
+  const getPromptId = (prompt: PromptSpecSummary): string => {
+    return prompt.name || prompt.filename.replace('.py', '');
   };
 
   /**
@@ -374,50 +379,19 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
                 <div className="space-y-2 text-xs">
                   <p className="font-semibold text-sm mb-2">API Usage Breakdown</p>
 
-                  {/* Opus breakdown */}
-                  {costs.by_model.opus && (costs.by_model.opus.input_tokens > 0 || costs.by_model.opus.output_tokens > 0) && (
+                  {costEntries.map(([key, bucket]) => (
                     <div className="space-y-1">
-                      <p className="font-medium">Opus</p>
+                      <p className="font-medium">{bucket.model || key}</p>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
                         <span>Input:</span>
-                        <span>{formatTokens(costs.by_model.opus.input_tokens)} tokens</span>
+                        <span>{formatTokens(bucket.input_tokens)} tokens</span>
                         <span>Output:</span>
-                        <span>{formatTokens(costs.by_model.opus.output_tokens)} tokens</span>
+                        <span>{formatTokens(bucket.output_tokens)} tokens</span>
                         <span>Cost:</span>
-                        <span className="font-medium text-foreground">{formatCostWithSymbol(costs.by_model.opus.cost)}</span>
+                        <span className="font-medium text-foreground">{formatCostWithSymbol(bucket.cost)}</span>
                       </div>
                     </div>
-                  )}
-
-                  {/* Sonnet breakdown */}
-                  {(costs.by_model.sonnet.input_tokens > 0 || costs.by_model.sonnet.output_tokens > 0) && (
-                    <div className="space-y-1">
-                      <p className="font-medium">Sonnet</p>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-                        <span>Input:</span>
-                        <span>{formatTokens(costs.by_model.sonnet.input_tokens)} tokens</span>
-                        <span>Output:</span>
-                        <span>{formatTokens(costs.by_model.sonnet.output_tokens)} tokens</span>
-                        <span>Cost:</span>
-                        <span className="font-medium text-foreground">{formatCostWithSymbol(costs.by_model.sonnet.cost)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Haiku breakdown */}
-                  {(costs.by_model.haiku.input_tokens > 0 || costs.by_model.haiku.output_tokens > 0) && (
-                    <div className="space-y-1">
-                      <p className="font-medium">Haiku</p>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-                        <span>Input:</span>
-                        <span>{formatTokens(costs.by_model.haiku.input_tokens)} tokens</span>
-                        <span>Output:</span>
-                        <span>{formatTokens(costs.by_model.haiku.output_tokens)} tokens</span>
-                        <span>Cost:</span>
-                        <span className="font-medium text-foreground">{formatCostWithSymbol(costs.by_model.haiku.cost)}</span>
-                      </div>
-                    </div>
-                  )}
+                  ))}
 
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-medium">

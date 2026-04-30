@@ -9,7 +9,7 @@ import { useBlogGeneration } from '../blog/useBlogGeneration';
 import { BlogListItem } from '../blog/BlogListItem';
 import { BlogProgressIndicator } from '../blog/BlogProgressIndicator';
 import { BlogViewerModal } from '../blog/BlogViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const BlogSection: React.FC = () => {
   const { projectId, registerGenerationHandler } = useStudioContext();

@@ -2,7 +2,7 @@
  * Chats API Service
  * Educational Note: Handles all chat operations with the backend.
  * This service provides methods for creating chats, sending messages,
- * and managing conversations with Claude AI.
+ * and managing conversations with the configured AI provider.
  */
 
 import axios from 'axios';
@@ -60,7 +60,7 @@ export interface Chat {
 
 /**
  * Educational Note: Raw message for debug/raw view.
- * Includes the original content blocks (tool_use, tool_result, etc.)
+ * Includes the original content parts (tool_call, tool_result, etc.)
  * that are normally filtered out for the normal chat display.
  */
 export interface RawMessage {
@@ -68,7 +68,7 @@ export interface RawMessage {
   role: 'user' | 'assistant';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   content: any;
-  message_type: 'user_input' | 'ai_response' | 'tool_use' | 'tool_result';
+  message_type: 'user_input' | 'ai_response' | 'tool_call' | 'tool_result';
   created_at: string;
   model?: string;
 }
@@ -97,11 +97,11 @@ export interface StreamMessageResult {
 }
 
 /**
- * Educational Note: Prompt configuration from registered prompt JSON files.
+ * Educational Note: Prompt configuration serialized from typed PromptSpecs.
  * Each prompt defines model settings and the actual prompt text.
  * Note: Some prompts use user_message, others use user_message_template.
  */
-export interface PromptConfig {
+export interface PromptSpecSummary {
   name: string;
   description: string;
   model: string;
@@ -236,8 +236,8 @@ class ChatsAPI {
 
   /**
    * Get raw messages for debug/raw view.
-   * Educational Note: Returns ALL messages including tool_use and tool_result
-   * intermediates with their original content blocks.
+   * Educational Note: Returns ALL messages including tool_call and tool_result
+   * intermediates with their original content parts.
    */
   async getRawMessages(projectId: string, chatId: string): Promise<RawMessage[]> {
     try {
@@ -252,9 +252,9 @@ class ChatsAPI {
   }
 
   /**
-   * Send a message in a chat and get AI response
-   * Educational Note: This sends the user's message to Claude API
-   * and returns both the user message and AI response
+   * Send a message in a chat and get an AI response.
+   * Educational Note: The backend routes this through the selected provider
+   * runtime and returns both the user message and AI response.
    */
   async sendMessage(
     projectId: string,
@@ -459,7 +459,7 @@ class ChatsAPI {
    * Educational Note: Returns all prompts from the registered prompt directories.
    * Each prompt includes model, temperature, max_tokens, system_prompt, and user_message.
    */
-  async getAllPrompts(): Promise<PromptConfig[]> {
+  async getAllPrompts(): Promise<PromptSpecSummary[]> {
     try {
       const response = await axios.get(`${API_BASE_URL}/prompts/all`);
       return response.data.prompts;

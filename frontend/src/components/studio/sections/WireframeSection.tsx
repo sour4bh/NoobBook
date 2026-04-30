@@ -9,7 +9,7 @@ import { useWireframeGeneration } from '../wireframes/useWireframeGeneration';
 import { WireframeListItem } from '../wireframes/WireframeListItem';
 import { WireframeProgressIndicator } from '../wireframes/WireframeProgressIndicator';
 import { WireframeViewerModal } from '../wireframes/WireframeViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const WireframeSection: React.FC = () => {
   const { projectId, registerGenerationHandler } = useStudioContext();

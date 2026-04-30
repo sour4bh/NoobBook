@@ -10,7 +10,7 @@ import { useAdGeneration } from '../ads/useAdGeneration';
 import { AdListItem } from '../ads/AdListItem';
 import { AdProgressIndicator } from '../ads/AdProgressIndicator';
 import { AdViewerModal } from '../ads/AdViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const AdSection: React.FC = () => {
   const { projectId, signals, registerGenerationHandler } = useStudioContext();

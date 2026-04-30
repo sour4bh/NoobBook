@@ -9,7 +9,7 @@ import { useWebsiteGeneration } from '../website/useWebsiteGeneration';
 import { WebsiteListItem } from '../website/WebsiteListItem';
 import { WebsiteProgressIndicator } from '../website/WebsiteProgressIndicator';
 import { WebsiteViewerModal } from '../website/WebsiteViewerModal';
-import { ConfigErrorBanner } from '../shared/ConfigErrorBanner';
+import { ConfigErrorBanner } from './ConfigErrorBanner';
 
 export const WebsiteSection: React.FC = () => {
   const { projectId, registerGenerationHandler } = useStudioContext();

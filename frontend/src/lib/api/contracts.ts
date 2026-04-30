@@ -251,16 +251,17 @@ export const activeTasksResponseSchema = z.object({
 });
 
 const costBucketSchema = z.object({
+  provider: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
   input_tokens: z.number().int(),
   output_tokens: z.number().int(),
+  cache_creation_input_tokens: z.number().int().optional().default(0),
+  cache_read_input_tokens: z.number().int().optional().default(0),
+  provider_units: unknownRecordSchema.optional().default({}),
   cost: z.number(),
 }).strict();
 
-const costByModelSchema = z.object({
-  opus: costBucketSchema,
-  sonnet: costBucketSchema,
-  haiku: costBucketSchema,
-}).passthrough();
+const costByModelSchema = z.record(z.string(), costBucketSchema);
 
 export const projectCostsResponseSchema = z.object({
   success: z.literal(true),
@@ -330,7 +331,7 @@ export type ActiveTask = z.infer<typeof activeTaskSchema>;
 export type ActiveTasksResponse = z.infer<typeof activeTasksResponseSchema>;
 export type ProjectCostsResponse = z.infer<typeof projectCostsResponseSchema>;
 export type CostTracking = ProjectCostsResponse['costs'];
-export type ModelCostBreakdown = CostTracking['by_model']['opus'];
+export type ModelCostBreakdown = CostTracking['by_model'][string];
 export type SourceRow = z.infer<typeof sourceRowSchema>;
 export type StudioJob = z.infer<typeof studioJobSchema>;
 export type StudioEventPayload = z.infer<typeof studioEventPayloadSchema>;

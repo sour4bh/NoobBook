@@ -60,7 +60,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, []);
 
   // Sources version counter - increments when sources change to trigger ChatPanel refresh
-  // Also triggers cost refresh since source processing uses Claude API
+  // Source processing can call the configured model provider, so costs refresh too.
   const [sourcesVersion, setSourcesVersion] = useState(0);
   const handleSourcesChange = useCallback(() => {
     setSourcesVersion(v => v + 1);

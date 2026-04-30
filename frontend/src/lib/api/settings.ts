@@ -455,13 +455,18 @@ export const processingSettingsAPI = new ProcessingSettingsAPI();
 export interface ModelPricing {
   input_per_mtok: number;
   output_per_mtok: number;
+  cached_input_per_mtok?: number | null;
 }
 
 export interface ModelInfo {
   id: string;
+  provider: 'anthropic' | 'openai';
   name: string;
   description: string;
   pricing: ModelPricing;
+  context_window?: number | null;
+  max_output_tokens?: number | null;
+  capabilities?: string[];
 }
 
 export interface ModelCategory {
@@ -469,21 +474,32 @@ export interface ModelCategory {
   label: string;
   description: string;
   env_var: string;
+  default_provider: 'anthropic' | 'openai';
 }
 
-// { chat: "claude-opus-4-6" | null, studio: ..., query: ..., extraction: ... }
-export type ModelSettings = Record<string, string | null>;
+export interface ModelSelection {
+  provider: 'anthropic' | 'openai';
+  model: string;
+}
+
+// { chat: { provider: "anthropic", model: "claude-opus-4-6" } | null, ... }
+export type ModelSettings = Record<string, ModelSelection | null>;
 
 // { chat: { "claude-sonnet-4-6": ["default"], "claude-haiku-4-5-20251001": ["chat_naming", "memory"] }, ... }
-// Shows which JSON-baked model each prompt uses by default. Lets the UI
+// Shows which JSON-baked provider/model each prompt uses by default. Lets the UI
 // explain what selecting "Default" actually means per category.
 export type ModelDefaults = Record<string, Record<string, string[]>>;
 
 export interface ModelSettingsResponse {
   settings: ModelSettings;
   available_models: ModelInfo[];
+  configured_providers: Array<'anthropic' | 'openai'>;
   categories: ModelCategory[];
   defaults: ModelDefaults;
+  capabilities: {
+    can_manage_provider_keys: boolean;
+    can_manage_model_defaults: boolean;
+  };
 }
 
 class ModelSettingsAPI {
@@ -497,8 +513,13 @@ class ModelSettingsAPI {
       return {
         settings: response.data.settings,
         available_models: response.data.available_models,
+        configured_providers: response.data.configured_providers ?? [],
         categories: response.data.categories,
         defaults: response.data.defaults,
+        capabilities: response.data.capabilities ?? {
+          can_manage_provider_keys: false,
+          can_manage_model_defaults: false,
+        },
       };
     } catch (error) {
       log.error({ err: error }, 'failed to fetch model settings');

@@ -12,11 +12,6 @@ import { createLogger } from '@/lib/logger';
 const log = createLogger('studio-audio-api');
 
 /**
- * Audio job status (alias for backwards compatibility)
- */
-export type AudioJobStatus = JobStatus;
-
-/**
  * Audio job record from the API
  */
 export interface AudioJob {
@@ -24,7 +19,7 @@ export interface AudioJob {
   source_id: string;
   source_name: string;
   direction: string;
-  status: AudioJobStatus;
+  status: JobStatus;
   progress: string;
   error: string | null;
   audio_path: string | null;

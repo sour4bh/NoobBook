@@ -76,6 +76,7 @@ def process_embeddings(
 
         owner_user_id = storage_service.get_project_storage_owner_id(project_id)
         uploaded_count = 0
+        missing_uploads: List[str] = []
         for chunk in chunks:
             storage_path = storage_service.upload_chunk(
                 project_id=project_id,
@@ -86,7 +87,22 @@ def process_embeddings(
             )
             if storage_path:
                 uploaded_count += 1
+            else:
+                missing_uploads.append(chunk.chunk_id)
         logger.info("Uploaded %d chunks to Supabase Storage", uploaded_count)
+        if missing_uploads:
+            return {
+                "is_embedded": False,
+                "embedded_at": None,
+                "token_count": token_count,
+                "chunk_count": uploaded_count,
+                "vector_count": 0,
+                "reason": (
+                    f"Chunk storage failed for {len(missing_uploads)} of "
+                    f"{len(chunks)} chunks"
+                ),
+                "missing_chunk_ids": missing_uploads,
+            }
     except Exception as exc:
         logger.exception("Chunk storage workflow error")
         return {

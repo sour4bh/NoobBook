@@ -203,6 +203,13 @@ class SourceSearchExecutor:
 
         # Dedupe by chunk_id
         deduped = self._dedupe_results(results)
+        if not deduped and query:
+            logger.info(
+                "Semantic search returned no results for source %s; "
+                "falling back to local chunks",
+                source_id,
+            )
+            deduped = all_chunks[:self.DEFAULT_TOP_K]
 
         if not deduped:
             return {

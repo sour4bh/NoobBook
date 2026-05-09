@@ -178,7 +178,12 @@ export const useFlowDiagramGeneration = (projectId: string) => {
         // Only reopen if user hasn't navigated to another diagram
         setViewingFlowDiagramJob((current) => current === null ? finalJob : current);
       } else if (finalJob.status === 'error') {
-        showError(finalJob.error || 'Flow diagram edit failed.');
+        const message = finalJob.error || 'Flow diagram edit failed.';
+        if (configErrorTimer.current) clearTimeout(configErrorTimer.current);
+        setConfigError(message);
+        configErrorTimer.current = setTimeout(() => setConfigError(null), 10000);
+        setSavedFlowDiagramJobs((prev) => [finalJob, ...prev]);
+        showError(message);
         setViewingFlowDiagramJob(parentJob); // Restore parent modal so user can retry
       }
     } catch (error) {

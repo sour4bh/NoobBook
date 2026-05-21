@@ -166,8 +166,8 @@ Instead, write a checked-in AST verifier:
 
 Run:
 ```
-python backend/scripts/verify_project_id_coverage.py    # expect: "0 omissions"
-cd backend && pytest -x
+uv run python backend/scripts/verify_project_id_coverage.py    # expect: "0 omissions"
+cd backend && venv/bin/python -m pytest -x
 ```
 
 ### Phase 2 — Dissolve `backend/app/utils/` (~4–6 h, codemod-driven)
@@ -274,14 +274,14 @@ Keep `services/` as an intermediate step if collision with existing module names
 
 ### Phase 5 — Type hints, tests, lint hook (~4–6 h)
 
-**Precondition**: do not add a tracked Python dependency here. Use a pinned `pyright` CLI invocation via the existing JS toolchain instead. This repo already needs Node for the frontend, so Phase 5 can rely on a one-shot pinned run like `pnpm dlx pyright@1.1.409 --version` (or the current pinned version at execution time) without changing `backend/requirements.txt`.
+**Precondition**: do not add a tracked Python dependency here. Use a pinned `pyright` CLI invocation through uvx instead. Phase 5 can rely on a one-shot pinned run like `uvx --from pyright==1.1.409 pyright --version` (or the current pinned version at execution time) without changing `backend/requirements.txt`.
 
 - Add a checked-in `pyrightconfig.json` at repo root. Start with:
   - `"include": ["backend/app"]`
   - `"typeCheckingMode": "standard"`
   - `"strict": ["backend/app/agents", "backend/app/chat/tools", "backend/app/studio/**/tool.py", "backend/app/studio/**/run.py"]`
   - any narrow excludes needed for generated or intentionally dynamic files
-- Run `pnpm dlx pyright@1.1.409` against `backend/app`; fix the reported drift in those migrated targets first, then widen coverage only if the result stays useful. The goal is refactor-safety, not strict-everywhere purity.
+- Run `uvx --from pyright==1.1.409 pyright` against `backend/app`; fix the reported drift in those migrated targets first, then widen coverage only if the result stays useful. The goal is refactor-safety, not strict-everywhere purity.
 - Add `backend/tests/test_main_chat_service_tool_loop.py` pinning the `tool_use` ↔ `tool_result` ID-pairing invariant (including error paths where the executor raises).
 - Add `backend/tests/test_claude_cost_tracking.py` — assert that a `send_message` without `project_id` either raises or logs a warning (whichever we choose post-refactor).
 - Add a pre-commit check that flags new stateless-singleton classes — prevents `class FooService: def __init__(self): pass; foo_service = FooService()` from creeping back in. Implementation: reuse `backend/scripts/verify_project_id_coverage.py` scaffold with a different AST matcher.
@@ -341,14 +341,14 @@ Keep `services/` as an intermediate step if collision with existing module names
 
 ## Verification
 
-**Environment precondition (one-time per checkout)**: backend deps must be installed before any phase gate runs. From a cold checkout, `cd backend && pytest --collect-only -q` fails with `ModuleNotFoundError: No module named 'flask_socketio'` because `tests/conftest.py:7` imports `create_app`, which imports `flask_socketio` at module scope (`app/__init__.py:12`). Run `bin/setup` (or `cd backend && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt && playwright install` on Linux/macOS; the Windows equivalent is documented in the project `CLAUDE.md`). Any verification command below assumes this has completed.
+**Environment precondition (one-time per checkout)**: backend deps must be installed before any phase gate runs. From a cold checkout, `cd backend && venv/bin/python -m pytest --collect-only -q` fails with `ModuleNotFoundError: No module named 'flask_socketio'` because `tests/conftest.py:7` imports `create_app`, which imports `flask_socketio` at module scope (`app/__init__.py:12`). Run `bin/setup` (or `cd backend && uv venv venv --python 3.11 && uv pip install --python venv/bin/python -r requirements.txt && playwright install` on Linux/macOS; the Windows equivalent is documented in the project `CLAUDE.md`). Any verification command below assumes this has completed.
 
 After each phase:
-1. `cd backend && pytest -x` — full suite green.
+1. `cd backend && venv/bin/python -m pytest -x` — full suite green.
 2. Manual smoke: `bin/dev` → upload PDF → chat with citation question → verify `[[cite:...]]` tooltip resolves → trigger a studio mind-map → confirm `GET /api/v1/projects/{id}/costs` increments.
 3. Phase 2 post-check: `rg "from app\.utils\.(claude_parsing|embedding|cost_tracking|...)" backend/app` returns zero (for every moved file).
 4. Phase 3 post-check: `rg "from app\.services\." backend/app` returns only imports consistent with the new layout.
-5. Phase 1 post-check: `python backend/scripts/verify_project_id_coverage.py` reports zero omissions. (The line-based grep equivalent is unreliable — see the Phase 1 verification note.)
+5. Phase 1 post-check: `uv run python backend/scripts/verify_project_id_coverage.py` reports zero omissions. (The line-based grep equivalent is unreliable — see the Phase 1 verification note.)
 
 ## Out of scope
 

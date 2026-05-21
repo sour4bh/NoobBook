@@ -25,7 +25,10 @@ def _convert_svg_to_png(svg_bytes: bytes) -> Optional[bytes]:
         import cairosvg
         return cairosvg.svg2png(bytestring=svg_bytes)
     except ImportError:
-        logger.warning("cairosvg not installed — cannot convert SVG logo to PNG. pip install cairosvg")
+        logger.warning(
+            "cairosvg not installed — cannot convert SVG logo to PNG. "
+            "uv pip install --python venv/bin/python cairosvg"
+        )
         return None
     except Exception as e:
         logger.warning("SVG to PNG conversion failed: %s", e)

@@ -29,9 +29,8 @@ You do **not** need refactory for `NBB-109`, `NBB-207B`, or `NBB-207C` (those us
    cp .mcp.json.example .mcp.json
    # Edit .mcp.json: replace <PATH_TO_REFACTORY> with the absolute path
    ```
-   The `.mcp.json` path starts refactory's `server/main.py` directly and **skips the `SessionStart` hook**, so install dependencies manually first:
+   The `.mcp.json` path starts refactory's `server/main.py` through `uv run --with rope --with mcp`, so Python dependencies are resolved by uv. Install the TypeScript helper dependencies manually first:
    ```bash
-   pip install rope mcp
    (cd /path/to/refactory/server/tsmorph && pnpm install)
    ```
    Skip the `pnpm install` only if you won't touch TypeScript (e.g. backend-only tickets).

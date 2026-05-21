@@ -3,8 +3,8 @@
 # bin/setup - First-time setup for NoobBook development environment
 #
 # This script:
-# 1. Creates Python virtual environment
-# 2. Installs backend dependencies
+# 1. Creates Python virtual environment with uv
+# 2. Installs backend dependencies with uv
 # 3. Installs frontend dependencies
 # 4. Creates .env from template if needed
 # 5. Installs Playwright browsers
@@ -51,7 +51,7 @@ check_command() {
 
 MISSING_DEPS=false
 
-check_command "python3" "brew install python3" || MISSING_DEPS=true
+check_command "uv" "https://docs.astral.sh/uv/getting-started/installation/" || MISSING_DEPS=true
 check_command "node" "brew install node" || MISSING_DEPS=true
 check_command "npm" "brew install node" || MISSING_DEPS=true
 
@@ -78,7 +78,7 @@ echo -e "${BLUE}Setting up backend...${NC}"
 # Create virtual environment
 if [ ! -d "$BACKEND_DIR/venv" ]; then
     echo "  Creating Python virtual environment..."
-    (cd "$BACKEND_DIR" && python3 -m venv venv)
+    (cd "$BACKEND_DIR" && uv venv venv --python 3.11)
     echo -e "  ${GREEN}✓${NC} Virtual environment created"
 else
     echo -e "  ${GREEN}✓${NC} Virtual environment exists"
@@ -86,7 +86,7 @@ fi
 
 # Install Python dependencies
 echo "  Installing Python packages (this may take a minute)..."
-(cd "$BACKEND_DIR" && source venv/bin/activate && pip install -r requirements.txt --quiet)
+(cd "$BACKEND_DIR" && uv pip install --python venv/bin/python -r requirements.txt)
 echo -e "  ${GREEN}✓${NC} Python packages installed"
 
 # Create .env if needed

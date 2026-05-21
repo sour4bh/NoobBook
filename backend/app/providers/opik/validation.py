@@ -20,7 +20,7 @@ def validate_opik_key(api_key: str) -> Tuple[bool, str]:
         opik.configure(api_key=api_key)
         return True, "Valid Opik API key"
     except ImportError:
-        return False, "opik package not installed (run: pip install opik)"
+        return False, "opik package not installed (run: uv pip install --python venv/bin/python opik)"
     except Exception as e:
         logger.error("Opik validation error: %s: %s", type(e).__name__, e)
         return False, f"Validation failed: {str(e)[:100]}"

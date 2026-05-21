@@ -90,9 +90,9 @@ class Config:
 
     @classmethod
     def init_app(cls, app: Any) -> None:
-        cls.DATA_DIR.mkdir(exist_ok=True)
-        cls.PROJECTS_DIR.mkdir(exist_ok=True)
-        cls.TEMP_DIR.mkdir(exist_ok=True)
+        cls.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        cls.PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+        cls.TEMP_DIR.mkdir(parents=True, exist_ok=True)
         app.config["SECRET_KEY"] = cls.SECRET_KEY
         app.config["CORS_ALLOWED_ORIGINS"] = list(dict.fromkeys(cls.CORS_ALLOWED_ORIGINS))
         app.config["FRONTEND_ORIGIN"] = cls.FRONTEND_ORIGIN
@@ -126,6 +126,8 @@ class TestingConfig(Config):
     TESTING = True
     LOG_LEVEL = "DEBUG"
     DATA_DIR = Config.BASE_DIR / "test_data"
+    PROJECTS_DIR = DATA_DIR / "projects"
+    TEMP_DIR = DATA_DIR / "temp"
 
 
 config = {

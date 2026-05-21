@@ -20,7 +20,7 @@ NoobBook requires **Supabase** (PostgreSQL + Storage + Auth). The app will not s
 
 | Requirement | Install |
 |-------------|---------|
-| **Python 3.10+** | `brew install python3` (macOS) / `sudo apt install python3 python3-venv` (Ubuntu) |
+| **uv** | `brew install uv` (macOS) / [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/) (Ubuntu) |
 | **Node.js 18+** | `brew install node` (macOS) / [nodesource](https://github.com/nodesource/distributions) (Ubuntu) |
 | **Docker & Docker Compose** | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) |
 | **LibreOffice** (optional) | `brew install libreoffice` / `sudo apt install libreoffice` — for DOCX/PPTX processing |
@@ -134,7 +134,7 @@ bin/setup                     # Creates venv, installs all dependencies
 bin/dev                       # Starts backend (:5001) + frontend (:5173)
 
 # Windows
-cd backend && python -m venv venv && venv\Scripts\activate && pip install -r requirements.txt
+cd backend && uv venv venv --python 3.11 && uv pip install --python venv\Scripts\python.exe -r requirements.txt && venv\Scripts\activate
 cd ..\frontend && npm install
 cd ..
 python start.py               # Starts both servers (run from repo root)
@@ -171,7 +171,7 @@ For the full self-hosted Supabase guide, see [`backend/supabase/SETUP.md`](backe
 
 5. **Run tests**
    ```bash
-   cd backend && pytest
+   cd backend && venv/bin/python -m pytest
    ```
 
 6. **Push and open a Pull Request against `main`**

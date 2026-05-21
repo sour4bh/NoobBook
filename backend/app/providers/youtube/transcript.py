@@ -10,7 +10,7 @@ is configured, the service will try fetching without a proxy first, then fallbac
 rotating Webshare proxies on IP-related failures. Content errors (disabled transcripts,
 private videos) are NOT retried with a proxy since they'd fail regardless.
 
-Install: pip install youtube-transcript-api
+Install: uv pip install --python venv/bin/python youtube-transcript-api
 """
 
 import logging

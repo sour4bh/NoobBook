@@ -120,7 +120,7 @@ echo ""
 check_backend_deps() {
     if [ ! -d "$BACKEND_DIR/venv" ]; then
         echo -e "${RED}Error: Backend virtual environment not found${NC}"
-        echo -e "Run: ${CYAN}cd backend && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt${NC}"
+        echo -e "Run: ${CYAN}bin/setup${NC}"
         return 1
     fi
 
@@ -152,12 +152,18 @@ install_deps() {
 
     # Backend
     echo -e "${CYAN}Backend:${NC}"
+    if ! command -v uv &> /dev/null; then
+        echo -e "${RED}Error: uv is required for backend dependency installation${NC}"
+        echo -e "Install uv: ${CYAN}https://docs.astral.sh/uv/getting-started/installation/${NC}"
+        exit 1
+    fi
+
     if [ ! -d "$BACKEND_DIR/venv" ]; then
         echo "  Creating virtual environment..."
-        (cd "$BACKEND_DIR" && python3 -m venv venv)
+        (cd "$BACKEND_DIR" && uv venv venv --python 3.11)
     fi
     echo "  Installing Python packages..."
-    (cd "$BACKEND_DIR" && source venv/bin/activate && pip install -r requirements.txt --quiet)
+    (cd "$BACKEND_DIR" && uv pip install --python venv/bin/python -r requirements.txt)
     echo -e "  ${GREEN}Done${NC}"
     echo ""
 

@@ -95,14 +95,14 @@ pass.
 
 Three additional CI guardrails ship with NBB-704C:
 
-- `pnpm dlx pyright@1.1.409 --project pyrightconfig.json` — pyright
+- `uvx --from pyright==1.1.409 pyright --project pyrightconfig.json` — pyright
   type-checking on `backend/app/`. Pinned at version 1.1.409 (do not float
-  to `@latest`); pyright is intentionally not added to
+  to latest); pyright is intentionally not added to
   `backend/requirements.txt`.
-- `python backend/scripts/verify_project_id_coverage.py` — every call to
+- `uv run python backend/scripts/verify_project_id_coverage.py` — every call to
   `claude_service.send_message` (or `stream_message`) must pass a
   `project_id`. Owned by NBB-109; wired to CI by NBB-704C.
-- `python backend/scripts/verify_no_stateless_singletons.py` — flags new
+- `uv run python backend/scripts/verify_no_stateless_singletons.py` — flags new
   module-level `class *Service` or `class *Executor` definitions whose
   `__init__` is empty when the same module assigns a singleton instance.
   Ten baseline candidates at `f3281a7` are allowlisted as `(rel_path,

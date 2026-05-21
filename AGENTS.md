@@ -22,9 +22,9 @@ bin/dev --install         # Update deps before starting
 ```bash
 # First time setup
 cd backend
-python -m venv venv
+uv venv venv --python 3.11
+uv pip install --python venv\Scripts\python.exe -r requirements.txt
 venv\Scripts\activate
-pip install -r requirements.txt
 
 cd ..\frontend
 npm install
@@ -47,10 +47,11 @@ cd frontend && npm run test:run  # Frontend unit tests
 ### System Dependencies (Required)
 ```bash
 # macOS
-brew install libreoffice ffmpeg
+brew install uv libreoffice ffmpeg
 npx playwright install
 
 # Ubuntu/Debian
+curl -LsSf https://astral.sh/uv/install.sh | sh
 sudo apt install libreoffice ffmpeg
 npx playwright install
 ```
@@ -71,13 +72,13 @@ This starts 16 containers including PostgreSQL, Supabase services, and MinIO for
 ### Testing
 ```bash
 # Backend tests
-cd backend && pytest
+cd backend && venv/bin/python -m pytest
 
 # Single test file
-cd backend && pytest tests/test_cost_tracking.py -v
+cd backend && venv/bin/python -m pytest tests/test_cost_tracking.py -v
 
 # Source-related tests
-cd backend && pytest tests/sources -q
+cd backend && venv/bin/python -m pytest tests/sources -q
 ```
 
 ### Environment Variables

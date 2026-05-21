@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from flask import Flask
+
 from app.config.runtime import Config, RuntimeSettings
 
 
@@ -63,6 +65,20 @@ def test_backend_config_module_collision_is_removed() -> None:
     assert Config.BASE_DIR == backend_dir
 
 
+def test_config_init_creates_nested_data_directories(tmp_path: Path) -> None:
+    class IsolatedConfig(Config):
+        DATA_DIR = tmp_path / "missing" / "data"
+        PROJECTS_DIR = DATA_DIR / "projects"
+        TEMP_DIR = DATA_DIR / "temp"
+
+    app = Flask(__name__)
+
+    IsolatedConfig.init_app(app)
+
+    assert IsolatedConfig.PROJECTS_DIR.is_dir()
+    assert IsolatedConfig.TEMP_DIR.is_dir()
+
+
 def test_app_factory_uses_runtime_config() -> None:
     from app import create_app
 
@@ -70,3 +86,5 @@ def test_app_factory_uses_runtime_config() -> None:
 
     assert app.config["API_PREFIX"] == "/api/v1"
     assert app.config["APP_NAME"] == "NoobBook"
+    assert app.config["PROJECTS_DIR"] == app.config["DATA_DIR"] / "projects"
+    assert app.config["TEMP_DIR"] == app.config["DATA_DIR"] / "temp"

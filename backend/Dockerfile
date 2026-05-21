@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /uvx /usr/local/bin/
+
 # System dependencies for document processing and browser automation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice \
@@ -26,18 +28,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install uv (provides uvx for stdio MCP servers like freshdesk-mcp)
-# and Node.js (provides npx for npm-based MCP servers)
+# Install Node.js (provides npx for npm-based MCP servers).
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
-ENV PATH="/root/.local/bin:$PATH"
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Install Playwright Chromium browser
 RUN playwright install chromium

@@ -202,7 +202,7 @@ Before you begin, make sure you have:
 |-------------|---------|-------|
 | **Docker Desktop** | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) | `docker info` |
 | **Docker Compose v2** | Included with Docker Desktop | `docker compose version` |
-| **Python 3** | `brew install python3` (macOS) / `sudo apt install python3` (Ubuntu) | `python3 --version` |
+| **uv** | `brew install uv` (macOS) / [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/) (Ubuntu) | `uv --version` |
 
 > **Important:** Docker Desktop must be **running** (not just installed). Open it from your Applications before running setup.
 
@@ -282,7 +282,7 @@ bash docker/setup.sh
 ```
 
 This will:
-1. Check prerequisites (Docker running, ports free, python3 available)
+1. Check prerequisites (Docker running, ports free, uv available)
 2. Generate Supabase secrets (JWT tokens, database passwords)
 3. Create the Docker network
 4. Start Supabase services (PostgreSQL, Auth, Storage, API gateway)
@@ -441,9 +441,9 @@ bin/dev --install             # Update deps before starting
 Windows:
 ```bash
 cd backend
-python -m venv venv
+uv venv venv --python 3.11
+uv pip install --python venv\Scripts\python.exe -r requirements.txt
 venv\Scripts\activate
-pip install -r requirements.txt
 
 cd ..\frontend
 npm install

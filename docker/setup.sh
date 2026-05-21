@@ -55,10 +55,11 @@ else
     error "Docker Compose is not installed. See https://docs.docker.com/compose/install/"
 fi
 
-# Python3 is required for JWT generation (macOS LibreSSL segfaults with openssl)
-command -v python3 >/dev/null 2>&1 || error "Python3 is not installed. Install via: brew install python3"
+# uv supplies the Python runtime used for JWT generation (macOS LibreSSL
+# can segfault with openssl dgst -hmac -binary on certain versions).
+command -v uv >/dev/null 2>&1 || error "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"
 
-success "Docker and Docker Compose found ($COMPOSE)"
+success "Docker, Docker Compose, and uv found ($COMPOSE)"
 
 # Stop any existing NoobBook/Supabase containers so ports are freed before checks.
 # This makes setup.sh safe to re-run without manually stopping first.
@@ -107,9 +108,9 @@ replace_env_var() {
 generate_jwt() {
     local role="$1"
     local secret="$2"
-    # Use Python for JWT generation — macOS LibreSSL's openssl dgst -hmac -binary
-    # can segfault (exit 139) on certain versions.
-    python3 -c "
+    # Use Python through uv for JWT generation — macOS LibreSSL's
+    # openssl dgst -hmac -binary can segfault (exit 139) on certain versions.
+    uv run --python 3.11 python -c "
 import hmac, hashlib, base64, json
 
 def b64url(data):

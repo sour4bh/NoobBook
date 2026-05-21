@@ -46,7 +46,7 @@ class GoogleVideoService:
             except ImportError:
                 raise ImportError(
                     "google-genai package not installed. "
-                    "Install with: pip install google-genai"
+                    "Install with: uv pip install --python venv/bin/python google-genai"
                 )
 
         if self._client is None:
@@ -59,7 +59,7 @@ class GoogleVideoService:
             except ImportError:
                 raise ImportError(
                     "google-genai package not installed. "
-                    "Install with: pip install google-genai"
+                    "Install with: uv pip install --python venv/bin/python google-genai"
                 )
         return self._client
 

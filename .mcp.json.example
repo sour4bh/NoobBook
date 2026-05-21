@@ -1,8 +1,18 @@
 {
   "mcpServers": {
     "refactory": {
-      "command": "python",
-      "args": ["<PATH_TO_REFACTORY>/server/main.py"],
+      "command": "uv",
+      "args": [
+        "run",
+        "--python",
+        "3.11",
+        "--with",
+        "rope",
+        "--with",
+        "mcp",
+        "python",
+        "<PATH_TO_REFACTORY>/server/main.py"
+      ],
       "cwd": "<PATH_TO_REFACTORY>/server"
     }
   }

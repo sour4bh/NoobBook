@@ -41,10 +41,11 @@ def check_venv():
     print_status("Virtual environment not found!", Colors.RED)
     print_status("Please create it first:", Colors.YELLOW)
     print("  cd backend")
-    print("  python -m venv venv")
+    print("  uv venv venv --python 3.11")
+    print("  uv pip install --python venv/bin/python -r requirements.txt  # macOS/Linux")
+    print("  uv pip install --python venv\\Scripts\\python.exe -r requirements.txt  # Windows")
     print("  source venv/bin/activate  # macOS/Linux")
     print("  venv\\Scripts\\activate     # Windows")
-    print("  pip install -r requirements.txt")
     return False
   return True
 
